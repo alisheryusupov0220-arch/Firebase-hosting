@@ -1,17 +1,16 @@
-
 import { format } from 'date-fns';
 
 const API_URL = process.env.POSTER_API_URL;
 const API_KEY = process.env.POSTER_API_KEY;
 
+// This function will now throw on API or network errors, mimicking the user's script.
 async function posterApiFetch(
   method: string,
   httpMethod: 'GET' | 'POST',
   payload: Record<string, any> = {}
 ) {
   if (!API_URL || !API_KEY) {
-    console.error('Poster API URL or Key is not configured in .env.local.');
-    return httpMethod === 'POST' ? { error: { message: 'API not configured' } } : [];
+    throw new Error('Poster API URL or Key is not configured in environment variables.');
   }
 
   const url = `${API_URL}${method}?token=${encodeURIComponent(API_KEY)}`;
@@ -19,8 +18,6 @@ async function posterApiFetch(
   const options: RequestInit = {
     method: httpMethod,
     headers: {},
-    // Disable caching for server-side fetches to ensure fresh data.
-    // This is crucial for Next.js App Router.
     cache: 'no-store',
   };
 
@@ -29,44 +26,28 @@ async function posterApiFetch(
     options.body = JSON.stringify(payload);
   }
 
-  try {
-    const response = await fetch(url, options);
-    
-    // It's possible to get a non-JSON response on failure (e.g. HTML error page).
-    const responseText = await response.text();
-    
-    if (!response.ok) {
-        console.error(`Poster API request failed for method ${method}:`, {
-            status: response.status,
-            statusText: response.statusText,
-            body: responseText,
-        });
-        // For POST, we want to return an object that the action can parse for an error message
-        return httpMethod === 'POST' ? { error: { message: `API Error: ${response.status} ${response.statusText}` } } : [];
-    }
-
-    const data = JSON.parse(responseText);
-
-    // This handles cases like { "response": false } or { "error": { ... } }
-    // The user's script showed that `response` can be the data or `false`.
-    if (data.response === false || data.error) {
-       console.warn(`Poster API for method ${method} returned a non-successful response:`, data);
-       
-       // For createSupply, the action needs the specific error details.
-       if (method === 'storage.createSupply' && data.error) {
-           return data;
-       }
-       // For all other cases, especially GET requests, returning an empty array is safe.
-       return [];
-    }
-    
-    // Success case: return the actual data payload.
-    return data.response;
-
-  } catch (error) {
-      console.error(`A network or parsing error occurred during fetch for method ${method}:`, error);
-      return httpMethod === 'POST' ? { error: { message: 'Network or parsing error' } } : [];
+  const response = await fetch(url, options);
+  
+  const responseText = await response.text();
+  if (!response.ok) {
+    throw new Error(`Poster API network error for method ${method}: ${response.status} ${response.statusText} - ${responseText}`);
   }
+
+  let data;
+  try {
+    data = JSON.parse(responseText);
+  } catch (e) {
+    throw new Error(`Failed to parse JSON response from Poster API for method ${method}: ${responseText}`);
+  }
+
+  // Following the user's script logic: throw if the API indicates an error.
+  if (data.response === false || data.error) {
+    const errorDetails = data.error ? JSON.stringify(data.error) : 'response was false';
+    throw new Error(`Poster API logical error for method ${method}: ${errorDetails}`);
+  }
+  
+  // Return the successful response payload.
+  return data.response;
 }
 
 
@@ -82,9 +63,15 @@ export type Supply = {
 };
 
 
+// The GET functions will now handle errors and return empty arrays on failure.
 export async function getSupplies(): Promise<Supply[]> {
-  const response = await posterApiFetch('storage.getSupplies', 'GET');
-  return Array.isArray(response) ? response : [];
+  try {
+    const response = await posterApiFetch('storage.getSupplies', 'GET');
+    return Array.isArray(response) ? response : [];
+  } catch (error) {
+    console.error("Failed to get supplies:", error);
+    return [];
+  }
 }
 
 export type Storage = {
@@ -103,6 +90,38 @@ export type Ingredient = {
     ingredient_unit: string;
 };
 
+export async function getStorages(): Promise<Storage[]> {
+    try {
+        const response = await posterApiFetch('storage.getStorages', 'GET');
+        return Array.isArray(response) ? response : [];
+    } catch (error) {
+        console.error("Failed to get storages:", error);
+        return [];
+    }
+}
+
+export async function getPosterSuppliers(): Promise<PosterSupplier[]> {
+    try {
+        const response = await posterApiFetch('storage.getSuppliers', 'GET');
+        return Array.isArray(response) ? response : [];
+    } catch (error) {
+        console.error("Failed to get suppliers:", error);
+        return [];
+    }
+}
+
+export async function getIngredients(): Promise<Ingredient[]> {
+    try {
+        const response = await posterApiFetch('menu.getIngredients', 'GET');
+        return Array.isArray(response) ? response : [];
+    } catch (error) {
+        console.error("Failed to get ingredients:", error);
+        return [];
+    }
+}
+
+
+// Create Supply types and function
 export type NewSupplyIngredient = {
     ingredient_id: number;
     count: number;
@@ -116,22 +135,7 @@ export type CreateSupplyData = {
     ingredients: NewSupplyIngredient[];
 };
 
-
-export async function getStorages(): Promise<Storage[]> {
-    const response = await posterApiFetch('storage.getStorages', 'GET');
-    return Array.isArray(response) ? response : [];
-}
-
-export async function getPosterSuppliers(): Promise<PosterSupplier[]> {
-    const response = await posterApiFetch('storage.getSuppliers', 'GET');
-    return Array.isArray(response) ? response : [];
-}
-
-export async function getIngredients(): Promise<Ingredient[]> {
-    const response = await posterApiFetch('menu.getIngredients', 'GET');
-    return Array.isArray(response) ? response : [];
-}
-
+// This function will now let errors bubble up to the server action.
 export async function createSupply(data: CreateSupplyData) {
     const payload = {
       supply: {
@@ -139,13 +143,16 @@ export async function createSupply(data: CreateSupplyData) {
         storage_id: data.storage_id,
         date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
       },
+      // The user's script uses `id`, `num`, `type`, `price`.
       ingredient: data.ingredients.map(ing => ({
         id: String(ing.ingredient_id),
         num: String(ing.count),
-        type: "4", // As per the user's example script
+        type: "4", 
         price: String(ing.price)
       }))
     };
     
-    return posterApiFetch('storage.createSupply', 'POST', payload);
+    // The response here will be the new supply ID from posterApiFetch on success,
+    // or posterApiFetch will throw on error.
+    return await posterApiFetch('storage.createSupply', 'POST', payload);
 }
