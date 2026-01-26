@@ -8,15 +8,23 @@ async function posterApiFetch(method: string, params: Record<string, any> = {}) 
     throw new Error('Poster API URL or Key is not configured.');
   }
 
-  const url = new URL(`${API_URL}/${method}`);
-  url.searchParams.append('token', API_KEY);
-  url.searchParams.append('format', 'json');
+  const url = `${API_URL}/${method}`;
+  
+  const body = new URLSearchParams();
+  body.append('token', API_KEY);
+  body.append('format', 'json');
 
   for (const key in params) {
-    url.searchParams.append(key, params[key]);
+    body.append(key, params[key]);
   }
 
-  const response = await fetch(url.toString());
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: body,
+  });
 
   if (!response.ok) {
     const errorBody = await response.text();
@@ -51,8 +59,13 @@ export type Supply = {
 
 
 export async function getSupplies(params: { date_from?: string; date_to?: string } = {}): Promise<Supply[]> {
-  const response = await posterApiFetch('storage.getSupplies', params);
-  return Array.isArray(response) ? response : [];
+  try {
+    const response = await posterApiFetch('storage.getSupplies', params);
+    return Array.isArray(response) ? response : [];
+  } catch (error) {
+    console.error("Failed to fetch supplies:", error);
+    return [];
+  }
 }
 
 export type Storage = {
@@ -86,18 +99,33 @@ export type CreateSupplyData = {
 
 
 export async function getStorages(): Promise<Storage[]> {
-    const response = await posterApiFetch('storage.getStorages');
-    return Array.isArray(response) ? response : [];
+    try {
+        const response = await posterApiFetch('storage.getStorages');
+        return Array.isArray(response) ? response : [];
+    } catch (error) {
+        console.error("Failed to fetch storages:", error);
+        return [];
+    }
 }
 
 export async function getPosterSuppliers(): Promise<PosterSupplier[]> {
-    const response = await posterApiFetch('storage.getSuppliers');
-    return Array.isArray(response) ? response : [];
+    try {
+        const response = await posterApiFetch('storage.getSuppliers');
+        return Array.isArray(response) ? response : [];
+    } catch (error) {
+        console.error("Failed to fetch suppliers:", error);
+        return [];
+    }
 }
 
 export async function getIngredients(): Promise<Ingredient[]> {
-    const response = await posterApiFetch('menu.getIngredients');
-    return Array.isArray(response) ? response : [];
+    try {
+        const response = await posterApiFetch('menu.getIngredients');
+        return Array.isArray(response) ? response : [];
+    } catch (error) {
+        console.error("Failed to fetch ingredients:", error);
+        return [];
+    }
 }
 
 export async function createSupply(data: CreateSupplyData) {

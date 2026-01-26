@@ -13,24 +13,10 @@ import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { AddSupplyDialog } from '@/components/supplies/add-supply-dialog';
 
-async function getSuppliesData(): Promise<Supply[]> {
-    try {
-        // By not providing dates, we should get recent supplies from Poster API.
-        // This avoids issues with incorrect server clock.
-        const supplies = await getSupplies();
-        // Poster API might return an empty object if there are no results
-        return Array.isArray(supplies) ? supplies : [];
-    } catch (error) {
-        console.error("Failed to fetch supplies:", error);
-        // Return empty array to prevent crashing the page
-        return [];
-    }
-}
-
 
 export default async function SuppliesPage() {
   const [supplies, storages, suppliers, ingredients] = await Promise.all([
-    getSuppliesData(),
+    getSupplies(),
     getStorages(),
     getPosterSuppliers(),
     getIngredients()
