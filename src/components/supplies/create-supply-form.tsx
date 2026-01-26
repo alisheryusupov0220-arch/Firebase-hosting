@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Trash } from 'lucide-react';
+import { Check, ChevronsUpDown, Trash } from 'lucide-react';
 import type { Ingredient, PosterSupplier, Storage } from '@/lib/poster';
 import { requestSupplyAction } from '@/app/(app)/supplies/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -61,52 +61,47 @@ function IngredientCombobox({ ingredients, value, onChange }: { ingredients: Ing
   const [searchTerm, setSearchTerm] = React.useState('');
 
   const selectedIngredientName = React.useMemo(() => {
-    return value ? ingredients.find(i => i.ingredient_id === value)?.ingredient_name ?? '' : '';
+    if (!value) return "Выберите ингредиент";
+    return ingredients.find(i => i.ingredient_id === value)?.ingredient_name ?? "Выберите ингредиент";
   }, [value, ingredients]);
 
-  // Use the search term for display if the popover is open, otherwise show the selected name
-  const displayedValue = open ? searchTerm : selectedIngredientName;
-
   const filteredIngredients = React.useMemo(() => {
-    if (!searchTerm) {
-      return ingredients;
-    }
+    if (!searchTerm) return ingredients;
     return ingredients.filter((ing) =>
       ing.ingredient_name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [searchTerm, ingredients]);
   
+  React.useEffect(() => {
+    if (!open) {
+      setSearchTerm('');
+    }
+  }, [open]);
+
   return (
-    <Popover open={open} onOpenChange={(isOpen) => {
-        setOpen(isOpen);
-        // When closing the popover, reset the search term
-        if (!isOpen) {
-            setSearchTerm('');
-        }
-    }}>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Input
-          value={displayedValue}
-          onChange={(e) => {
-            // Always set open to true when user starts typing
-            if (!open) setOpen(true);
-            setSearchTerm(e.target.value);
-          }}
-          onClick={() => setOpen(true)}
+        <Button
+          variant="outline"
           role="combobox"
           aria-expanded={open}
-          placeholder="Начните вводить для поиска..."
-          className="w-full"
-        />
+          className="w-full justify-between font-normal"
+        >
+          <span className='truncate'>{selectedIngredientName}</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
       </PopoverTrigger>
-      <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0"
-        onMouseDown={(e) => {
-          // Prevent the input from losing focus when clicking inside the popover
-          e.preventDefault();
-        }}
-      >
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+        <div className="p-2">
+            <Input
+              placeholder="Поиск..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              autoFocus
+            />
+        </div>
         <ScrollArea className="h-48">
+          <div className='p-1'>
           {filteredIngredients.length > 0 ? (
             filteredIngredients.map((ing) => (
               <div
@@ -114,19 +109,19 @@ function IngredientCombobox({ ingredients, value, onChange }: { ingredients: Ing
                 onClick={() => {
                   onChange(String(ing.ingredient_id));
                   setOpen(false);
-                  setSearchTerm(''); // Reset search term on selection
                 }}
                 className={cn(
-                  "p-2 text-sm hover:bg-accent cursor-pointer",
-                  ing.ingredient_id === value && "bg-accent"
+                  "p-2 text-sm hover:bg-accent cursor-pointer rounded-sm flex items-center",
                 )}
               >
+                <Check className={cn("mr-2 h-4 w-4", value === ing.ingredient_id ? "opacity-100" : "opacity-0")} />
                 {ing.ingredient_name} ({ing.ingredient_unit})
               </div>
             ))
           ) : (
             <div className="p-2 text-sm text-center text-muted-foreground">Ингредиент не найден.</div>
           )}
+          </div>
         </ScrollArea>
       </PopoverContent>
     </Popover>
