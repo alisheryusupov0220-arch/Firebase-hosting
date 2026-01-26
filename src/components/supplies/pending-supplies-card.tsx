@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { useCollection } from '@/firebase/hooks';
-import { collection, query, where, orderBy, getFirestore } from 'firebase/firestore';
+import { useCollection, useFirestore } from '@/firebase/hooks';
+import { collection, query, where, orderBy } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -20,12 +20,17 @@ type PendingSuppliesCardProps = {
 
 export function PendingSuppliesCard({ storages, suppliers, ingredients }: PendingSuppliesCardProps) {
     const { toast } = useToast();
-    const firestore = getFirestore();
-    const pendingSuppliesQuery = query(
-        collection(firestore, 'pendingSupplies'),
-        where('status', '==', 'pending'),
-        orderBy('createdAt', 'desc')
-    );
+    const firestore = useFirestore();
+    
+    const pendingSuppliesQuery = useMemo(() => {
+        if (!firestore) return null;
+        return query(
+            collection(firestore, 'pendingSupplies'),
+            where('status', '==', 'pending'),
+            orderBy('createdAt', 'desc')
+        );
+    }, [firestore]);
+
     const { data: pendingSupplies, loading, error } = useCollection(pendingSuppliesQuery);
     
     const dataMap = useMemo(() => ({
