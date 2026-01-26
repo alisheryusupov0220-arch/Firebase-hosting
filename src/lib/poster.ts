@@ -2,30 +2,40 @@
 const API_URL = process.env.POSTER_API_URL;
 const API_KEY = process.env.POSTER_API_KEY;
 
-async function posterApiFetch(method: string, params: Record<string, any> = {}) {
+async function posterApiFetch(
+  method: string, 
+  params: Record<string, any> = {},
+  httpMethod: 'GET' | 'POST' = 'GET'
+) {
   if (!API_URL || !API_KEY) {
     // This case should be handled by the .env.local setup, but as a fallback:
     console.error('Poster API URL or Key is not configured.');
     return []; // Return empty array to prevent crashes on map/filter etc.
   }
 
-  const url = `${API_URL}/${method}`;
-  
-  const body = new URLSearchParams();
-  body.append('token', API_KEY);
-  body.append('format', 'json');
+  const allParams = new URLSearchParams();
+  allParams.append('token', API_KEY);
+  allParams.append('format', 'json');
 
   for (const key in params) {
-    body.append(key, params[key]);
+    allParams.append(key, params[key]);
   }
 
-  const response = await fetch(url.toString(), {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: body,
-  });
+  let response: Response;
+  
+  if (httpMethod === 'GET') {
+    const url = `${API_URL}/${method}?${allParams.toString()}`;
+    response = await fetch(url);
+  } else { // POST
+    const url = `${API_URL}/${method}`;
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: allParams,
+    });
+  }
 
   if (!response.ok) {
     const errorBody = await response.text();
@@ -78,7 +88,7 @@ export type Supply = {
 
 export async function getSupplies(): Promise<Supply[]> {
   try {
-    const response = await posterApiFetch('storage.getSupplies');
+    const response = await posterApiFetch('storage.getSupplies', {}, 'GET');
     return Array.isArray(response) ? response : [];
   } catch (error) {
     console.error("Failed to fetch supplies:", error);
@@ -118,7 +128,7 @@ export type CreateSupplyData = {
 
 export async function getStorages(): Promise<Storage[]> {
     try {
-        const response = await posterApiFetch('storage.getStorages');
+        const response = await posterApiFetch('storage.getStorages', {}, 'GET');
         return Array.isArray(response) ? response : [];
     } catch (error) {
         console.error("Failed to fetch storages:", error);
@@ -128,7 +138,7 @@ export async function getStorages(): Promise<Storage[]> {
 
 export async function getPosterSuppliers(): Promise<PosterSupplier[]> {
     try {
-        const response = await posterApiFetch('storage.getSuppliers');
+        const response = await posterApiFetch('storage.getSuppliers', {}, 'GET');
         return Array.isArray(response) ? response : [];
     } catch (error)
  {
@@ -139,7 +149,7 @@ export async function getPosterSuppliers(): Promise<PosterSupplier[]> {
 
 export async function getIngredients(): Promise<Ingredient[]> {
     try {
-        const response = await posterApiFetch('menu.getIngredients');
+        const response = await posterApiFetch('menu.getIngredients', {}, 'GET');
         return Array.isArray(response) ? response : [];
     } catch (error) {
         console.error("Failed to fetch ingredients:", error);
@@ -158,5 +168,5 @@ export async function createSupply(data: CreateSupplyData) {
         params.comment = data.comment;
     }
 
-    return posterApiFetch('storage.createSupply', params);
+    return posterApiFetch('storage.createSupply', params, 'POST');
 }
