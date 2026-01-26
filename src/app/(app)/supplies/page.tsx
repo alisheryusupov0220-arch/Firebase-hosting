@@ -1,4 +1,3 @@
-import { PageHeader } from '@/components/layout/page-header';
 import {
   Table,
   TableBody,
@@ -11,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { getSupplies, type Supply, getStorages, getPosterSuppliers, getIngredients } from '@/lib/poster';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { AddSupplyDialog } from '@/components/supplies/add-supply-dialog';
+import { SuppliesPageHeader } from "@/components/supplies/supplies-page-header";
 
 
 export default async function SuppliesPage() {
@@ -41,14 +40,11 @@ export default async function SuppliesPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <PageHeader title="Поставки" description="Учет поступлений товаров и материалов." />
-        <AddSupplyDialog 
-          storages={storages}
-          suppliers={suppliers}
-          ingredients={ingredients}
-        />
-      </div>
+      <SuppliesPageHeader
+        storages={storages}
+        suppliers={suppliers}
+        ingredients={ingredients}
+      />
       <Card>
         <CardHeader>
             <CardTitle>Последние поставки</CardTitle>
