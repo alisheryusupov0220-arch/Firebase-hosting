@@ -84,7 +84,12 @@ function IngredientCombobox({ ingredients, value, onChange }: { ingredients: Ing
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+      <PopoverContent
+        className="w-[--radix-popover-trigger-width] p-0"
+        onMouseDown={(e) => {
+          e.preventDefault();
+        }}
+      >
         <div className="p-2">
           <Input
             placeholder="Поиск ингредиента..."
