@@ -40,7 +40,7 @@ async function posterApiFetch(method: string, params: Record<string, any> = {}) 
 
   if (data.error) {
     // Poster API sometimes returns an empty error object `{}` which is not a real error.
-    if (Object.keys(data.error).length > 0) {
+    if (data.error.message || data.error.code) {
       console.error(`Poster API error for method ${method}:`, data.error);
       const message = data.error.message || 'No message provided.';
       const code = data.error.code || 'N/A';
