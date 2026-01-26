@@ -56,13 +56,15 @@ type CreateSupplyFormProps = {
 };
 
 
-function IngredientCombobox({ ingredients, value, onChange }: { ingredients: Ingredient[]; value: string; onChange: (value: string) => void; }) {
+// A stable, standalone Combobox component to prevent re-render issues.
+const IngredientCombobox = ({ ingredients, value, onChange }: { ingredients: Ingredient[]; value: string; onChange: (value: string) => void; }) => {
   const [open, setOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState('');
 
   const selectedIngredientName = React.useMemo(() => {
     if (!value) return "Выберите ингредиент";
-    return ingredients.find(i => i.ingredient_id === value)?.ingredient_name ?? "Выберите ингредиент";
+    const selected = ingredients.find(i => i.ingredient_id === value);
+    return selected ? `${selected.ingredient_name} (${selected.ingredient_unit})` : "Выберите ингредиент";
   }, [value, ingredients]);
 
   const filteredIngredients = React.useMemo(() => {
@@ -71,7 +73,8 @@ function IngredientCombobox({ ingredients, value, onChange }: { ingredients: Ing
       ing.ingredient_name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [searchTerm, ingredients]);
-  
+
+  // Reset search term when the popover closes
   React.useEffect(() => {
     if (!open) {
       setSearchTerm('');
@@ -91,51 +94,52 @@ function IngredientCombobox({ ingredients, value, onChange }: { ingredients: Ing
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent 
+      <PopoverContent
         className="w-[--radix-popover-trigger-width] p-0"
         side="top"
         align="start"
+        // This is the critical fix: prevent click events from propagating
+        // and closing the popover, which would trigger the button underneath.
         onMouseDown={(e) => {
-          // This prevents the popover from closing when clicking inside the search input.
-          // It stops the click event from propagating down to the trigger and causing a blur.
           e.preventDefault();
         }}
       >
         <div className="p-2">
-            <Input
-              placeholder="Поиск..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              autoFocus
-            />
+          <Input
+            placeholder="Поиск..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            autoFocus
+            className="h-9"
+          />
         </div>
         <ScrollArea className="h-48">
           <div className='p-1'>
-          {filteredIngredients.length > 0 ? (
-            filteredIngredients.map((ing) => (
-              <div
-                key={ing.ingredient_id}
-                onClick={() => {
-                  onChange(String(ing.ingredient_id));
-                  setOpen(false);
-                }}
-                className={cn(
-                  "p-2 text-sm hover:bg-accent cursor-pointer rounded-sm flex items-center",
-                )}
-              >
-                <Check className={cn("mr-2 h-4 w-4", value === ing.ingredient_id ? "opacity-100" : "opacity-0")} />
-                {ing.ingredient_name} ({ing.ingredient_unit})
-              </div>
-            ))
-          ) : (
-            <div className="p-2 text-sm text-center text-muted-foreground">Ингредиент не найден.</div>
-          )}
+            {filteredIngredients.length > 0 ? (
+              filteredIngredients.map((ing) => (
+                <div
+                  key={ing.ingredient_id}
+                  onClick={() => {
+                    onChange(String(ing.ingredient_id));
+                    setOpen(false); // Close popover on selection
+                  }}
+                  className={cn(
+                    "p-2 text-sm hover:bg-accent cursor-pointer rounded-sm flex items-center",
+                  )}
+                >
+                  <Check className={cn("mr-2 h-4 w-4", value === ing.ingredient_id ? "opacity-100" : "opacity-0")} />
+                   {ing.ingredient_name} ({ing.ingredient_unit})
+                </div>
+              ))
+            ) : (
+              <div className="p-2 text-sm text-center text-muted-foreground">Ингредиент не найден.</div>
+            )}
           </div>
         </ScrollArea>
       </PopoverContent>
     </Popover>
   );
-}
+};
 
 
 export function CreateSupplyForm({ suppliers, storages, ingredients, employees, onFormSubmitted }: CreateSupplyFormProps) {
