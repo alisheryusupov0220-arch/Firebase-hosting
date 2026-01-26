@@ -1,3 +1,4 @@
+
 const API_URL = process.env.POSTER_API_URL;
 const API_KEY = process.env.POSTER_API_KEY;
 
@@ -50,5 +51,65 @@ export type Supply = {
 
 
 export async function getSupplies(params: { date_from?: string; date_to?: string } = {}): Promise<Supply[]> {
-  return posterApiFetch('storage.getSupplies', params);
+  const response = await posterApiFetch('storage.getSupplies', params);
+  return Array.isArray(response) ? response : [];
+}
+
+export type Storage = {
+    storage_id: string;
+    storage_name: string;
+};
+
+export type PosterSupplier = {
+    supplier_id: string;
+    supplier_name: string;
+};
+
+export type Ingredient = {
+    ingredient_id: string;
+    ingredient_name: string;
+    ingredient_unit: string;
+};
+
+export type NewSupplyIngredient = {
+    ingredient_id: number;
+    count: number;
+    price: number;
+};
+
+export type CreateSupplyData = {
+    supplier_id: number;
+    storage_id: number;
+    comment?: string;
+    ingredients: NewSupplyIngredient[];
+};
+
+
+export async function getStorages(): Promise<Storage[]> {
+    const response = await posterApiFetch('storage.getStorages');
+    return Array.isArray(response) ? response : [];
+}
+
+export async function getPosterSuppliers(): Promise<PosterSupplier[]> {
+    const response = await posterApiFetch('storage.getSuppliers');
+    return Array.isArray(response) ? response : [];
+}
+
+export async function getIngredients(): Promise<Ingredient[]> {
+    const response = await posterApiFetch('menu.getIngredients');
+    return Array.isArray(response) ? response : [];
+}
+
+export async function createSupply(data: CreateSupplyData) {
+    const params: any = {
+        supplier_id: data.supplier_id,
+        storage_id: data.storage_id,
+        supply_ingredients: JSON.stringify(data.ingredients),
+    };
+
+    if (data.comment) {
+        params.comment = data.comment;
+    }
+
+    return posterApiFetch('storage.createSupply', params);
 }

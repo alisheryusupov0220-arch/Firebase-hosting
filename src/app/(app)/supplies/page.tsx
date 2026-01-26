@@ -8,9 +8,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { getSupplies, type Supply } from '@/lib/poster';
+import { getSupplies, type Supply, getStorages, getPosterSuppliers, getIngredients } from '@/lib/poster';
 import { format } from 'date-fns';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { AddSupplyDialog } from '@/components/supplies/add-supply-dialog';
 
 async function getSuppliesData(): Promise<Supply[]> {
     try {
@@ -28,7 +29,12 @@ async function getSuppliesData(): Promise<Supply[]> {
 
 
 export default async function SuppliesPage() {
-  const supplies = await getSuppliesData();
+  const [supplies, storages, suppliers, ingredients] = await Promise.all([
+    getSuppliesData(),
+    getStorages(),
+    getPosterSuppliers(),
+    getIngredients()
+  ]);
 
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -49,10 +55,18 @@ export default async function SuppliesPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Поставки" description="Учет поступлений товаров и материалов." />
+      <div className="flex items-start justify-between">
+        <PageHeader title="Поставки" description="Учет поступлений товаров и материалов." />
+        <AddSupplyDialog 
+          storages={storages}
+          suppliers={suppliers}
+          ingredients={ingredients}
+        />
+      </div>
       <Card>
         <CardHeader>
             <CardTitle>Последние поставки</CardTitle>
+            <CardDescription>Список недавних поставок, полученных из Poster.</CardDescription>
         </CardHeader>
         <CardContent>
             <Table>
