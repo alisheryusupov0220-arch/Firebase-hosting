@@ -38,9 +38,16 @@ async function posterApiFetch(method: string, params: Record<string, any> = {}) 
 
   const data = await response.json();
 
-  if (data.error) {
+  if (data.error && (data.error.message || data.error.code)) {
     console.error(`Poster API error for method ${method}:`, data.error);
-    throw new Error(`Poster API error: ${data.error.message} (code: ${data.error.code})`);
+    const message = data.error.message || 'No message provided.';
+    const code = data.error.code || 'N/A';
+    throw new Error(`Poster API error: ${message} (code: ${code})`);
+  }
+
+  if (data.response === false) {
+    console.error(`Poster API request for ${method} returned with response: false. Full response:`, data);
+    throw new Error(`Poster API error for method ${method}: response was false.`);
   }
   
   return data.response;
