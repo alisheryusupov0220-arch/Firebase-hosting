@@ -39,16 +39,16 @@ async function posterApiFetch(method: string, params: Record<string, any> = {}) 
   const data = await response.json();
 
   if (data.error) {
-    // Check for a documented error format from Poster
-    if (data.error.message || data.error.code) {
+    // Poster API sometimes returns an empty error object `{}` which is not a real error.
+    if (Object.keys(data.error).length > 0) {
       console.error(`Poster API error for method ${method}:`, data.error);
       const message = data.error.message || 'No message provided.';
       const code = data.error.code || 'N/A';
       throw new Error(`Poster API error: ${message} (code: ${code})`);
     } else {
-      // Handle cases like {"error": {}} which seems to be a non-fatal error
-      console.warn(`Poster API for method ${method} returned a non-standard error object:`, data.error);
-      return false; // Treat as "no response" to prevent crash
+      // This handles the {"error": {}} case.
+      console.warn(`Poster API for method ${method} returned an empty error object, treating as non-fatal.`);
+      return false;
     }
   }
 
