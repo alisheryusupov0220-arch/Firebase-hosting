@@ -38,10 +38,9 @@ export function Combobox({
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
 
-  const selectedOption = React.useMemo(() => 
-    options.find((option) => option.value === value),
-    [options, value]
-  );
+  const selectedLabel = React.useMemo(() => {
+    return options.find((option) => option.value === value)?.label
+  }, [options, value])
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -53,7 +52,7 @@ export function Combobox({
           className="w-full justify-between font-normal"
         >
           <span className="truncate">
-            {selectedOption ? selectedOption.label : placeholder}
+            {selectedLabel || placeholder}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>

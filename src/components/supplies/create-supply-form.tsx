@@ -69,7 +69,7 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, employees, 
   
   const ingredientOptions = React.useMemo(() => 
     ingredients.map(ing => ({
-      value: ing.ingredient_id,
+      value: String(ing.ingredient_id),
       label: `${ing.ingredient_name} (${ing.ingredient_unit})`,
     })), 
   [ingredients]);
