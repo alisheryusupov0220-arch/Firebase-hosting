@@ -213,7 +213,9 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, employees, 
                              <Combobox
                                 options={ingredientOptions}
                                 value={controllerField.value}
-                                onChange={controllerField.onChange}
+                                onChange={(value) => {
+                                  controllerField.onChange(value === null ? '' : String(value));
+                                }}
                                 placeholder="Выберите ингредиент..."
                                 searchPlaceholder="Поиск ингредиента..."
                                 notFoundMessage="Ингредиент не найден."
@@ -244,22 +246,10 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, employees, 
                                 <FormControl>
                                     <Input
                                         {...field}
-                                        type="text"
+                                        type="number"
+                                        step="0.01"
                                         placeholder="Цена"
                                         className="w-24 text-right"
-                                        value={field.value ? new Intl.NumberFormat('ru-RU').format(field.value) : ''}
-                                        onChange={(e) => {
-                                            const rawValue = e.target.value.replace(/\s/g, '').replace(',', '.');
-                                            if (rawValue === '' || /^\d*\.?\d*$/.test(rawValue)) {
-                                                field.onChange(rawValue);
-                                            }
-                                        }}
-                                        onBlur={(e) => {
-                                            const rawValue = e.target.value.replace(/\s/g, '').replace(',', '.');
-                                            const numValue = parseFloat(rawValue);
-                                            field.onChange(isNaN(numValue) ? '' : numValue);
-                                            field.onBlur();
-                                        }}
                                      />
                                 </FormControl>
                                 <FormMessage />
