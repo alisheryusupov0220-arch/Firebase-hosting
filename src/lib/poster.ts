@@ -4,8 +4,9 @@ const API_KEY = process.env.POSTER_API_KEY;
 
 async function posterApiFetch(method: string, params: Record<string, any> = {}) {
   if (!API_URL || !API_KEY) {
-    console.error('Poster API URL or Key is not configured in .env.local');
-    throw new Error('Poster API URL or Key is not configured.');
+    // This case should be handled by the .env.local setup, but as a fallback:
+    console.error('Poster API URL or Key is not configured.');
+    return []; // Return empty array to prevent crashes on map/filter etc.
   }
 
   const url = `${API_URL}/${method}`;
@@ -39,17 +40,18 @@ async function posterApiFetch(method: string, params: Record<string, any> = {}) 
   const data = await response.json();
 
   if (data.error) {
-    // Handle the case where the API returns `{"error": {}}`
-    if (typeof data.error === 'object' && data.error !== null && Object.keys(data.error).length === 0) {
-        console.warn(`Poster API for method ${method} returned an empty error object, treating as non-fatal.`);
-        return false;
+    // A "real" error from Poster will have properties inside the error object.
+    // An empty error object `{}` is not a real error.
+    if (Object.keys(data.error).length > 0) {
+      console.error(`Poster API error for method ${method}:`, data.error);
+      const message = data.error.message || 'No message provided.';
+      const code = data.error.code || 'N/A';
+      throw new Error(`Poster API error: ${message} (code: ${code})`);
     }
-    
-    // Otherwise, assume it's a real error and throw.
-    console.error(`Poster API error for method ${method}:`, data.error);
-    const message = data.error.message || 'No message provided.';
-    const code = data.error.code || 'N/A';
-    throw new Error(`Poster API error: ${message} (code: ${code})`);
+
+    // If we're here, it means `data.error` was `{}`. Log a warning and continue.
+    console.warn(`Poster API for method ${method} returned an empty error object, treating as non-fatal.`);
+    return false;
   }
 
 
