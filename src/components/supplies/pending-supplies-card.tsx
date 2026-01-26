@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { approveSupplyAction, rejectSupplyAction } from '@/app/(app)/supplies/actions';
+import { approveSupplyAction, rejectSupplyAction } from '@/app/supplies/actions';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Ingredient, PosterSupplier, Storage } from '@/lib/poster';

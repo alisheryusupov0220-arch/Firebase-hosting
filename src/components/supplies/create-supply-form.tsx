@@ -23,7 +23,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Check, ChevronsUpDown, Trash } from 'lucide-react';
 import type { Ingredient, PosterSupplier, Storage } from '@/lib/poster';
-import { requestSupplyAction } from '@/app/(app)/supplies/actions';
+import { requestSupplyAction } from '@/app/supplies/actions';
 import { useToast } from '@/hooks/use-toast';
 import React from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -98,8 +98,7 @@ const IngredientCombobox = ({ ingredients, value, onChange }: { ingredients: Ing
         className="w-[--radix-popover-trigger-width] p-0"
         side="top"
         align="start"
-        // This is the critical fix: prevent click events from propagating
-        // and closing the popover, which would trigger the button underneath.
+        onOpenAutoFocus={(e) => e.preventDefault()}
         onMouseDown={(e) => {
           e.preventDefault();
         }}
@@ -109,7 +108,6 @@ const IngredientCombobox = ({ ingredients, value, onChange }: { ingredients: Ing
             placeholder="Поиск..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            autoFocus
             className="h-9"
           />
         </div>
