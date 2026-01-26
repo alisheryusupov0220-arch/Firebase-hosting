@@ -37,7 +37,16 @@ export function AddSupplyDialog({ suppliers, storages, ingredients, employees }:
           Добавить поставку
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[625px]">
+      <DialogContent
+        className="sm:max-w-[625px]"
+        onPointerDownOutside={(event) => {
+          const originalEvent = event.detail.originalEvent;
+          const target = originalEvent.target as HTMLElement;
+          if (target.closest('[cmdk-root]')) {
+            event.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Новая поставка</DialogTitle>
           <DialogDescription>
