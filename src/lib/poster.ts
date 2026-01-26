@@ -42,7 +42,7 @@ async function posterApiFetch(method: string, params: Record<string, any> = {}) 
   if (data.error) {
     // A "real" error from Poster will have properties inside the error object.
     // An empty error object `{}` is not a real error.
-    if (Object.keys(data.error).length > 0) {
+    if (data.error.message || data.error.code) {
       console.error(`Poster API error for method ${method}:`, data.error);
       const message = data.error.message || 'No message provided.';
       const code = data.error.code || 'N/A';
@@ -129,7 +129,8 @@ export async function getPosterSuppliers(): Promise<PosterSupplier[]> {
     try {
         const response = await posterApiFetch('storage.getSuppliers');
         return Array.isArray(response) ? response : [];
-    } catch (error) {
+    } catch (error)
+ {
         console.error("Failed to fetch suppliers:", error);
         return [];
     }
