@@ -1,4 +1,3 @@
-
 import { format } from 'date-fns';
 
 const API_URL = process.env.POSTER_API_URL;
@@ -10,13 +9,11 @@ async function posterApiFetch(
   payload: Record<string, any> = {}
 ) {
   if (!API_URL || !API_KEY) {
-    console.error('Poster API URL or Key is not configured in .env.local');
-    // Return empty array to prevent crashes on map/filter etc.
-    return [];
+    console.error('Poster API URL or Key is not configured in .env.local.');
+    return []; // Return empty array to prevent crashes
   }
 
-  // Token is always in the URL query string and must be encoded.
-  const url = `${API_URL}${method}?format=json&token=${encodeURIComponent(API_KEY)}`;
+  const url = `${API_URL}${method}?token=${encodeURIComponent(API_KEY)}`;
   
   const options: RequestInit = {
     method: httpMethod,
@@ -30,44 +27,31 @@ async function posterApiFetch(
 
   try {
     const response = await fetch(url, options);
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error(`Poster API request failed for method ${method}:`, {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorBody,
-      });
-      throw new Error(`Poster API request failed with status ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    // Handle Poster's specific error formats
-    if (data.error) {
-       // A "real" error from Poster will have properties inside the error object.
-       if (typeof data.error === 'object' && data.error !== null && (data.error.message || data.error.code)) {
-         console.error(`Poster API error for method ${method}:`, data.error);
-         const message = data.error.message || 'No message provided.';
-         const code = data.error.code || 'N/A';
-         throw new Error(`Poster API error: ${message} (code: ${code})`);
-       }
-       // If it's not a real error (e.g., an empty object {}), we warn and treat as empty response.
-       console.warn(`Poster API for method ${method} returned a non-fatal error object, treating as empty response:`, data.error);
-       return false;
-    }
+    const responseText = await response.text();
     
-    // `response: false` is often a valid "not found" or "empty" response.
-    if (data.response === false) {
-      return [];
+    if (!response.ok) {
+        console.error(`Poster API request failed for method ${method}:`, {
+            status: response.status,
+            statusText: response.statusText,
+            body: responseText,
+        });
+        return []; // Return empty array for resilience
+    }
+
+    const data = JSON.parse(responseText);
+
+    if (data.error || data.response === false) {
+       console.warn(`Poster API for method ${method} returned a non-successful response:`, data);
+       if (method === 'storage.createSupply') {
+           return data; // Return the whole error payload to be handled by the caller.
+       }
+       return [];
     }
     
     return data.response;
 
   } catch (error) {
-      console.error(`An error occurred during fetch for method ${method}:`, error);
-      // To prevent page crashes on server-side rendering, return an empty array on failure.
-      // This allows the page to render with empty data instead of showing an error.
+      console.error(`A network or parsing error occurred during fetch for method ${method}:`, error);
       return [];
   }
 }
@@ -86,13 +70,8 @@ export type Supply = {
 
 
 export async function getSupplies(): Promise<Supply[]> {
-  try {
-    const response = await posterApiFetch('storage.getSupplies', 'GET');
-    return Array.isArray(response) ? response : [];
-  } catch (error) {
-    console.error("Failed to fetch supplies:", error);
-    return [];
-  }
+  const response = await posterApiFetch('storage.getSupplies', 'GET');
+  return Array.isArray(response) ? response : [];
 }
 
 export type Storage = {
@@ -126,38 +105,21 @@ export type CreateSupplyData = {
 
 
 export async function getStorages(): Promise<Storage[]> {
-    try {
-        const response = await posterApiFetch('storage.getStorages', 'GET');
-        return Array.isArray(response) ? response : [];
-    } catch (error) {
-        console.error("Failed to fetch storages:", error);
-        return [];
-    }
+    const response = await posterApiFetch('storage.getStorages', 'GET');
+    return Array.isArray(response) ? response : [];
 }
 
 export async function getPosterSuppliers(): Promise<PosterSupplier[]> {
-    try {
-        const response = await posterApiFetch('storage.getSuppliers', 'GET');
-        return Array.isArray(response) ? response : [];
-    } catch (error)
- {
-        console.error("Failed to fetch suppliers:", error);
-        return [];
-    }
+    const response = await posterApiFetch('storage.getSuppliers', 'GET');
+    return Array.isArray(response) ? response : [];
 }
 
 export async function getIngredients(): Promise<Ingredient[]> {
-    try {
-        const response = await posterApiFetch('menu.getIngredients', 'GET');
-        return Array.isArray(response) ? response : [];
-    } catch (error) {
-        console.error("Failed to fetch ingredients:", error);
-        return [];
-    }
+    const response = await posterApiFetch('menu.getIngredients', 'GET');
+    return Array.isArray(response) ? response : [];
 }
 
 export async function createSupply(data: CreateSupplyData) {
-    // This payload structure is based on the user's provided Google Apps Script example.
     const payload = {
       supply: {
         supplier_id: data.supplier_id,
