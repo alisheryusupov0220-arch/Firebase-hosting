@@ -3,7 +3,8 @@ import { format } from 'date-fns';
 const API_URL = process.env.POSTER_API_URL;
 const API_KEY = process.env.POSTER_API_KEY;
 
-// This function will now throw on API or network errors, mimicking the user's script.
+// This function is now remodeled to be much more robust, based on the user's provided Apps Script.
+// It will always try to parse the JSON response to get a meaningful error message from the API.
 async function posterApiFetch(
   method: string,
   httpMethod: 'GET' | 'POST',
@@ -27,26 +28,28 @@ async function posterApiFetch(
   }
 
   const response = await fetch(url, options);
-  
   const responseText = await response.text();
-  if (!response.ok) {
-    throw new Error(`Poster API network error for method ${method}: ${response.status} ${response.statusText} - ${responseText}`);
-  }
-
+  
   let data;
   try {
     data = JSON.parse(responseText);
   } catch (e) {
-    throw new Error(`Failed to parse JSON response from Poster API for method ${method}: ${responseText}`);
+    // If parsing fails, it's a network or server-side issue, not a logical API error.
+    throw new Error(`Poster API network error: ${response.status} ${response.statusText}. Failed to parse JSON response: ${responseText}`);
   }
 
-  // Following the user's script logic: throw if the API indicates an error.
-  if (data.response === false || data.error) {
-    const errorDetails = data.error ? JSON.stringify(data.error) : 'response was false';
-    throw new Error(`Poster API logical error for method ${method}: ${errorDetails}`);
+  // Check for logical API errors or non-successful HTTP status.
+  // The API might return a 200 OK but with an error in the body, or a non-200 status with an error body.
+  if (!response.ok || data.response === false || data.error) {
+    // Try to get a meaningful error message from the JSON payload.
+    const apiErrorDetails = data.error ? JSON.stringify(data.error) : `response was '${data.response}'`;
+    // If there's an error object in the JSON, use it; otherwise, fall back to the HTTP status.
+    const errorMessage = data.error ? apiErrorDetails : `${response.status} ${response.statusText}`;
+
+    throw new Error(`Poster API error for method ${method}: ${errorMessage}`);
   }
   
-  // Return the successful response payload.
+  // If we're here, the request was successful and the response is valid.
   return data.response;
 }
 
@@ -135,7 +138,7 @@ export type CreateSupplyData = {
     ingredients: NewSupplyIngredient[];
 };
 
-// This function will now let errors bubble up to the server action.
+// This function is now corrected based on the user's provided Apps Script.
 export async function createSupply(data: CreateSupplyData) {
     const payload = {
       supply: {
@@ -143,7 +146,7 @@ export async function createSupply(data: CreateSupplyData) {
         storage_id: data.storage_id,
         date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
       },
-      // The user's script uses `id`, `num`, `type`, `price`.
+      // Corrected payload key from 'ingredients' to 'ingredient'
       ingredient: data.ingredients.map(ing => ({
         id: String(ing.ingredient_id),
         num: String(ing.count),
@@ -152,7 +155,6 @@ export async function createSupply(data: CreateSupplyData) {
       }))
     };
     
-    // The response here will be the new supply ID from posterApiFetch on success,
-    // or posterApiFetch will throw on error.
+    // posterApiFetch will now throw a detailed error on failure.
     return await posterApiFetch('storage.createSupply', 'POST', payload);
 }
