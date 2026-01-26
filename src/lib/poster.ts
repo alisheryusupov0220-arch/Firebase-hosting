@@ -1,24 +1,34 @@
+
 import { format } from 'date-fns';
 
 const API_URL = process.env.POSTER_API_URL;
 const API_KEY = process.env.POSTER_API_KEY;
 
-// This function is now remodeled to be much more robust, based on the user's provided Apps Script.
-// It will always try to parse the JSON response to get a meaningful error message from the API.
+/**
+ * A robust function to interact with the Poster API, modeled after the official documentation.
+ * It handles GET and POST requests, authentication, and various error scenarios.
+ * @param method The API method to call (e.g., 'storage.getStorages').
+ * @param httpMethod The HTTP method to use ('GET' or 'POST').
+ * @param payload The JSON payload for POST requests.
+ * @returns The 'response' field from the API on success.
+ * @throws An error with a detailed message on failure.
+ */
 async function posterApiFetch(
   method: string,
-  httpMethod: 'GET' | 'POST',
+  httpMethod: 'GET' | 'POST' = 'GET',
   payload: Record<string, any> = {}
 ) {
   if (!API_URL || !API_KEY) {
     throw new Error('Poster API URL or Key is not configured in environment variables.');
   }
 
+  // Per Poster docs, the token is a URL parameter for all requests.
   const url = `${API_URL}${method}?token=${encodeURIComponent(API_KEY)}`;
-  
+
   const options: RequestInit = {
     method: httpMethod,
     headers: {},
+    // Disable caching for all API calls to ensure data is always fresh.
     cache: 'no-store',
   };
 
@@ -27,30 +37,34 @@ async function posterApiFetch(
     options.body = JSON.stringify(payload);
   }
 
-  const response = await fetch(url, options);
-  const responseText = await response.text();
-  
-  let data;
   try {
-    data = JSON.parse(responseText);
-  } catch (e) {
-    // If parsing fails, it's a network or server-side issue, not a logical API error.
-    throw new Error(`Poster API network error: ${response.status} ${response.statusText}. Failed to parse JSON response: ${responseText}`);
-  }
+    const response = await fetch(url, options);
+    
+    // Try to parse the response as JSON. Poster API always returns JSON, even for errors.
+    const data = await response.json().catch(() => {
+      // This handles cases where the response is not valid JSON (e.g., server error page).
+      throw new Error(`Poster API returned a non-JSON response. Status: ${response.status}`);
+    });
 
-  // Check for logical API errors or non-successful HTTP status.
-  // The API might return a 200 OK but with an error in the body, or a non-200 status with an error body.
-  if (!response.ok || data.response === false || data.error) {
-    // Try to get a meaningful error message from the JSON payload.
-    const apiErrorDetails = data.error ? JSON.stringify(data.error) : `response was '${data.response}'`;
-    // If there's an error object in the JSON, use it; otherwise, fall back to the HTTP status.
-    const errorMessage = data.error ? apiErrorDetails : `${response.status} ${response.statusText}`;
+    // Check for API-level errors within the JSON payload, as per Poster docs.
+    if (data && data.error) {
+      const errorMessage = `Poster API error: ${data.error.message || 'Unknown error'} (code: ${data.error.code || 'N/A'})`;
+      throw new Error(errorMessage);
+    }
+    
+    // As a fallback, check the HTTP status if there's no `data.error` field.
+    if (!response.ok) {
+        throw new Error(`Poster API request failed with status ${response.status}`);
+    }
 
-    throw new Error(`Poster API error for method ${method}: ${errorMessage}`);
+    // On success, return the 'response' property.
+    return data.response;
+
+  } catch (error) {
+    // Prepend the method name to the error for clearer logs and re-throw it.
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`[${method}] ${message}`);
   }
-  
-  // If we're here, the request was successful and the response is valid.
-  return data.response;
 }
 
 
@@ -65,8 +79,10 @@ export type Supply = {
     comment: string;
 };
 
+// The GET functions are now wrapped in try/catch to be defensive.
+// If the API call fails, they log the specific error and return an empty array
+// to prevent the UI from crashing.
 
-// The GET functions will now handle errors and return empty arrays on failure.
 export async function getSupplies(): Promise<Supply[]> {
   try {
     const response = await posterApiFetch('storage.getSupplies', 'GET');
@@ -138,7 +154,10 @@ export type CreateSupplyData = {
     ingredients: NewSupplyIngredient[];
 };
 
-// This function is now corrected based on the user's provided Apps Script.
+/**
+ * Creates a new supply in Poster.
+ * The payload structure is now correctly based on the provided working script.
+ */
 export async function createSupply(data: CreateSupplyData) {
     const payload = {
       supply: {
@@ -146,7 +165,7 @@ export async function createSupply(data: CreateSupplyData) {
         storage_id: data.storage_id,
         date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
       },
-      // Corrected payload key from 'ingredients' to 'ingredient'
+      // Corrected payload key to 'ingredient' (singular) as per working script.
       ingredient: data.ingredients.map(ing => ({
         id: String(ing.ingredient_id),
         num: String(ing.count),
@@ -155,6 +174,6 @@ export async function createSupply(data: CreateSupplyData) {
       }))
     };
     
-    // posterApiFetch will now throw a detailed error on failure.
+    // posterApiFetch will throw a detailed error on failure or return the new supply ID.
     return await posterApiFetch('storage.createSupply', 'POST', payload);
 }
