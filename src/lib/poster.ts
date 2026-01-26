@@ -1,3 +1,4 @@
+
 import { format } from 'date-fns';
 
 const API_URL = process.env.POSTER_API_URL;
@@ -10,7 +11,7 @@ async function posterApiFetch(
 ) {
   if (!API_URL || !API_KEY) {
     console.error('Poster API URL or Key is not configured in .env.local.');
-    return []; // Return empty array to prevent crashes
+    return httpMethod === 'POST' ? { error: { message: 'API not configured' } } : [];
   }
 
   const url = `${API_URL}${method}?token=${encodeURIComponent(API_KEY)}`;
@@ -18,6 +19,9 @@ async function posterApiFetch(
   const options: RequestInit = {
     method: httpMethod,
     headers: {},
+    // Disable caching for server-side fetches to ensure fresh data.
+    // This is crucial for Next.js App Router.
+    cache: 'no-store',
   };
 
   if (httpMethod === 'POST' && Object.keys(payload).length > 0) {
@@ -27,6 +31,8 @@ async function posterApiFetch(
 
   try {
     const response = await fetch(url, options);
+    
+    // It's possible to get a non-JSON response on failure (e.g. HTML error page).
     const responseText = await response.text();
     
     if (!response.ok) {
@@ -35,24 +41,31 @@ async function posterApiFetch(
             statusText: response.statusText,
             body: responseText,
         });
-        return []; // Return empty array for resilience
+        // For POST, we want to return an object that the action can parse for an error message
+        return httpMethod === 'POST' ? { error: { message: `API Error: ${response.status} ${response.statusText}` } } : [];
     }
 
     const data = JSON.parse(responseText);
 
-    if (data.error || data.response === false) {
+    // This handles cases like { "response": false } or { "error": { ... } }
+    // The user's script showed that `response` can be the data or `false`.
+    if (data.response === false || data.error) {
        console.warn(`Poster API for method ${method} returned a non-successful response:`, data);
-       if (method === 'storage.createSupply') {
-           return data; // Return the whole error payload to be handled by the caller.
+       
+       // For createSupply, the action needs the specific error details.
+       if (method === 'storage.createSupply' && data.error) {
+           return data;
        }
+       // For all other cases, especially GET requests, returning an empty array is safe.
        return [];
     }
     
+    // Success case: return the actual data payload.
     return data.response;
 
   } catch (error) {
       console.error(`A network or parsing error occurred during fetch for method ${method}:`, error);
-      return [];
+      return httpMethod === 'POST' ? { error: { message: 'Network or parsing error' } } : [];
   }
 }
 
