@@ -106,7 +106,7 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, onFormSubmi
                 </FormControl>
                 <SelectContent>
                   {suppliers.map((supplier) => (
-                    <SelectItem key={supplier.supplier_id} value={supplier.supplier_id}>
+                    <SelectItem key={supplier.supplier_id} value={String(supplier.supplier_id)}>
                       {supplier.supplier_name}
                     </SelectItem>
                   ))}
@@ -130,7 +130,7 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, onFormSubmi
                 </FormControl>
                 <SelectContent>
                   {storages.map((storage) => (
-                    <SelectItem key={storage.storage_id} value={storage.storage_id}>
+                    <SelectItem key={storage.storage_id} value={String(storage.storage_id)}>
                       {storage.storage_name}
                     </SelectItem>
                   ))}
@@ -159,7 +159,7 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, onFormSubmi
                             </FormControl>
                             <SelectContent>
                             {ingredients.map((ing) => (
-                                <SelectItem key={ing.ingredient_id} value={ing.ingredient_id}>
+                                <SelectItem key={ing.ingredient_id} value={String(ing.ingredient_id)}>
                                     {ing.ingredient_name} ({ing.ingredient_unit})
                                 </SelectItem>
                             ))}
