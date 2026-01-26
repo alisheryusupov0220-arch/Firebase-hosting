@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
@@ -21,14 +21,24 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Trash } from 'lucide-react';
+import { ChevronsUpDown, Trash } from 'lucide-react';
 import type { Ingredient, PosterSupplier, Storage } from '@/lib/poster';
 import { createSupplyAction } from '@/app/(app)/supplies/actions';
 import { useToast } from '@/hooks/use-toast';
+import React, { useState } from 'react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
+
+type Employee = {
+  id: string;
+  name: string;
+};
 
 const formSchema = z.object({
   supplier_id: z.string().min(1, 'Нужно выбрать поставщика'),
   storage_id: z.string().min(1, 'Нужно выбрать склад'),
+  employee_id: z.string().min(1, 'Нужно выбрать сотрудника'),
   comment: z.string().optional(),
   ingredients: z.array(z.object({
     ingredient_id: z.string().min(1, 'Нужно выбрать ингредиент'),
@@ -41,16 +51,83 @@ type CreateSupplyFormProps = {
   suppliers: PosterSupplier[];
   storages: Storage[];
   ingredients: Ingredient[];
+  employees: Employee[];
   onFormSubmitted: () => void;
 };
 
-export function CreateSupplyForm({ suppliers, storages, ingredients, onFormSubmitted }: CreateSupplyFormProps) {
+
+function IngredientCombobox({ ingredients, value, onChange }: { ingredients: Ingredient[]; value: string; onChange: (value: string) => void; }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const selectedIngredientName = value ? ingredients.find((ing) => ing.ingredient_id === value)?.ingredient_name : "";
+
+  const filteredIngredients = React.useMemo(() => {
+    if (!search) return ingredients;
+    return ingredients.filter((ing) =>
+      ing.ingredient_name.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [search, ingredients]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal"
+        >
+          <span className="truncate">
+            {value ? selectedIngredientName : "Выберите..."}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+        <div className="p-2">
+          <Input
+            placeholder="Поиск ингредиента..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-9"
+          />
+        </div>
+        <ScrollArea className="h-48">
+          {filteredIngredients.length > 0 ? (
+            filteredIngredients.map((ing) => (
+              <div
+                key={ing.ingredient_id}
+                onClick={() => {
+                  onChange(String(ing.ingredient_id));
+                  setOpen(false);
+                }}
+                className={cn(
+                  "p-2 text-sm hover:bg-accent cursor-pointer",
+                  ing.ingredient_id === value && "bg-accent"
+                )}
+              >
+                {ing.ingredient_name} ({ing.ingredient_unit})
+              </div>
+            ))
+          ) : (
+             <div className="p-2 text-sm text-center text-muted-foreground">Ингредиент не найден.</div>
+          )}
+        </ScrollArea>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+
+export function CreateSupplyForm({ suppliers, storages, ingredients, employees, onFormSubmitted }: CreateSupplyFormProps) {
   const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       supplier_id: '',
       storage_id: '',
+      employee_id: '',
       comment: '',
       ingredients: [{ ingredient_id: '', count: 1, price: 0 }],
     },
@@ -62,10 +139,14 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, onFormSubmi
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    const employee = employees.find(e => e.id === values.employee_id);
+    const employeeName = employee ? employee.name : 'Неизвестный сотрудник';
+    const finalComment = `Сотрудник: ${employeeName}. ${values.comment || ''}`.trim();
+
     const result = await createSupplyAction({
       supplier_id: Number(values.supplier_id),
       storage_id: Number(values.storage_id),
-      comment: values.comment,
+      comment: finalComment,
       ingredients: values.ingredients.map(ing => ({
         ingredient_id: Number(ing.ingredient_id),
         count: ing.count,
@@ -92,46 +173,72 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, onFormSubmi
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="supplier_id"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Поставщик</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите поставщика" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {suppliers.map((supplier) => (
+                      <SelectItem key={supplier.supplier_id} value={String(supplier.supplier_id)}>
+                        {supplier.supplier_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="storage_id"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Склад</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите склад" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {storages.map((storage) => (
+                      <SelectItem key={storage.storage_id} value={String(storage.storage_id)}>
+                        {storage.storage_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+         <FormField
           control={form.control}
-          name="supplier_id"
+          name="employee_id"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Поставщик</FormLabel>
+              <FormLabel>Сотрудник</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Выберите поставщика" />
+                    <SelectValue placeholder="Выберите сотрудника" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {suppliers.map((supplier) => (
-                    <SelectItem key={supplier.supplier_id} value={String(supplier.supplier_id)}>
-                      {supplier.supplier_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="storage_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Склад</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите склад" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {storages.map((storage) => (
-                    <SelectItem key={storage.storage_id} value={String(storage.storage_id)}>
-                      {storage.storage_name}
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -141,33 +248,25 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, onFormSubmi
           )}
         />
 
+
         <div className="space-y-2">
             <FormLabel>Ингредиенты</FormLabel>
             {fields.map((field, index) => (
                 <div key={field.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-end p-2 border rounded-md">
-                    <FormField
-                    control={form.control}
-                    name={`ingredients.${index}.ingredient_id`}
-                    render={({ field }) => (
-                        <FormItem>
-                        {index === 0 && <FormLabel className="text-xs">Ингредиент</FormLabel>}
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Выберите..." />
-                            </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                            {ingredients.map((ing) => (
-                                <SelectItem key={ing.ingredient_id} value={String(ing.ingredient_id)}>
-                                    {ing.ingredient_name} ({ing.ingredient_unit})
-                                </SelectItem>
-                            ))}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                        </FormItem>
-                    )}
+                   <Controller
+                      control={form.control}
+                      name={`ingredients.${index}.ingredient_id`}
+                      render={({ field: controllerField, fieldState }) => (
+                          <FormItem>
+                          {index === 0 && <FormLabel className="text-xs">Ингредиент</FormLabel>}
+                           <IngredientCombobox
+                              ingredients={ingredients}
+                              value={controllerField.value}
+                              onChange={controllerField.onChange}
+                           />
+                          <FormMessage>{fieldState.error?.message}</FormMessage>
+                          </FormItem>
+                      )}
                     />
                     <FormField
                         control={form.control}
@@ -189,7 +288,25 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, onFormSubmi
                             <FormItem>
                                 {index === 0 && <FormLabel className="text-xs">Цена за ед.</FormLabel>}
                                 <FormControl>
-                                    <Input {...field} type="number" step="0.01" placeholder="Цена" className="w-24" />
+                                    <Input
+                                        {...field}
+                                        type="text"
+                                        placeholder="Цена"
+                                        className="w-24 text-right"
+                                        value={field.value ? new Intl.NumberFormat('ru-RU').format(field.value) : ''}
+                                        onChange={(e) => {
+                                            const rawValue = e.target.value.replace(/\s/g, '').replace(',', '.');
+                                            if (rawValue === '' || /^\d*\.?\d*$/.test(rawValue)) {
+                                                field.onChange(rawValue);
+                                            }
+                                        }}
+                                        onBlur={(e) => {
+                                            const rawValue = e.target.value.replace(/\s/g, '').replace(',', '.');
+                                            const numValue = parseFloat(rawValue);
+                                            field.onChange(isNaN(numValue) ? '' : numValue);
+                                            field.onBlur();
+                                        }}
+                                     />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>

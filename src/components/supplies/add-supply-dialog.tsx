@@ -14,13 +14,19 @@ import { PlusCircle } from 'lucide-react';
 import type { Ingredient, PosterSupplier, Storage } from '@/lib/poster';
 import { CreateSupplyForm } from './create-supply-form';
 
+type Employee = {
+  id: string;
+  name: string;
+};
+
 type AddSupplyDialogProps = {
   suppliers: PosterSupplier[];
   storages: Storage[];
   ingredients: Ingredient[];
+  employees: Employee[];
 };
 
-export function AddSupplyDialog({ suppliers, storages, ingredients }: AddSupplyDialogProps) {
+export function AddSupplyDialog({ suppliers, storages, ingredients, employees }: AddSupplyDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -42,6 +48,7 @@ export function AddSupplyDialog({ suppliers, storages, ingredients }: AddSupplyD
           suppliers={suppliers}
           storages={storages}
           ingredients={ingredients}
+          employees={employees}
           onFormSubmitted={() => setIsOpen(false)}
         />
       </DialogContent>
