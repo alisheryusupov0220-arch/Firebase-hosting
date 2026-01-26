@@ -58,38 +58,39 @@ type CreateSupplyFormProps = {
 
 function IngredientCombobox({ ingredients, value, onChange }: { ingredients: Ingredient[]; value: string; onChange: (value: string) => void; }) {
   const [open, setOpen] = React.useState(false);
-  const [inputValue, setInputValue] = React.useState('');
+  const [searchTerm, setSearchTerm] = React.useState('');
 
-  React.useEffect(() => {
-    const selectedName = value ? ingredients.find(i => i.ingredient_id === value)?.ingredient_name ?? '' : '';
-    setInputValue(selectedName);
+  const selectedIngredientName = React.useMemo(() => {
+    return value ? ingredients.find(i => i.ingredient_id === value)?.ingredient_name ?? '' : '';
   }, [value, ingredients]);
 
+  // Use the search term for display if the popover is open, otherwise show the selected name
+  const displayedValue = open ? searchTerm : selectedIngredientName;
+
   const filteredIngredients = React.useMemo(() => {
-    const currentName = ingredients.find(i => i.ingredient_id === value)?.ingredient_name ?? '';
-    if (!inputValue || inputValue === currentName) {
+    if (!searchTerm) {
       return ingredients;
     }
     return ingredients.filter((ing) =>
-      ing.ingredient_name.toLowerCase().includes(inputValue.toLowerCase())
+      ing.ingredient_name.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [inputValue, ingredients, value]);
+  }, [searchTerm, ingredients]);
   
   return (
     <Popover open={open} onOpenChange={(isOpen) => {
         setOpen(isOpen);
+        // When closing the popover, reset the search term
         if (!isOpen) {
-            // on close, reset the input to the currently selected value's name
-            const selectedName = value ? ingredients.find(i => i.ingredient_id === value)?.ingredient_name ?? '' : '';
-            setInputValue(selectedName);
+            setSearchTerm('');
         }
     }}>
       <PopoverTrigger asChild>
         <Input
-          value={inputValue}
+          value={displayedValue}
           onChange={(e) => {
-            setInputValue(e.target.value);
-            if(!open) setOpen(true);
+            // Always set open to true when user starts typing
+            if (!open) setOpen(true);
+            setSearchTerm(e.target.value);
           }}
           onClick={() => setOpen(true)}
           role="combobox"
@@ -101,7 +102,7 @@ function IngredientCombobox({ ingredients, value, onChange }: { ingredients: Ing
       <PopoverContent
         className="w-[--radix-popover-trigger-width] p-0"
         onMouseDown={(e) => {
-          // Prevent the input from losing focus when clicking on the popover content
+          // Prevent the input from losing focus when clicking inside the popover
           e.preventDefault();
         }}
       >
@@ -112,8 +113,8 @@ function IngredientCombobox({ ingredients, value, onChange }: { ingredients: Ing
                 key={ing.ingredient_id}
                 onClick={() => {
                   onChange(String(ing.ingredient_id));
-                  setInputValue(ing.ingredient_name);
                   setOpen(false);
+                  setSearchTerm(''); // Reset search term on selection
                 }}
                 className={cn(
                   "p-2 text-sm hover:bg-accent cursor-pointer",
