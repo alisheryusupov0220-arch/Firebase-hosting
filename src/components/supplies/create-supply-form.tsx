@@ -91,7 +91,16 @@ function IngredientCombobox({ ingredients, value, onChange }: { ingredients: Ing
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+      <PopoverContent 
+        className="w-[--radix-popover-trigger-width] p-0"
+        side="top"
+        align="start"
+        onMouseDown={(e) => {
+          // This prevents the popover from closing when clicking inside the search input.
+          // It stops the click event from propagating down to the trigger and causing a blur.
+          e.preventDefault();
+        }}
+      >
         <div className="p-2">
             <Input
               placeholder="Поиск..."
