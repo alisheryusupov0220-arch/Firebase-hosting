@@ -15,19 +15,17 @@ async function posterApiFetch(
     return [];
   }
 
-  // Token is always in the URL query string
-  const url = `${API_URL}${method}?format=json&token=${API_KEY}`;
+  // Token is always in the URL query string and must be encoded.
+  const url = `${API_URL}${method}?format=json&token=${encodeURIComponent(API_KEY)}`;
   
   const options: RequestInit = {
     method: httpMethod,
     headers: {},
   };
 
-  if (httpMethod === 'POST') {
+  if (httpMethod === 'POST' && Object.keys(payload).length > 0) {
     options.headers = { 'Content-Type': 'application/json' };
     options.body = JSON.stringify(payload);
-  } else { // GET
-     // For GET requests, additional parameters can be added if needed in the future
   }
 
   try {
@@ -68,7 +66,9 @@ async function posterApiFetch(
 
   } catch (error) {
       console.error(`An error occurred during fetch for method ${method}:`, error);
-      throw error;
+      // To prevent page crashes on server-side rendering, return an empty array on failure.
+      // This allows the page to render with empty data instead of showing an error.
+      return [];
   }
 }
 
@@ -163,8 +163,6 @@ export async function createSupply(data: CreateSupplyData) {
         supplier_id: data.supplier_id,
         storage_id: data.storage_id,
         date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
-        // Note: The provided script does not send a comment for supplies, so we omit it here.
-        // If the API supports it, `comment: data.comment` could be added.
       },
       ingredient: data.ingredients.map(ing => ({
         id: String(ing.ingredient_id),
