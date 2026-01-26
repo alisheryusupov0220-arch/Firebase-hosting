@@ -23,7 +23,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { ChevronsUpDown, Trash } from 'lucide-react';
 import type { Ingredient, PosterSupplier, Storage } from '@/lib/poster';
-import { createSupplyAction } from '@/app/(app)/supplies/actions';
+import { requestSupplyAction } from '@/app/(app)/supplies/actions';
 import { useToast } from '@/hooks/use-toast';
 import React, { useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -140,10 +140,18 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, employees, 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const employee = employees.find(e => e.id === values.employee_id);
-    const employeeName = employee ? employee.name : 'Неизвестный сотрудник';
-    const finalComment = `Сотрудник: ${employeeName}. ${values.comment || ''}`.trim();
+    if (!employee) {
+        toast({
+            variant: 'destructive',
+            title: 'Ошибка!',
+            description: 'Выбранный сотрудник не найден.',
+        });
+        return;
+    }
+    
+    const finalComment = `Сотрудник: ${employee.name}. ${values.comment || ''}`.trim();
 
-    const result = await createSupplyAction({
+    const result = await requestSupplyAction({
       supplier_id: Number(values.supplier_id),
       storage_id: Number(values.storage_id),
       comment: finalComment,
@@ -151,13 +159,15 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, employees, 
         ingredient_id: Number(ing.ingredient_id),
         count: ing.count,
         price: ing.price,
-      }))
+      })),
+      requesterId: employee.id,
+      requesterName: employee.name,
     });
 
     if (result.success) {
       toast({
         title: 'Успех!',
-        description: 'Поставка была успешно создана.',
+        description: 'Заявка на поставку отправлена на утверждение.',
       });
       onFormSubmitted();
       form.reset();
@@ -165,7 +175,7 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, employees, 
       toast({
         variant: 'destructive',
         title: 'Ошибка!',
-        description: result.message || 'Не удалось создать поставку.',
+        description: result.message || 'Не удалось создать заявку.',
       });
     }
   }
@@ -344,7 +354,7 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, employees, 
         />
         
         <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? 'Создание...' : 'Создать поставку'}
+          {form.formState.isSubmitting ? 'Отправка...' : 'Отправить на утверждение'}
         </Button>
       </form>
     </Form>

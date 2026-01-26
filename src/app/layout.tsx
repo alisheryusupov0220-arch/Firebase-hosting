@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 export const metadata: Metadata = {
   title: 'Dog&Dog Invent+',
@@ -23,10 +25,13 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <ThemeProvider storageKey="dog-invent-theme">
-          {children}
-          <Toaster />
-        </ThemeProvider>
+        <FirebaseClientProvider>
+          <ThemeProvider storageKey="dog-invent-theme">
+            {children}
+            <Toaster />
+            <FirebaseErrorListener />
+          </ThemeProvider>
+        </FirebaseClientProvider>
       </body>
     </html>
   );

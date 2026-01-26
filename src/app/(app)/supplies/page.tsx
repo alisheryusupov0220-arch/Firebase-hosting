@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { SuppliesPageHeader } from "@/components/supplies/supplies-page-header";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
+import { PendingSuppliesCard } from "@/components/supplies/pending-supplies-card";
 
 // Data moved here to be passed down to the form
 const employees = [
@@ -49,6 +50,10 @@ export default async function SuppliesPage() {
 
   const employeesForForm = employees.map(e => ({ id: e.id, name: e.name }));
 
+  // For now, let's assume the current user is an admin to show the approval card.
+  // In a real app, this would come from `useUser()` hook.
+  const currentUserRole = 'Администратор';
+
   const getStatusVariant = (status: string) => {
     switch (status) {
       case '1': return 'secondary'; // open
@@ -74,6 +79,15 @@ export default async function SuppliesPage() {
         ingredients={ingredients}
         employees={employeesForForm}
       />
+
+      {currentUserRole === 'Администратор' && (
+         <PendingSuppliesCard 
+            storages={storages}
+            suppliers={suppliers}
+            ingredients={ingredients}
+         />
+      )}
+     
       <Card>
         <CardHeader>
             <CardTitle>Последние поставки</CardTitle>
