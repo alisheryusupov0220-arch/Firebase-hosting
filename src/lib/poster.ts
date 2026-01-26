@@ -39,17 +39,17 @@ async function posterApiFetch(method: string, params: Record<string, any> = {}) 
   const data = await response.json();
 
   if (data.error) {
-    // Poster API sometimes returns an empty error object `{}` which is not a real error.
-    if (data.error.message || data.error.code) {
-      console.error(`Poster API error for method ${method}:`, data.error);
-      const message = data.error.message || 'No message provided.';
-      const code = data.error.code || 'N/A';
-      throw new Error(`Poster API error: ${message} (code: ${code})`);
-    } else {
-      // This handles the {"error": {}} case.
-      console.warn(`Poster API for method ${method} returned an empty error object, treating as non-fatal.`);
-      return false;
+    // Handle the case where the API returns `{"error": {}}`
+    if (typeof data.error === 'object' && data.error !== null && Object.keys(data.error).length === 0) {
+        console.warn(`Poster API for method ${method} returned an empty error object, treating as non-fatal.`);
+        return false;
     }
+    
+    // Otherwise, assume it's a real error and throw.
+    console.error(`Poster API error for method ${method}:`, data.error);
+    const message = data.error.message || 'No message provided.';
+    const code = data.error.code || 'N/A';
+    throw new Error(`Poster API error: ${message} (code: ${code})`);
   }
 
 
@@ -73,9 +73,9 @@ export type Supply = {
 };
 
 
-export async function getSupplies(params: { date_from?: string; date_to?: string } = {}): Promise<Supply[]> {
+export async function getSupplies(): Promise<Supply[]> {
   try {
-    const response = await posterApiFetch('storage.getSupplies', params);
+    const response = await posterApiFetch('storage.getSupplies');
     return Array.isArray(response) ? response : [];
   } catch (error) {
     console.error("Failed to fetch supplies:", error);
