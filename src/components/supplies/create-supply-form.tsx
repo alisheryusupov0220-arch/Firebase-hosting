@@ -21,11 +21,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { ChevronsUpDown, Trash } from 'lucide-react';
+import { Trash } from 'lucide-react';
 import type { Ingredient, PosterSupplier, Storage } from '@/lib/poster';
 import { requestSupplyAction } from '@/app/(app)/supplies/actions';
 import { useToast } from '@/hooks/use-toast';
-import React, { useState } from 'react';
+import React from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -57,47 +57,54 @@ type CreateSupplyFormProps = {
 
 
 function IngredientCombobox({ ingredients, value, onChange }: { ingredients: Ingredient[]; value: string; onChange: (value: string) => void; }) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
+  const [open, setOpen] = React.useState(false);
+  const [inputValue, setInputValue] = React.useState('');
 
-  const selectedIngredientName = value ? ingredients.find((ing) => ing.ingredient_id === value)?.ingredient_name : "";
+  React.useEffect(() => {
+    const selectedName = value ? ingredients.find(i => i.ingredient_id === value)?.ingredient_name ?? '' : '';
+    setInputValue(selectedName);
+  }, [value, ingredients]);
 
   const filteredIngredients = React.useMemo(() => {
-    if (!search) return ingredients;
+    const currentName = ingredients.find(i => i.ingredient_id === value)?.ingredient_name ?? '';
+    if (!inputValue || inputValue === currentName) {
+      return ingredients;
+    }
     return ingredients.filter((ing) =>
-      ing.ingredient_name.toLowerCase().includes(search.toLowerCase())
+      ing.ingredient_name.toLowerCase().includes(inputValue.toLowerCase())
     );
-  }, [search, ingredients]);
-
+  }, [inputValue, ingredients, value]);
+  
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(isOpen) => {
+        setOpen(isOpen);
+        if (!isOpen) {
+            // on close, reset the input to the currently selected value's name
+            const selectedName = value ? ingredients.find(i => i.ingredient_id === value)?.ingredient_name ?? '' : '';
+            setInputValue(selectedName);
+        }
+    }}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
+        <Input
+          value={inputValue}
+          onChange={(e) => {
+            setInputValue(e.target.value);
+            if(!open) setOpen(true);
+          }}
+          onClick={() => setOpen(true)}
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between font-normal"
-        >
-          <span className="truncate">
-            {value ? selectedIngredientName : "Выберите..."}
-          </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
+          placeholder="Начните вводить для поиска..."
+          className="w-full"
+        />
       </PopoverTrigger>
       <PopoverContent
         className="w-[--radix-popover-trigger-width] p-0"
         onMouseDown={(e) => {
+          // Prevent the input from losing focus when clicking on the popover content
           e.preventDefault();
         }}
       >
-        <div className="p-2">
-          <Input
-            placeholder="Поиск ингредиента..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-9"
-          />
-        </div>
         <ScrollArea className="h-48">
           {filteredIngredients.length > 0 ? (
             filteredIngredients.map((ing) => (
@@ -105,6 +112,7 @@ function IngredientCombobox({ ingredients, value, onChange }: { ingredients: Ing
                 key={ing.ingredient_id}
                 onClick={() => {
                   onChange(String(ing.ingredient_id));
+                  setInputValue(ing.ingredient_name);
                   setOpen(false);
                 }}
                 className={cn(
@@ -116,7 +124,7 @@ function IngredientCombobox({ ingredients, value, onChange }: { ingredients: Ing
               </div>
             ))
           ) : (
-             <div className="p-2 text-sm text-center text-muted-foreground">Ингредиент не найден.</div>
+            <div className="p-2 text-sm text-center text-muted-foreground">Ингредиент не найден.</div>
           )}
         </ScrollArea>
       </PopoverContent>
