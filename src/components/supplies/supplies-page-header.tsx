@@ -1,5 +1,3 @@
-'use client';
-
 import { PageHeader } from '@/components/layout/page-header';
 import { AddSupplyDialog } from '@/components/supplies/add-supply-dialog';
 import type { Ingredient, PosterSupplier, Storage } from '@/lib/poster';
