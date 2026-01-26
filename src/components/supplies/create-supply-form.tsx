@@ -21,14 +21,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Check, ChevronsUpDown, Trash } from 'lucide-react';
+import { Trash } from 'lucide-react';
 import type { Ingredient, PosterSupplier, Storage } from '@/lib/poster';
 import { requestSupplyAction } from '@/app/supplies/actions';
 import { useToast } from '@/hooks/use-toast';
 import React from 'react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
+import { Combobox } from '../ui/combobox';
 
 type Employee = {
   id: string;
@@ -56,90 +54,6 @@ type CreateSupplyFormProps = {
 };
 
 
-// A stable, standalone Combobox component to prevent re-render issues.
-const IngredientCombobox = ({ ingredients, value, onChange }: { ingredients: Ingredient[]; value: string; onChange: (value: string) => void; }) => {
-  const [open, setOpen] = React.useState(false);
-  const [searchTerm, setSearchTerm] = React.useState('');
-
-  const selectedIngredientName = React.useMemo(() => {
-    if (!value) return "Выберите ингредиент";
-    const selected = ingredients.find(i => i.ingredient_id === value);
-    return selected ? `${selected.ingredient_name} (${selected.ingredient_unit})` : "Выберите ингредиент";
-  }, [value, ingredients]);
-
-  const filteredIngredients = React.useMemo(() => {
-    if (!searchTerm) return ingredients;
-    return ingredients.filter((ing) =>
-      ing.ingredient_name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [searchTerm, ingredients]);
-
-  // Reset search term when the popover closes
-  React.useEffect(() => {
-    if (!open) {
-      setSearchTerm('');
-    }
-  }, [open]);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-full justify-between font-normal"
-        >
-          <span className='truncate'>{selectedIngredientName}</span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0"
-        side="top"
-        align="start"
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        onMouseDown={(e) => {
-          e.preventDefault();
-        }}
-      >
-        <div className="p-2">
-          <Input
-            placeholder="Поиск..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-9"
-          />
-        </div>
-        <ScrollArea className="h-48">
-          <div className='p-1'>
-            {filteredIngredients.length > 0 ? (
-              filteredIngredients.map((ing) => (
-                <div
-                  key={ing.ingredient_id}
-                  onClick={() => {
-                    onChange(String(ing.ingredient_id));
-                    setOpen(false); // Close popover on selection
-                  }}
-                  className={cn(
-                    "p-2 text-sm hover:bg-accent cursor-pointer rounded-sm flex items-center",
-                  )}
-                >
-                  <Check className={cn("mr-2 h-4 w-4", value === ing.ingredient_id ? "opacity-100" : "opacity-0")} />
-                   {ing.ingredient_name} ({ing.ingredient_unit})
-                </div>
-              ))
-            ) : (
-              <div className="p-2 text-sm text-center text-muted-foreground">Ингредиент не найден.</div>
-            )}
-          </div>
-        </ScrollArea>
-      </PopoverContent>
-    </Popover>
-  );
-};
-
-
 export function CreateSupplyForm({ suppliers, storages, ingredients, employees, onFormSubmitted }: CreateSupplyFormProps) {
   const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
@@ -152,6 +66,13 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, employees, 
       ingredients: [{ ingredient_id: '', count: 1, price: 0 }],
     },
   });
+  
+  const ingredientOptions = React.useMemo(() => 
+    ingredients.map(ing => ({
+      value: ing.ingredient_id,
+      label: `${ing.ingredient_name} (${ing.ingredient_unit})`,
+    })), 
+  [ingredients]);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -288,13 +209,16 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, employees, 
                       name={`ingredients.${index}.ingredient_id`}
                       render={({ field: controllerField, fieldState }) => (
                           <FormItem>
-                          {index === 0 && <FormLabel className="text-xs">Ингредиент</FormLabel>}
-                           <IngredientCombobox
-                              ingredients={ingredients}
-                              value={controllerField.value}
-                              onChange={controllerField.onChange}
-                           />
-                          <FormMessage>{fieldState.error?.message}</FormMessage>
+                            {index === 0 && <FormLabel className="text-xs">Ингредиент</FormLabel>}
+                             <Combobox
+                                options={ingredientOptions}
+                                value={controllerField.value}
+                                onChange={controllerField.onChange}
+                                placeholder="Выберите ингредиент..."
+                                searchPlaceholder="Поиск ингредиента..."
+                                notFoundMessage="Ингредиент не найден."
+                              />
+                            <FormMessage>{fieldState.error?.message}</FormMessage>
                           </FormItem>
                       )}
                     />
