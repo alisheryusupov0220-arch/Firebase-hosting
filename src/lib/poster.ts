@@ -23,7 +23,8 @@ async function posterApiFetch(
   }
 
   // Per Poster docs, the token is a URL parameter for all requests.
-  const url = `${API_URL}${method}?token=${encodeURIComponent(API_KEY)}`;
+  // The format=json is added for explicit compliance with documentation.
+  const url = `${API_URL}/${method}?token=${encodeURIComponent(API_KEY)}&format=json`;
 
   const options: RequestInit = {
     method: httpMethod,
@@ -40,25 +41,28 @@ async function posterApiFetch(
   try {
     const response = await fetch(url, options);
     
-    // Try to parse the response as JSON. Poster API always returns JSON, even for errors.
+    // Try to parse the response as JSON. Poster API can return JSON even for errors.
     const data = await response.json().catch(() => {
       // This handles cases where the response is not valid JSON (e.g., server error page).
       throw new Error(`Poster API returned a non-JSON response. Status: ${response.status}`);
     });
 
     // Check for API-level errors within the JSON payload, as per Poster docs.
-    if (data && data.error) {
+    // The API might return an empty `error` object `{}`, which we should ignore.
+    if (data && data.error && (data.error.message || data.error.code)) {
       const errorMessage = `Poster API error: ${data.error.message || 'Unknown error'} (code: ${data.error.code || 'N/A'})`;
       throw new Error(errorMessage);
     }
     
     // As a fallback, check the HTTP status if there's no `data.error` field.
+    // This catches things like 401 Unauthorized if the token is wrong.
     if (!response.ok) {
         throw new Error(`Poster API request failed with status ${response.status}`);
     }
 
     // On success, return the 'response' property.
-    return data.response;
+    // Poster returns `{"response": ...}` on success or just `false` sometimes.
+    return data.response === undefined ? data : data.response;
 
   } catch (error) {
     // Prepend the method name to the error for clearer logs and re-throw it.
@@ -86,6 +90,7 @@ export type Supply = {
 export async function getSupplies(): Promise<Supply[]> {
   try {
     const response = await posterApiFetch('storage.getSupplies', 'GET');
+    // The API might return `false` if there are no items, so handle that.
     return Array.isArray(response) ? response : [];
   } catch (error) {
     console.error("Failed to get supplies:", error);
