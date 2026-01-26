@@ -42,15 +42,16 @@ async function posterApiFetch(method: string, params: Record<string, any> = {}) 
   if (data.error) {
     // A "real" error from Poster will have properties inside the error object.
     // An empty error object `{}` is not a real error.
-    if (data.error.message || data.error.code) {
+    if (typeof data.error === 'object' && data.error !== null && (data.error.message || data.error.code)) {
       console.error(`Poster API error for method ${method}:`, data.error);
       const message = data.error.message || 'No message provided.';
       const code = data.error.code || 'N/A';
       throw new Error(`Poster API error: ${message} (code: ${code})`);
     }
-
-    // If we're here, it means `data.error` was `{}`. Log a warning and continue.
-    console.warn(`Poster API for method ${method} returned an empty error object, treating as non-fatal.`);
+    
+    // If it's not a real error, it might be the empty object or something else.
+    // We'll warn and treat it as a non-error.
+    console.warn(`Poster API for method ${method} returned a non-fatal error object, treating as empty response:`, data.error);
     return false;
   }
 
