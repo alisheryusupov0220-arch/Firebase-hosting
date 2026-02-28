@@ -89,11 +89,10 @@ export function CreateWriteOffForm({ storages, ingredients, employees, onFormSub
       }, {} as Record<string, number>);
       setBalance(balanceMap);
       setLoadingBalance(false);
-      form.setValue('ingredients', [{ ingredient_id: '', quantity: 1 }]);
     };
 
     fetchBalance();
-  }, [selectedStorageId, form]);
+  }, [selectedStorageId]);
   
   const ingredientOptions = useMemo(() =>
     ingredients.map(ing => ({
@@ -107,19 +106,6 @@ export function CreateWriteOffForm({ storages, ingredients, employees, onFormSub
     if (!employee) {
         toast({ variant: 'destructive', title: 'Ошибка!', description: 'Выбранный сотрудник не найден.' });
         return;
-    }
-
-    // Validate quantities against balance
-    for (const ing of values.ingredients) {
-        const currentBalance = balance[ing.ingredient_id] ?? 0;
-        if (currentBalance < ing.quantity) {
-            toast({
-                variant: 'destructive',
-                title: 'Ошибка валидации',
-                description: `Количество для списания ингредиента "${ingredients.find(i => i.ingredient_id === ing.ingredient_id)?.ingredient_name}" (${ing.quantity}) превышает остаток на складе (${currentBalance}).`,
-            });
-            return;
-        }
     }
 
     const finalComment = `Сотрудник: ${employee.name}. ${values.comment || ''}`.trim();
@@ -206,10 +192,21 @@ export function CreateWriteOffForm({ storages, ingredients, employees, onFormSub
         <div className="space-y-2">
             <FormLabel>Ингредиенты для списания</FormLabel>
             {fields.map((field, index) => {
-                const selectedIngredient = ingredients.find(i => i.ingredient_id === watchedIngredients[index]?.ingredient_id);
+                const selectedIngredientId = watchedIngredients[index]?.ingredient_id;
+                const selectedIngredient = ingredients.find(i => i.ingredient_id === selectedIngredientId);
                 const unit = selectedIngredient?.ingredient_unit || '';
-                const currentBalance = balance[watchedIngredients[index]?.ingredient_id];
-                const balanceLabel = currentBalance !== undefined ? `${currentBalance} ${unit}` : '...';
+                
+                let balanceLabel = 'Выберите склад';
+                if (selectedStorageId) {
+                    if (loadingBalance) {
+                        balanceLabel = 'Загрузка...';
+                    } else if (selectedIngredientId) {
+                        const currentBalance = balance[selectedIngredientId];
+                        balanceLabel = currentBalance !== undefined ? `${currentBalance} ${unit}` : `0 ${unit}`;
+                    } else {
+                         balanceLabel = 'Выберите ингр.';
+                    }
+                }
 
                 return (
                     <div key={field.id} className="grid grid-cols-[1fr_auto_auto] gap-2 items-end p-2 border rounded-md">
@@ -259,7 +256,6 @@ export function CreateWriteOffForm({ storages, ingredients, employees, onFormSub
                 size="sm"
                 className="mt-2"
                 onClick={() => append({ ingredient_id: '', quantity: 1 })}
-                disabled={!selectedStorageId || loadingBalance}
             >
                 Добавить ингредиент
             </Button>
@@ -280,8 +276,8 @@ export function CreateWriteOffForm({ storages, ingredients, employees, onFormSub
           )}
         />
         
-        <Button type="submit" disabled={form.formState.isSubmitting || loadingBalance}>
-          {loadingBalance ? 'Загрузка остатков...' : form.formState.isSubmitting ? 'Отправка...' : 'Создать списание'}
+        <Button type="submit" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting ? 'Отправка...' : 'Создать списание'}
         </Button>
       </form>
     </Form>
