@@ -11,52 +11,13 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Combobox } from '@/components/ui/combobox';
 import { Trash } from 'lucide-react';
-import { getIngredients, type Ingredient } from '@/lib/poster';
-import { getFirestore, addDoc, collection, serverTimestamp, query, orderBy, limit, getDocs } from 'firebase/firestore';
-import { useFirestore, useUser } from '@/firebase/hooks';
+import { type Ingredient } from '@/lib/poster';
+import { serverTimestamp } from 'firebase/firestore';
+import { useUser } from '@/firebase/hooks';
 import { useToast } from '@/hooks/use-toast';
-import { getFirebaseApp } from '@/firebase/server';
+import { getLatestPrices, saveSandboxItem, getIngredientsAction } from './actions';
 
 export const dynamic = 'force-dynamic';
-
-// Server action to get latest prices for ingredients
-async function getLatestPrices(ingredientIds: string[]): Promise<Record<string, number>> {
-    'use server';
-    const db = getFirestore(getFirebaseApp()); // Assume getFirebaseApp is available
-    const prices: Record<string, number> = {};
-
-    const pricePromises = ingredientIds.map(async (id) => {
-        const pricesQuery = query(
-            collection(db, `ingredients/${id}/price_history`),
-            orderBy('date', 'desc'),
-            limit(1)
-        );
-        const querySnapshot = await getDocs(pricesQuery);
-        if (!querySnapshot.empty) {
-            return { id, price: querySnapshot.docs[0].data().price };
-        }
-        return { id, price: 0 };
-    });
-
-    const results = await Promise.all(pricePromises);
-    results.forEach(result => {
-        prices[result.id] = result.price;
-    });
-
-    return prices;
-}
-
-// Server action to save the sandbox item
-async function saveSandboxItem(itemData: any) {
-    'use server';
-    const db = getFirestore(getFirebaseApp());
-    await addDoc(collection(db, 'sandbox_items'), itemData);
-}
-
-async function getIngredientsAction(): Promise<Ingredient[]> {
-    'use server';
-    return getIngredients();
-}
 
 const sandboxSchema = z.object({
     name: z.string().min(1, 'Название обязательно'),

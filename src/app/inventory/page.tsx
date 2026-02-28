@@ -6,9 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { getStorageBalance, getStorages, type Storage, type StorageBalanceItem } from '@/lib/poster';
-import { getFirestore, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
-import { getFirebaseApp } from '@/firebase/server';
+import { type Storage, type StorageBalanceItem } from '@/lib/poster';
+import { getBalanceForStorage, getLatestPrices, fetchStoragesAction } from './actions';
+
 
 export const dynamic = 'force-dynamic';
 
@@ -16,45 +16,6 @@ type EnrichedBalanceItem = StorageBalanceItem & {
     latestPrice: number;
     actual?: number;
 };
-
-// This server action fetches balance for a given storage
-async function getBalanceForStorage(storageId: string): Promise<StorageBalanceItem[]> {
-    'use server';
-    return getStorageBalance(storageId);
-}
-
-// This server action fetches latest prices for given ingredient IDs
-async function getLatestPrices(ingredientIds: string[]): Promise<Record<string, number>> {
-    'use server';
-    const db = getFirestore(getFirebaseApp());
-    const prices: Record<string, number> = {};
-
-    const pricePromises = ingredientIds.map(async (id) => {
-        const pricesQuery = query(
-            collection(db, `ingredients/${id}/price_history`),
-            orderBy('date', 'desc'),
-            limit(1)
-        );
-        const querySnapshot = await getDocs(pricesQuery);
-        if (!querySnapshot.empty) {
-            return { id, price: querySnapshot.docs[0].data().price };
-        }
-        return { id, price: 0 }; // Default to 0 if no price history
-    });
-
-    const results = await Promise.all(pricePromises);
-    results.forEach(result => {
-        prices[result.id] = result.price;
-    });
-
-    return prices;
-}
-
-// This server action fetches all storages
-async function fetchStoragesAction(): Promise<Storage[]> {
-    'use server';
-    return getStorages();
-}
 
 export default function InventoryPage() {
     const [storages, setStorages] = useState<Storage[]>([]);
