@@ -9,13 +9,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Combobox } from '@/components/ui/combobox';
 import { Trash } from 'lucide-react';
-import { type Ingredient } from '@/lib/poster';
-import { serverTimestamp } from 'firebase/firestore';
-import { useUser } from '@/firebase/hooks';
+import type { Ingredient } from '@/lib/poster';
+import { serverTimestamp, collection, addDoc } from 'firebase/firestore';
+import { useUser, useFirestore } from '@/firebase/hooks';
 import { useToast } from '@/hooks/use-toast';
-import { getLatestPrices, saveSandboxItem, getIngredientsAction } from './actions';
+import { getLatestPrices, getIngredientsAction } from './actions';
+import { IngredientCombobox } from '@/components/supplies/ingredient-combobox';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +32,7 @@ const sandboxSchema = z.object({
 export default function SandboxPage() {
     const { toast } = useToast();
     const { user } = useUser();
+    const firestore = useFirestore();
     const [prices, setPrices] = useState<Record<string, number>>({});
     const [allIngredients, setAllIngredients] = useState<Ingredient[]>([]);
     const [loading, setLoading] = useState(true);
@@ -80,7 +83,7 @@ export default function SandboxPage() {
 
 
     async function onSubmit(values: z.infer<typeof sandboxSchema>) {
-        if (!user) {
+        if (!user || !firestore) {
             toast({ variant: 'destructive', title: 'Ошибка', description: 'Вы должны быть авторизованы.' });
             return;
         }
@@ -98,14 +101,28 @@ export default function SandboxPage() {
             totalCost,
         };
 
-        try {
-            await saveSandboxItem(sandboxItem);
-            toast({ title: 'Успех!', description: 'Черновик сохранен в Firestore.' });
-            form.reset();
-        } catch (error) {
-            console.error("Failed to save sandbox item", error);
-            toast({ variant: 'destructive', title: 'Ошибка!', description: 'Не удалось сохранить черновик.' });
-        }
+        const sandboxItemsCollection = collection(firestore, 'sandbox_items');
+
+        addDoc(sandboxItemsCollection, sandboxItem)
+          .then(() => {
+                toast({ title: 'Успех!', description: 'Черновик сохранен в Firestore.' });
+                form.reset();
+          })
+          .catch(async (serverError) => {
+              const permissionError = new FirestorePermissionError({
+                  path: sandboxItemsCollection.path,
+                  operation: 'create',
+                  requestResourceData: sandboxItem,
+              });
+
+              errorEmitter.emit('permission-error', permissionError);
+
+              toast({ 
+                  variant: 'destructive', 
+                  title: 'Ошибка!', 
+                  description: 'Не удалось сохранить черновик. Недостаточно прав.' 
+              });
+          });
     }
 
     if (loading) {
@@ -150,10 +167,10 @@ export default function SandboxPage() {
                                             name={`ingredients.${index}.ingredientId`}
                                             render={({ field: controllerField, fieldState }) => (
                                                 <FormItem>
-                                                    <Combobox
+                                                    <IngredientCombobox
                                                         options={ingredientOptions}
                                                         value={controllerField.value}
-                                                        onChange={controllerField.onChange}
+                                                        onChange={(value) => controllerField.onChange(value)}
                                                         placeholder="Выберите ингредиент..."
                                                         searchPlaceholder="Поиск..."
                                                         notFoundMessage="Не найдено."

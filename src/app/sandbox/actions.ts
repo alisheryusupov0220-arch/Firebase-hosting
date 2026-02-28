@@ -1,7 +1,7 @@
 'use server';
 
 import { getIngredients, type Ingredient } from '@/lib/poster';
-import { getFirestore, addDoc, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { getFirestore, query, collection, orderBy, limit, getDocs } from 'firebase/firestore';
 import { getFirebaseApp } from '@/firebase/server';
 
 // Server action to get latest prices for ingredients
@@ -28,12 +28,6 @@ export async function getLatestPrices(ingredientIds: string[]): Promise<Record<s
     });
 
     return prices;
-}
-
-// Server action to save the sandbox item
-export async function saveSandboxItem(itemData: any) {
-    const db = getFirestore(getFirebaseApp());
-    await addDoc(collection(db, 'sandbox_items'), itemData);
 }
 
 export async function getIngredientsAction(): Promise<Ingredient[]> {
