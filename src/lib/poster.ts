@@ -241,15 +241,18 @@ export async function createSupply(data: CreateSupplyData) {
         comment: data.comment,
       },
       // Poster expects price in the smallest currency unit (e.g. kopecks, tiyins)
+      // Ensure numeric values are sent as numbers, not strings.
       ingredient: data.ingredients.map(ing => ({
-        id: String(ing.ingredient_id),
-        num: String(ing.count),
-        type: "4", 
-        price: String(ing.price * 100)
+        id: ing.ingredient_id,
+        num: ing.count,
+        type: 4, 
+        price: ing.price * 100
       }))
     };
     
-    return await posterApiFetch('storage.createSupply', 'POST', payload);
+    const response = await posterApiFetch('storage.createSupply', 'POST', payload);
+    // On success, Poster API returns the new supply_id
+    return response;
 }
 
 // Create Write-off
@@ -274,13 +277,16 @@ export async function createWriteOff(data: CreateWriteOffData) {
         storage_id: data.storage_id,
         comment: data.comment,
       },
+      // Ensure numeric values are sent as numbers, not strings.
       ingredient: data.ingredients.map(ing => ({
-        id: String(ing.ingredient_id),
-        num: String(ing.num),
-        type: "1", // 1 for regular write-off
+        id: ing.ingredient_id,
+        num: ing.num,
+        type: 1, // 1 for regular write-off
         comment: ing.comment || ''
       }))
     };
 
-    return await posterApiFetch('storage.createWriteOff', 'POST', payload);
+    const response = await posterApiFetch('storage.createWriteOff', 'POST', payload);
+    // On success, Poster API returns the new write_off_id
+    return response;
 }
