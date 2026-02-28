@@ -8,6 +8,8 @@ import {
   PackageMinus,
   PackagePlus,
   Settings,
+  PieChart,
+  FlaskConical,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -32,6 +34,16 @@ export const routes = [
     href: '/inventory',
     label: 'Инвентаризация',
     icon: ClipboardList,
+  },
+  {
+    href: '/menu-analytics',
+    label: 'Аналитика меню',
+    icon: PieChart,
+  },
+  {
+    href: '/sandbox',
+    label: 'Конструктор',
+    icon: FlaskConical,
   },
   {
     href: '/settings',

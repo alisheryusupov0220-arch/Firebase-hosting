@@ -14,6 +14,8 @@ import { SuppliesPageHeader } from "@/components/supplies/supplies-page-header";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { PendingSuppliesCard } from "@/components/supplies/pending-supplies-card";
 
+export const dynamic = 'force-dynamic';
+
 // Data moved here to be passed down to the form
 const employees = [
   {

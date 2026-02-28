@@ -2,10 +2,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { createSupply, type CreateSupplyData } from '@/lib/poster';
-import { getFirestore, doc, addDoc, updateDoc, collection, serverTimestamp, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, addDoc, updateDoc, collection, serverTimestamp, getDoc, writeBatch } from 'firebase/firestore';
 import { getFirebaseApp } from '@/firebase/server';
 
-// Initialize Firebase app for server-side operations
 const app = getFirebaseApp();
 const db = getFirestore(app);
 
@@ -43,8 +42,9 @@ export async function requestSupplyAction(data: RequestSupplyPayload) {
 }
 
 export async function approveSupplyAction(pendingSupplyId: string) {
+    const pendingSupplyRef = doc(db, 'pendingSupplies', pendingSupplyId);
+    
     try {
-        const pendingSupplyRef = doc(db, 'pendingSupplies', pendingSupplyId);
         const pendingSupplySnap = await getDoc(pendingSupplyRef);
 
         if (!pendingSupplySnap.exists()) {
@@ -54,7 +54,6 @@ export async function approveSupplyAction(pendingSupplyId: string) {
         const pendingSupplyData = pendingSupplySnap.data();
 
         // Assume the user approving is an admin
-        // In a real app, you'd get the admin's ID from session/auth
         const adminId = 'admin-user'; 
 
         const posterData: CreateSupplyData = {
@@ -69,14 +68,35 @@ export async function approveSupplyAction(pendingSupplyId: string) {
             throw new Error('API Poster не вернул ID поставки.');
         }
         
-        await updateDoc(pendingSupplyRef, {
+        // Use a batch to perform multiple writes atomically
+        const batch = writeBatch(db);
+
+        // 1. Update the original pending supply document
+        batch.update(pendingSupplyRef, {
             status: 'approved',
             approvedBy: adminId,
             approvedAt: serverTimestamp(),
             posterSupplyId: newSupplyId,
         });
 
+        // 2. Record the price history for each ingredient in the supply
+        const approvalTimestamp = new Date(); // Use the same timestamp for all price records in this batch
+        pendingSupplyData.ingredients.forEach((ingredient: any) => {
+            const priceHistoryRef = doc(db, `ingredients/${ingredient.ingredient_id}/price_history`, String(newSupplyId));
+            batch.set(priceHistoryRef, {
+                price: ingredient.price,
+                date: approvalTimestamp,
+                supplierId: String(pendingSupplyData.supplier_id)
+            });
+        });
+
+        // Commit the batch
+        await batch.commit();
+
         revalidatePath('/supplies');
+        revalidatePath('/menu-analytics');
+        revalidatePath('/inventory');
+
         return { success: true, data: newSupplyId };
 
     } catch (error) {

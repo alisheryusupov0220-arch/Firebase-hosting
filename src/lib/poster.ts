@@ -144,6 +144,71 @@ export async function getIngredients(): Promise<Ingredient[]> {
     }
 }
 
+// Menu Products
+export type TechCardIngredient = {
+    ingredient_id: string;
+    ingredient_name: string;
+    type: '1'; // 1 is ingredient
+    brutto: string;
+    netto: string;
+    cost: string;
+    sum: string;
+};
+
+export type Product = {
+    product_id: string;
+    product_name: string;
+    price: { [key: string]: string }; // Price per spot, e.g. "1": "15000.00"
+    composition: TechCardIngredient[];
+};
+
+export async function getProducts(): Promise<Product[]> {
+    try {
+        const response = await posterApiFetch('menu.getProducts', 'GET', { with_composition: 1 });
+        return Array.isArray(response) ? response : [];
+    } catch (error) {
+        console.error("Failed to get products:", error);
+        return [];
+    }
+}
+
+
+// Storage Balance
+export type StorageBalanceItem = {
+    ingredient_id: string;
+    ingredient_name: string;
+    balance: string; // "left" in the response
+    unit: string;
+    sum: string;
+};
+
+export async function getStorageBalance(storageId: string): Promise<StorageBalanceItem[]> {
+    try {
+        // Poster API uses date in YYYYMMDD format for this method
+        const date = format(new Date(), 'yyyyMMdd');
+        const response = await posterApiFetch('storage.getStorage', 'GET', {
+            date: date,
+            id_storage: storageId,
+        });
+        
+        // The response contains a 'storage' array with items.
+        // We map 'left' to 'balance' for clarity.
+        if (response && Array.isArray(response.storage)) {
+             return response.storage.map((item: any) => ({
+                ingredient_id: item.id,
+                ingredient_name: item.name,
+                balance: item.left,
+                unit: item.unit,
+                sum: item.sum,
+             }));
+        }
+        return [];
+    } catch (error) {
+        console.error(`Failed to get storage balance for storage ${storageId}:`, error);
+        return [];
+    }
+}
+
 
 // Create Supply types and function
 export type NewSupplyIngredient = {
@@ -161,7 +226,6 @@ export type CreateSupplyData = {
 
 /**
  * Creates a new supply in Poster.
- * The payload structure is now correctly based on the provided working script.
  */
 export async function createSupply(data: CreateSupplyData) {
     const payload = {
@@ -169,8 +233,9 @@ export async function createSupply(data: CreateSupplyData) {
         supplier_id: data.supplier_id,
         storage_id: data.storage_id,
         date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
+        comment: data.comment,
       },
-      // Corrected payload key to 'ingredient' (singular) as per working script.
+      // Corrected payload key to 'ingredient' (singular)
       ingredient: data.ingredients.map(ing => ({
         id: String(ing.ingredient_id),
         num: String(ing.count),

@@ -3,37 +3,7 @@
  * role-based access control (RBAC) for administrators with a user-ownership
  * model for transactional data. Administrators have global read/write privileges,
  * while standard authenticated users have read-only access to master data
- * (like categories and locations) and can only create and manage their own
- * inventory movement records.
- *
- * Data Structure:
- * - /users/{userId}: Standard user profile data.
- * - /roles_admin/{userId}: An existence-based collection where the presence of a
- *   document grants a user administrative privileges across the entire system.
- * - /categories, /locations, /inventory_items: Top-level collections for master
- *   data, readable by all authenticated users but writable only by admins.
- * - /inventory_movements/{movementId}: Transactional records created and owned by
- *   individual users. Each document contains a `recordedByUserId` field.
- * - /inventory_movements/{movementId}/details/{detailId}: Subcollection for
- *   line items, where each detail document denormalizes the `recordedByUserId`
- *   from its parent to ensure fast, independent authorization checks.
- *
- * Key Security Decisions:
- * - Admin Access: Administrative status is determined by checking for the
- *   existence of a document at `/roles_admin/{request.auth.uid}`. This is a
- *   highly performant and secure method for managing global roles.
- * - User Data Privacy: Listing all users from the `/users` collection is
- *   disallowed to prevent user enumeration.
- * - Default Posture: Authenticated users are granted read access to shared,
- *   non-sensitive business data by default. All write operations are locked
- *   down to either the document owner or an administrator.
- *
- * Denormalization for Authorization:
- * - The `recordedByUserId` field is denormalized from an `InventoryMovement`
- *   document into its child `InventoryMovementDetail` documents. This is a
- *   critical decision that allows security rules on the subcollection to run
- *   without performing a slow and costly `get()` on the parent document,
- *   enforcing the principle of Authorization Independence.
+ * and can only create and manage their own transactional records.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -43,165 +13,98 @@ service cloud.firestore {
     // Helper Functions
     // -------------------------------------------------------------------------
 
-    /**
-     * Checks if the user is authenticated.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * Checks if the requesting user has an admin role.
-     * Admin status is granted by the existence of a document for the user
-     * in the /roles_admin collection.
-     */
     function isAdmin() {
       return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
-    /**
-     * Checks if the requesting user's UID matches the provided userId.
-     * Typically used for path-based ownership checks (e.g., /users/{userId}).
-     */
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
 
     /**
-     * Checks if the requesting user is the owner of a document, based on an
-     * internal field (e.g., recordedByUserId).
+     * Checks ownership based on a 'userId' or 'recordedByUserId' field in a document.
      */
     function isDocumentOwner(doc) {
-      return request.auth.uid == doc.recordedByUserId;
+      return request.auth.uid == doc.userId || request.auth.uid == doc.recordedByUserId || request.auth.uid == doc.requesterId;
     }
     
-    /**
-     * Validates ownership for a newly created document.
-     * Ensures the client correctly sets the ownership field during creation.
-     */
     function isCreatingOwnDocument() {
-      return request.resource.data.recordedByUserId == request.auth.uid;
+      return request.resource.data.userId == request.auth.uid || request.resource.data.requesterId == request.auth.uid;
     }
 
-    /**
-     * Enforces that the ownership field (`recordedByUserId`) cannot be changed
-     * during an update operation.
-     */
     function isOwnershipUnchanged() {
-      return request.resource.data.recordedByUserId == resource.data.recordedByUserId;
+      // Ensure the user ID field is not being changed in an update
+      let newUserId = request.resource.data.userId;
+      let oldUserId = resource.data.userId;
+      let newRequesterId = request.resource.data.requesterId;
+      let oldRequesterId = resource.data.requesterId;
+
+      return (newUserId == oldUserId && newRequesterId == oldRequesterId);
     }
 
     // -------------------------------------------------------------------------
     // User and Role Collections
     // -------------------------------------------------------------------------
 
-    /**
-     * @description Manages user profile documents.
-     * @path /users/{userId}
-     * @allow (create) An authenticated user can create their own profile document.
-     * @deny (list) Another user attempts to list all user profiles.
-     * @principle Restricts access to a user's own data tree and prevents user enumeration.
-     */
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
-      allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) && resource != null;
-      allow delete: if isOwner(userId) && resource != null;
+      allow list: if false; // Prevent user enumeration
+      allow create, update, delete: if isOwner(userId);
     }
 
-    /**
-     * @description Manages administrative role assignments.
-     * @path /roles_admin/{userId}
-     * @allow (create) An existing admin grants admin rights to another user.
-     * @deny (create) A non-admin user attempts to make themselves an admin.
-     * @principle Protects the integrity of the role system by ensuring only admins can manage roles.
-     */
     match /roles_admin/{userId} {
-      allow get, list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
+      allow read, write: if isAdmin();
     }
 
     // -------------------------------------------------------------------------
-    // Global Master Data Collections (Read-Only for Users)
+    // Application Data Collections
     // -------------------------------------------------------------------------
 
     /**
-     * @description Manages inventory categories. Readable by any authenticated user, writable only by admins.
-     * @path /categories/{categoryId}
-     * @allow (get, list) Any authenticated user can read category information.
-     * @deny (create) A standard authenticated user attempts to create a new category.
-     * @principle Protects master data integrity while allowing broad read access for business operations.
+     * @description Manages supply requests awaiting approval.
+     * @allow (create) Authenticated users can create their own supply requests.
+     * @allow (read, update) Owners can read/update their own requests, admins can manage any.
      */
-    match /categories/{categoryId} {
-      allow get, list: if isSignedIn();
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
-    }
-
-    /**
-     * @description Manages inventory locations. Readable by any authenticated user, writable only by admins.
-     * @path /locations/{locationId}
-     * @allow (get, list) Any authenticated user can read location information.
-     * @deny (update) A standard authenticated user attempts to modify a location.
-     * @principle Protects master data integrity while allowing broad read access for business operations.
-     */
-    match /locations/{locationId} {
-      allow get, list: if isSignedIn();
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
-    }
-
-    /**
-     * @description Manages inventory items (SKUs). Readable by any authenticated user, writable only by admins.
-     * @path /inventory_items/{itemId}
-     * @allow (get, list) Any authenticated user can read inventory item details.
-     * @deny (delete) A standard authenticated user attempts to delete an inventory item.
-     * @principle Protects master data integrity while allowing broad read access for business operations.
-     */
-    match /inventory_items/{itemId} {
-      allow get, list: if isSignedIn();
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
-    }
-
-    // -------------------------------------------------------------------------
-    // Transactional Data (User-Owned)
-    // -------------------------------------------------------------------------
-
-    /**
-     * @description Manages inventory movement records. Users can manage their own records; admins can manage any.
-     * @path /inventory_movements/{movementId}
-     * @allow (create) An authenticated user with auth.uid='user123' creates a movement with `recordedByUserId: 'user123'`.
-     * @deny (update) A user with auth.uid='user456' tries to update a movement where `resource.data.recordedByUserId` is 'user123'.
-     * @principle Enforces document ownership for writes and validates relational integrity on create.
-     */
-    match /inventory_movements/{movementId} {
-      allow get: if (isDocumentOwner(resource.data) || isAdmin());
+    match /pendingSupplies/{supplyId} {
+      allow get: if isSignedIn() && (isDocumentOwner(resource.data) || isAdmin());
       allow list: if isSignedIn();
       allow create: if isSignedIn() && isCreatingOwnDocument();
-      allow update: if (isDocumentOwner(resource.data) || isAdmin()) && resource != null && isOwnershipUnchanged();
-      allow delete: if (isDocumentOwner(resource.data) || isAdmin()) && resource != null;
+      allow update: if isAdmin(); // Only admins can approve/reject
+      allow delete: if isAdmin() || isDocumentOwner(resource.data);
+    }
+
+    /**
+     * @description Top-level collection for ingredients, primarily for nesting price history.
+     */
+    match /ingredients/{ingredientId} {
+      // Allow admins to manage this collection if needed, deny all others.
+      allow read, write: if isAdmin();
 
       /**
-       * @description Manages the line items for an inventory movement. Access is inherited from the parent movement's owner.
-       * @path /inventory_movements/{movementId}/details/{detailId}
-       * @allow (create) A user creates a detail document under their own movement, setting the denormalized `recordedByUserId`.
-       * @deny (get) A user attempts to read details for a movement they do not own.
-       * @principle Leverages denormalized ownership data (`recordedByUserId`) for fast, independent authorization without parent lookups.
+       * @description Stores historical price data for each ingredient.
+       * @allow (read) Any signed-in user can read price history for analytics.
+       * @allow (write) Only admins (or the server process acting as one) can write new prices.
        */
-      match /details/{detailId} {
-        allow get: if (isDocumentOwner(resource.data) || isAdmin());
-        allow list: if isSignedIn();
-        allow create: if isSignedIn() && isCreatingOwnDocument();
-        allow update: if (isDocumentOwner(resource.data) || isAdmin()) && resource != null && isOwnershipUnchanged();
-        allow delete: if (isDocumentOwner(resource.data) || isAdmin()) && resource != null;
+      match /price_history/{priceId} {
+        allow get, list: if isSignedIn();
+        allow create, update, delete: if isAdmin();
       }
+    }
+
+    /**
+     * @description Stores draft menu items from the Sandbox.
+     * @allow Users can create, read, update, and delete their own sandbox items.
+     * @allow Admins have full access.
+     */
+    match /sandbox_items/{sandboxId} {
+      allow get, list: if isSignedIn(); // Allow listing for user's own items (enforced in query)
+      allow read: if isDocumentOwner(resource.data) || isAdmin();
+      allow create: if isSignedIn() && isCreatingOwnDocument();
+      allow update, delete: if (isDocumentOwner(resource.data) || isAdmin()) && isOwnershipUnchanged();
     }
   }
 }

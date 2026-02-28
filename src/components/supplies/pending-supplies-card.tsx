@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useCollection, useFirestore } from '@/firebase/hooks';
 import { collection, query, where, orderBy } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import { approveSupplyAction, rejectSupplyAction } from '@/app/supplies/actions'
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Ingredient, PosterSupplier, Storage } from '@/lib/poster';
+import { useMemoFirebase } from '@/firebase/provider';
 
 type PendingSuppliesCardProps = {
     storages: Storage[];
@@ -22,7 +23,7 @@ export function PendingSuppliesCard({ storages, suppliers, ingredients }: Pendin
     const { toast } = useToast();
     const firestore = useFirestore();
     
-    const pendingSuppliesQuery = useMemo(() => {
+    const pendingSuppliesQuery = useMemoFirebase(() => {
         if (!firestore) return null;
         return query(
             collection(firestore, 'pendingSupplies'),
@@ -31,9 +32,9 @@ export function PendingSuppliesCard({ storages, suppliers, ingredients }: Pendin
         );
     }, [firestore]);
 
-    const { data: pendingSupplies, loading, error } = useCollection(pendingSuppliesQuery);
+    const { data: pendingSupplies, isLoading, error } = useCollection(pendingSuppliesQuery);
     
-    const dataMap = useMemo(() => ({
+    const dataMap = React.useMemo(() => ({
         storages: new Map(storages.map(item => [item.storage_id, item.storage_name])),
         suppliers: new Map(suppliers.map(item => [item.supplier_id, item.supplier_name])),
         ingredients: new Map(ingredients.map(item => [item.ingredient_id, item.ingredient_name])),
@@ -57,7 +58,7 @@ export function PendingSuppliesCard({ storages, suppliers, ingredients }: Pendin
         }
     };
     
-    if (loading) {
+    if (isLoading) {
         return (
             <Card>
                 <CardHeader>
