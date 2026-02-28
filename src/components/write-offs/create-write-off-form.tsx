@@ -172,7 +172,7 @@ export function CreateWriteOffForm({ storages, ingredients, employees, onFormSub
                           control={form.control}
                           name={`ingredients.${index}.ingredient_id`}
                           render={({ field: controllerField, fieldState }) => (
-                              <FormItem className="flex flex-col gap-1.5">
+                              <FormItem>
                                 {index === 0 && <FormLabel className="text-xs">Ингредиент</FormLabel>}
                                  <Combobox
                                     options={ingredientOptions}
@@ -192,7 +192,7 @@ export function CreateWriteOffForm({ storages, ingredients, employees, onFormSub
                             control={form.control}
                             name={`ingredients.${index}.quantity`}
                             render={({ field: formField }) => (
-                                <FormItem className="flex flex-col gap-1.5">
+                                <FormItem>
                                     {index === 0 && <FormLabel className="text-xs">Количество</FormLabel>}
                                     <FormControl>
                                         <Input {...formField} type="number" step="0.001" placeholder="Кол-во" className="w-32" />
