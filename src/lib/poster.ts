@@ -9,7 +9,7 @@ const API_KEY = process.env.POSTER_API_KEY;
  * It handles GET and POST requests, authentication, and various error scenarios.
  * @param method The API method to call (e.g., 'storage.getStorages').
  * @param httpMethod The HTTP method to use ('GET' or 'POST').
- * @param payload The JSON payload for POST requests.
+ * @param payload The JSON payload for POST requests or query parameters for GET requests.
  * @returns The 'response' field from the API on success.
  * @throws An error with a detailed message on failure.
  */
@@ -22,9 +22,22 @@ async function posterApiFetch(
     throw new Error('Poster API URL or Key is not configured in environment variables.');
   }
 
-  // Per Poster docs, the token is a URL parameter for all requests.
-  // The format=json is added for explicit compliance with documentation.
-  const url = `${API_URL}/${method}?token=${encodeURIComponent(API_KEY)}&format=json`;
+  // Start with mandatory parameters
+  const params = new URLSearchParams({
+    token: API_KEY,
+    format: 'json',
+  });
+
+  // For GET requests, append payload as query parameters
+  if (httpMethod === 'GET') {
+    for (const key in payload) {
+      if (Object.prototype.hasOwnProperty.call(payload, key)) {
+        params.append(key, String(payload[key]));
+      }
+    }
+  }
+
+  const url = `${API_URL}/${method}?${params.toString()}`;
 
   const options: RequestInit = {
     method: httpMethod,
@@ -33,6 +46,7 @@ async function posterApiFetch(
     cache: 'no-store',
   };
 
+  // For POST requests, the payload goes into the body
   if (httpMethod === 'POST' && Object.keys(payload).length > 0) {
     options.headers = { 'Content-Type': 'application/json' };
     options.body = JSON.stringify(payload);
@@ -41,31 +55,22 @@ async function posterApiFetch(
   try {
     const response = await fetch(url, options);
     
-    // Try to parse the response as JSON. Poster API can return JSON even for errors.
     const data = await response.json().catch(() => {
-      // This handles cases where the response is not valid JSON (e.g., server error page).
       throw new Error(`Poster API returned a non-JSON response. Status: ${response.status}`);
     });
 
-    // Check for API-level errors within the JSON payload, as per Poster docs.
-    // The API might return an empty `error` object `{}`, which we should ignore.
     if (data && data.error && (data.error.message || data.error.code)) {
       const errorMessage = `Poster API error: ${data.error.message || 'Unknown error'} (code: ${data.error.code || 'N/A'})`;
       throw new Error(errorMessage);
     }
     
-    // As a fallback, check the HTTP status if there's no `data.error` field.
-    // This catches things like 401 Unauthorized if the token is wrong.
     if (!response.ok) {
         throw new Error(`Poster API request failed with status ${response.status}`);
     }
 
-    // On success, return the 'response' property.
-    // Poster returns `{"response": ...}` on success or just `false` sometimes.
     return data.response === undefined ? data : data.response;
 
   } catch (error) {
-    // Prepend the method name to the error for clearer logs and re-throw it.
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`[${method}] ${message}`);
   }
