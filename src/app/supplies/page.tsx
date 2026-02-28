@@ -30,10 +30,6 @@ export default async function SuppliesPage() {
       ingredient_unit: ing.unit,
   }));
 
-  // For now, let's assume the current user is an admin to show the approval card.
-  // In a real app, this would come from `useUser()` hook.
-  const currentUserRole = 'Администратор';
-
   const getStatusVariant = (status: string) => {
     switch (status) {
       case '1': return 'secondary'; // open
@@ -59,13 +55,11 @@ export default async function SuppliesPage() {
         ingredients={ingredientsForForm}
       />
 
-      {currentUserRole === 'Администратор' && (
-         <PendingSuppliesCard 
-            storages={storages}
-            suppliers={suppliers}
-            ingredients={ingredientsForForm}
-         />
-      )}
+       <PendingSuppliesCard 
+          storages={storages}
+          suppliers={suppliers}
+          ingredients={ingredientsForForm}
+       />
      
       <Card>
         <CardHeader>

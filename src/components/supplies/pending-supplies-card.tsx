@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { useCollection, useFirestore, useUser } from '@/firebase/hooks';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { useCollection, useFirestore, useUser, useDoc } from '@/firebase/hooks';
+import { collection, query, where, orderBy, doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Ingredient, PosterSupplier, Storage } from '@/lib/poster';
 import { useMemoFirebase } from '@/firebase/provider';
+import { Skeleton } from '../ui/skeleton';
 
 type PendingSuppliesCardProps = {
     storages: Storage[];
@@ -19,21 +20,33 @@ type PendingSuppliesCardProps = {
     ingredients: Ingredient[];
 };
 
+type UserProfile = {
+    role: 'admin' | 'employee';
+};
+
 export function PendingSuppliesCard({ storages, suppliers, ingredients }: PendingSuppliesCardProps) {
     const { toast } = useToast();
     const firestore = useFirestore();
     const { user, loading: userLoading } = useUser();
+
+    // Fetch user profile to check for admin role
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !user?.uid) return null;
+        return doc(firestore, 'users', user.uid);
+    }, [firestore, user?.uid]);
+    const { data: userProfile, isLoading: profileLoading } = useDoc<UserProfile>(userProfileRef);
+    const isAdmin = userProfile?.role === 'admin';
     
     const pendingSuppliesQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
+        if (!firestore || !isAdmin) return null; // Only query if user is an admin
         return query(
             collection(firestore, 'pendingSupplies'),
             where('status', '==', 'pending'),
             orderBy('createdAt', 'desc')
         );
-    }, [firestore, user]);
+    }, [firestore, isAdmin]);
 
-    const { data: pendingSupplies, isLoading, error } = useCollection(pendingSuppliesQuery);
+    const { data: pendingSupplies, isLoading: suppliesLoading, error } = useCollection(pendingSuppliesQuery);
     
     const dataMap = React.useMemo(() => ({
         storages: new Map(storages.map(item => [item.storage_id, item.storage_name])),
@@ -59,34 +72,35 @@ export function PendingSuppliesCard({ storages, suppliers, ingredients }: Pendin
         }
     };
 
-    if (userLoading) {
-        return (
+    const isLoading = userLoading || profileLoading || suppliesLoading;
+    
+    // Don't render anything for non-admins or if there are no pending supplies
+    if ((!isLoading && !isAdmin) || (!isLoading && isAdmin && pendingSupplies?.length === 0)) {
+        return null; 
+    }
+    
+    // Show a loading state specifically for the admin card
+    if (isLoading && !user) {
+        return null; // Don't show skeleton if user is not even logged in yet.
+    }
+    
+    if (isLoading && isAdmin) {
+         return (
             <Card>
                 <CardHeader>
-                    <CardTitle>Ожидают подтверждения</CardTitle>
-                    <CardDescription>Заявки на поставку, требующие вашего одобрения.</CardDescription>
+                    <Skeleton className="h-6 w-1/2" />
+                    <Skeleton className="h-4 w-3/4" />
                 </CardHeader>
                 <CardContent>
-                    <p>Проверка авторизации...</p>
+                    <div className="space-y-2">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
                 </CardContent>
             </Card>
         );
     }
     
-    if (isLoading) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Ожидают подтверждения</CardTitle>
-                    <CardDescription>Заявки на поставку, требующие вашего одобрения.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p>Загрузка...</p>
-                </CardContent>
-            </Card>
-        );
-    }
-
     if (error) {
          return (
             <Card>
@@ -100,10 +114,6 @@ export function PendingSuppliesCard({ storages, suppliers, ingredients }: Pendin
         );
     }
     
-    if (!pendingSupplies || pendingSupplies.length === 0) {
-        return null; // Don't show the card if there are no pending supplies
-    }
-
     return (
         <Card>
             <CardHeader>
@@ -123,7 +133,7 @@ export function PendingSuppliesCard({ storages, suppliers, ingredients }: Pendin
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {pendingSupplies.map((supply) => {
+                        {pendingSupplies?.map((supply) => {
                              const totalSum = supply.ingredients.reduce((acc: number, ing: any) => acc + (ing.count * ing.price), 0);
                              return (
                                 <TableRow key={supply.id}>

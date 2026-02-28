@@ -79,7 +79,7 @@ service cloud.firestore {
      */
     match /pendingSupplies/{supplyId} {
       allow get: if isSignedIn() && (isDocumentOwner(resource.data) || isAdmin());
-      allow list: if isSignedIn();
+      allow list: if isAdmin();
       allow create: if isSignedIn() && isCreatingOwnDocument();
       allow update: if isAdmin(); // Only admins can approve/reject
       allow delete: if isAdmin() || isDocumentOwner(resource.data);
