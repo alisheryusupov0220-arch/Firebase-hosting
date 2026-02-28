@@ -37,7 +37,6 @@ type CreateSupplyFormProps = {
 };
 
 const DEFAULT_SUPPLIER_ID = 1;
-const DEFAULT_STORAGE_ID = 1;
 
 
 export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyFormProps) {
@@ -79,7 +78,7 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
 
     const firstIngredientId = values.ingredients[0]?.ingredient_id;
     const firstIngredient = ingredients?.find(i => i.id === firstIngredientId);
-    const storageId = firstIngredient?.storage_id ? Number(firstIngredient.storage_id) : DEFAULT_STORAGE_ID;
+    const storageId = firstIngredient?.storage_id ? Number(firstIngredient.storage_id) : 1;
 
     const result = await requestSupplyAction({
       supplier_id: DEFAULT_SUPPLIER_ID,
@@ -126,9 +125,7 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
                              <Combobox
                                 options={ingredientOptions}
                                 value={controllerField.value}
-                                onChange={(value) => {
-                                  controllerField.onChange(value === null ? '' : String(value));
-                                }}
+                                onChange={(value) => controllerField.onChange(value)}
                                 placeholder="Выберите ингредиент..."
                                 searchPlaceholder="Поиск ингредиента..."
                                 notFoundMessage="Ингредиент не найден."

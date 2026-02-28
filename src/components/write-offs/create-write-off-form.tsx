@@ -35,8 +35,6 @@ type CreateWriteOffFormProps = {
   onFormSubmitted: () => void;
 };
 
-const DEFAULT_STORAGE_ID = 1;
-
 export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWriteOffFormProps) {
   const { toast } = useToast();
   const { user } = useUser();
@@ -73,7 +71,7 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
 
     const firstIngredientId = values.ingredients[0]?.ingredient_id;
     const firstIngredient = ingredients?.find(i => i.id === firstIngredientId);
-    const storageId = firstIngredient?.storage_id ? Number(firstIngredient.storage_id) : DEFAULT_STORAGE_ID;
+    const storageId = firstIngredient?.storage_id ? Number(firstIngredient.storage_id) : 1;
 
     const result = await createWriteOffAction({
       storage_id: storageId,
@@ -107,19 +105,16 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
             <FormLabel>Ингредиенты для списания</FormLabel>
             {fields.map((field, index) => (
                 <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-end gap-2 p-2 border rounded-md">
-                   <div className="flex flex-col">
-                      {index === 0 && <FormLabel className="text-xs">Ингредиент</FormLabel>}
-                      <Controller
+                    <Controller
                         control={form.control}
                         name={`ingredients.${index}.ingredient_id`}
                         render={({ field: controllerField, fieldState }) => (
                             <FormItem>
+                               {index === 0 && <FormLabel className="text-xs">Ингредиент</FormLabel>}
                                <Combobox
                                   options={ingredientOptions}
                                   value={controllerField.value}
-                                  onChange={(value) => {
-                                    controllerField.onChange(value === null ? '' : String(value));
-                                  }}
+                                  onChange={(value) => controllerField.onChange(value)}
                                   placeholder="Выберите ингредиент..."
                                   searchPlaceholder="Поиск ингредиента..."
                                   notFoundMessage="Ингредиент не найден."
@@ -128,7 +123,6 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
                             </FormItem>
                         )}
                       />
-                   </div>
                     <FormField
                         control={form.control}
                         name={`ingredients.${index}.quantity`}
