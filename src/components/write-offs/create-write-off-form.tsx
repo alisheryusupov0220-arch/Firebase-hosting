@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -55,7 +55,7 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
   const ingredientOptions = useMemo(() => {
     return (ingredients || []).map(ing => ({
       value: String(ing.id),
-      label: ing.name || 'Без названия'
+      label: ing.name
     }));
   }, [ingredients]);
 
@@ -114,8 +114,7 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
                               value={field.value}
                               onChange={field.onChange}
                               placeholder="Выберите ингредиент"
-                              searchPlaceholder="Поиск..."
-                              notFoundMessage="Ингредиент не найден."
+                              searchPlaceholder="Поиск ингредиента..."
                             />
                           </FormControl>
                           <FormMessage />

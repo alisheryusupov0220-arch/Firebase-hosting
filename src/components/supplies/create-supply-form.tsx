@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Trash } from 'lucide-react';
 import { requestSupplyAction } from '@/app/supplies/actions';
 import { useToast } from '@/hooks/use-toast';
-import React from 'react';
+import { useMemo } from 'react';
 import { Combobox } from '../ui/combobox';
 import { useUser } from '@/firebase/hooks';
 import type { LocalIngredient } from '@/app/ingredients/actions';
@@ -50,10 +50,10 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
     },
   });
   
-  const ingredientOptions = React.useMemo(() => {
+  const ingredientOptions = useMemo(() => {
     return (ingredients || []).map(ing => ({
       value: String(ing.id),
-      label: ing.name || 'Без названия'
+      label: ing.name
     }));
   }, [ingredients]);
 
@@ -125,8 +125,7 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
                               value={field.value}
                               onChange={field.onChange}
                               placeholder="Выберите ингредиент"
-                              searchPlaceholder="Поиск..."
-                              notFoundMessage="Ингредиент не найден."
+                              searchPlaceholder="Поиск ингредиента..."
                             />
                           </FormControl>
                           <FormMessage />
