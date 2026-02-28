@@ -17,10 +17,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useFirestore } from '@/firebase/hooks';
 import { useMemoFirebase } from '@/firebase/provider';
 import { collection, query, orderBy } from 'firebase/firestore';
-import type { WriteOff } from '@/lib/poster';
+import type { Waste } from '@/lib/poster';
 
 type WriteOffsPageClientProps = {
-    initialWriteOffs: WriteOff[];
+    initialWastes: Waste[];
 };
 
 const PageSkeleton = () => (
@@ -47,7 +47,7 @@ const PageSkeleton = () => (
 );
 
 
-export function WriteOffsPageClient({ initialWriteOffs }: WriteOffsPageClientProps) {
+export function WriteOffsPageClient({ initialWastes }: WriteOffsPageClientProps) {
     const [loading, setLoading] = useState(true);
 
     const firestore = useFirestore();
@@ -86,25 +86,23 @@ export function WriteOffsPageClient({ initialWriteOffs }: WriteOffsPageClientPro
                             <TableRow>
                                 <TableHead className="w-[100px]">ID</TableHead>
                                 <TableHead>Дата</TableHead>
-                                <TableHead>Склад</TableHead>
+                                <TableHead>Причина</TableHead>
                                 <TableHead className="text-right">Сумма</TableHead>
-                                <TableHead>Комментарий</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {initialWriteOffs.length > 0 ? (
-                                initialWriteOffs.map((wo) => (
-                                    <TableRow key={wo.write_off_id}>
-                                        <TableCell className="font-medium">{wo.write_off_id}</TableCell>
-                                        <TableCell>{wo.date_created ? format(new Date(wo.date_created.replace(' ', 'T')), 'dd.MM.yyyy HH:mm') : '-'}</TableCell>
-                                        <TableCell>{wo.storage_name || '-'}</TableCell>
-                                        <TableCell className="text-right">{new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(wo.sum) / 100)}</TableCell>
-                                        <TableCell>{wo.comment || '-'}</TableCell>
+                            {initialWastes.length > 0 ? (
+                                initialWastes.map((waste) => (
+                                    <TableRow key={waste.waste_id}>
+                                        <TableCell className="font-medium">{waste.waste_id}</TableCell>
+                                        <TableCell>{waste.date ? format(new Date(waste.date.replace(' ', 'T')), 'dd.MM.yyyy HH:mm') : '-'}</TableCell>
+                                        <TableCell>{waste.reason_name || '-'}</TableCell>
+                                        <TableCell className="text-right">{new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(waste.total_sum) / 100)}</TableCell>
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="h-24 text-center">
+                                    <TableCell colSpan={4} className="h-24 text-center">
                                         Списаний не найдено.
                                     </TableCell>
                                 </TableRow>

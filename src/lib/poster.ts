@@ -259,16 +259,17 @@ export async function createSupply(data: CreateSupplyData) {
 
 // Create Write-off
 export type NewWriteOffIngredient = {
-    ingredient_id: number;
-    num: number; // quantity
-    comment?: string;
+    id: number;
+    type: number;
+    weight: number;
 };
 
 export type CreateWriteOffData = {
     storage_id: number;
-    comment?: string;
+    reason?: string;
     ingredients: NewWriteOffIngredient[];
 };
+
 
 /**
  * Creates a new write-off in Poster.
@@ -277,13 +278,13 @@ export async function createWriteOff(data: CreateWriteOffData) {
     const payload = {
       write_off: {
         storage_id: String(data.storage_id),
-        reason: data.comment,
+        reason: data.reason,
         date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
       },
       ingredient: data.ingredients.map(ing => ({
-        id: String(ing.ingredient_id),
-        type: '4', 
-        weight: ing.num.toFixed(3),
+        id: String(ing.id),
+        type: String(ing.type), 
+        weight: ing.weight.toFixed(3),
       }))
     };
 
@@ -293,23 +294,24 @@ export async function createWriteOff(data: CreateWriteOffData) {
 }
 
 
-// Get Write-offs
-export type WriteOff = {
-    write_off_id: string;
-    date_created: string; // YYYY-MM-DD HH:mm:ss
-    user_id: string;
-    storage_id: string;
-    storage_name: string;
-    sum: string; // in cents
-    comment: string;
+// Get Wastes
+export type Waste = {
+    waste_id: string;
+    date: string;
+    reason_name: string;
+    total_sum: string;
 };
 
-export async function getWriteOffs(): Promise<WriteOff[]> {
+export async function getWastes(dateFrom?: string, dateTo?: string): Promise<Waste[]> {
     try {
-        const response = await posterApiFetch('storage.getWriteOffs', 'GET');
+        const payload: { [key: string]: string } = { '1c': 'true' };
+        if (dateFrom) payload.dateFrom = dateFrom;
+        if (dateTo) payload.dateTo = dateTo;
+        
+        const response = await posterApiFetch('storage.getWastes', 'GET', payload);
         return Array.isArray(response) ? response : [];
     } catch (error) {
-        console.error("Failed to get write-offs:", error);
+        console.error("Failed to get wastes:", error);
         return [];
     }
 }
