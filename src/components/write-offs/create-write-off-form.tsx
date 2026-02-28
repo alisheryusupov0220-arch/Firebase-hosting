@@ -20,7 +20,7 @@ import { createWriteOffAction } from '@/app/write-offs/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/hooks';
 import type { LocalIngredient } from '@/app/ingredients/actions';
-import { Combobox } from '../ui/combobox';
+import { SearchableSelect } from '../ui/searchable-select';
 
 const formSchema = z.object({
   comment: z.string().optional(),
@@ -110,13 +110,11 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
                       render={({ field }) => (
                         <FormItem className="flex-1">
                           <FormControl>
-                            <Combobox
+                            <SearchableSelect
                               options={ingredientOptions}
                               value={field.value}
                               onChange={field.onChange}
                               placeholder="Выберите ингредиент"
-                              searchPlaceholder="Поиск..."
-                              notFoundMessage="Ингредиент не найден."
                             />
                           </FormControl>
                           <FormMessage />

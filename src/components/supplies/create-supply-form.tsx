@@ -20,7 +20,7 @@ import { useMemo } from 'react';
 import { useUser, useFirestore } from '@/firebase/hooks';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import type { LocalIngredient } from '@/app/ingredients/actions';
-import { Combobox } from '../ui/combobox';
+import { SearchableSelect } from '../ui/searchable-select';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -137,13 +137,11 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
                       render={({ field }) => (
                         <FormItem className="flex-1">
                           <FormControl>
-                            <Combobox
+                            <SearchableSelect
                               options={ingredientOptions}
                               value={field.value}
                               onChange={field.onChange}
                               placeholder="Выберите ингредиент"
-                              searchPlaceholder="Поиск..."
-                              notFoundMessage="Ингредиент не найден."
                             />
                           </FormControl>
                           <FormMessage />
