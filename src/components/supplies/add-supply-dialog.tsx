@@ -32,7 +32,7 @@ export function AddSupplyDialog({ ingredients }: AddSupplyDialogProps) {
       <DialogContent
         className="sm:max-w-[625px]"
         onPointerDownOutside={(event) => {
-          if ((event.target as HTMLElement).closest('[data-radix-popover-content]')) {
+          if ((event.target as HTMLElement).closest('[cmdk-root]')) {
             event.preventDefault();
           }
         }}
