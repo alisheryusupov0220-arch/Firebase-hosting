@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createSupply, type CreateSupplyData } from '@/lib/poster';
+import { createSupply, type CreateSupplyData, getStorages, getPosterSuppliers } from '@/lib/poster';
 import { getFirestore, doc, addDoc, updateDoc, collection, serverTimestamp, getDoc, writeBatch } from 'firebase/firestore';
 import { getFirebaseApp } from '@/firebase/server';
 
@@ -127,4 +127,12 @@ export async function rejectSupplyAction(pendingSupplyId: string) {
         const message = error instanceof Error ? error.message : 'Произошла неизвестная ошибка.';
         return { success: false, message: `Ошибка отклонения поставки: ${message}` };
     }
+}
+
+export async function fetchStoragesAction() {
+    return getStorages();
+}
+
+export async function fetchSuppliersAction() {
+    return getPosterSuppliers();
 }

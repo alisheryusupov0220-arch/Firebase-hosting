@@ -1,7 +1,11 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createWriteOff, type CreateWriteOffData } from '@/lib/poster';
+import { createWriteOff, type CreateWriteOffData, getStorages } from '@/lib/poster';
+
+export async function fetchStoragesAction() {
+    return getStorages();
+}
 
 export async function createWriteOffAction(data: CreateWriteOffData) {
   try {
