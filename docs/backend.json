@@ -20,7 +20,7 @@
           "description": "The user's role within the application."
         }
       },
-      "required": ["email"]
+      "required": ["email", "role"]
     },
     "IngredientMaster": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -250,16 +250,6 @@
             "$ref": "#/entities/UserProfile"
           },
           "description": "Collection for storing user profiles."
-        }
-      },
-      {
-        "path": "/roles_admin/{userId}",
-        "definition": {
-          "entityName": "UserProfile",
-          "schema": {
-            "$ref": "#/entities/UserProfile"
-          },
-          "description": "Dedicated collection for administrative roles. A user document here grants admin privileges."
         }
       },
       {

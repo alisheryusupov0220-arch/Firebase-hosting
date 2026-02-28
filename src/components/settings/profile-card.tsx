@@ -1,6 +1,6 @@
 'use client';
 import { useUser, useFirestore, useDoc } from '@/firebase/hooks';
-import { doc, writeBatch } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -33,31 +33,18 @@ export function ProfileCard() {
         if (!firestore || !user?.uid) return;
         
         const userDocRef = doc(firestore, 'users', user.uid);
-        const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
         
-        const batch = writeBatch(firestore);
-
-        // Update the user's profile document
-        batch.update(userDocRef, { role: newRole });
-
-        // Update the roles_admin collection
-        if (newRole === 'admin') {
-            batch.set(adminRoleRef, { uid: user.uid, role: 'admin' });
-        } else {
-            batch.delete(adminRoleRef);
-        }
-
         try {
-            await batch.commit();
+            await updateDoc(userDocRef, { role: newRole });
             toast({
                 title: 'Успех!',
                 description: `Ваша роль обновлена на "${newRole}".`,
             });
         } catch (error) {
              const permissionError = new FirestorePermissionError({
-                path: user.uid, // a bit generic, but it's a multi-path operation
-                operation: 'write',
-                requestResourceData: { userProfile: { role: newRole }, adminRole: newRole === 'admin' },
+                path: userDocRef.path,
+                operation: 'update',
+                requestResourceData: { role: newRole },
             });
             errorEmitter.emit('permission-error', permissionError);
             toast({
