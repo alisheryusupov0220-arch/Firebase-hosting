@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -25,7 +25,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Trash } from 'lucide-react';
 import type { Ingredient, Storage } from '@/lib/poster';
 import { createWriteOffAction } from '@/app/write-offs/actions';
-import { getBalanceForStorage } from '@/app/inventory/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Combobox } from '../ui/combobox';
 
@@ -53,8 +52,6 @@ type CreateWriteOffFormProps = {
 
 export function CreateWriteOffForm({ storages, ingredients, employees, onFormSubmitted }: CreateWriteOffFormProps) {
   const { toast } = useToast();
-  const [balance, setBalance] = useState<Record<string, number>>({});
-  const [loadingBalance, setLoadingBalance] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -70,29 +67,6 @@ export function CreateWriteOffForm({ storages, ingredients, employees, onFormSub
     control: form.control,
     name: 'ingredients',
   });
-  
-  const watchedIngredients = form.watch('ingredients');
-  const selectedStorageId = form.watch('storage_id');
-
-  useEffect(() => {
-    if (!selectedStorageId) {
-      setBalance({});
-      return;
-    }
-
-    const fetchBalance = async () => {
-      setLoadingBalance(true);
-      const balanceItems = await getBalanceForStorage(selectedStorageId);
-      const balanceMap = balanceItems.reduce((acc, item) => {
-        acc[item.ingredient_id] = parseFloat(item.balance);
-        return acc;
-      }, {} as Record<string, number>);
-      setBalance(balanceMap);
-      setLoadingBalance(false);
-    };
-
-    fetchBalance();
-  }, [selectedStorageId]);
   
   const ingredientOptions = useMemo(() =>
     ingredients.map(ing => ({
@@ -192,22 +166,6 @@ export function CreateWriteOffForm({ storages, ingredients, employees, onFormSub
         <div className="space-y-2">
             <FormLabel>Ингредиенты для списания</FormLabel>
             {fields.map((field, index) => {
-                const selectedIngredientId = watchedIngredients[index]?.ingredient_id;
-                const selectedIngredient = ingredients.find(i => i.ingredient_id === selectedIngredientId);
-                const unit = selectedIngredient?.ingredient_unit || '';
-                
-                let balanceLabel = 'Выберите склад';
-                if (selectedStorageId) {
-                    if (loadingBalance) {
-                        balanceLabel = 'Загрузка...';
-                    } else if (selectedIngredientId) {
-                        const currentBalance = balance[selectedIngredientId];
-                        balanceLabel = currentBalance !== undefined ? `${currentBalance} ${unit}` : `0 ${unit}`;
-                    } else {
-                         balanceLabel = 'Выберите ингр.';
-                    }
-                }
-
                 return (
                     <div key={field.id} className="grid grid-cols-[1fr_auto_auto] gap-2 items-end p-2 border rounded-md">
                        <Controller
@@ -239,7 +197,6 @@ export function CreateWriteOffForm({ storages, ingredients, employees, onFormSub
                                     <FormControl>
                                         <Input {...formField} type="number" step="0.001" placeholder="Кол-во" className="w-32" />
                                     </FormControl>
-                                    <p className="text-xs text-muted-foreground -mt-1">Остаток: {balanceLabel}</p>
                                     <FormMessage />
                                 </FormItem>
                             )}
