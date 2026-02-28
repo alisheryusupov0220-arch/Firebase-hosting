@@ -121,10 +121,10 @@ export default async function MenuAnalyticsPage() {
                                 <TableRow key={product.product_id}>
                                     <TableCell className="font-medium">{product.product_name}</TableCell>
                                     <TableCell className="text-right">
-                                        {new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB' }).format(product.sellingPrice)}
+                                        {new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS' }).format(product.sellingPrice)}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        {new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB' }).format(product.realCost)}
+                                        {new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS' }).format(product.realCost)}
                                     </TableCell>
                                     <TableCell className="text-right font-medium">
                                         {product.margin?.toFixed(1) ?? 'N/A'}%

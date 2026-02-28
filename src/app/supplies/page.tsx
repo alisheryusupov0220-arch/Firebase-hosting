@@ -114,7 +114,7 @@ export default async function SuppliesPage() {
                                 <TableCell className="font-medium">{supply.supply_id}</TableCell>
                                 <TableCell>{supply.date_created ? format(new Date(supply.date_created.replace(' ', 'T')), 'dd.MM.yyyy HH:mm') : '-'}</TableCell>
                                 <TableCell>{supply.supplier_name || '-'}</TableCell>
-                                <TableCell className="text-right">{new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB' }).format(Number(supply.supply_sum))}</TableCell>
+                                <TableCell className="text-right">{new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS' }).format(Number(supply.supply_sum) / 100)}</TableCell>
                                 <TableCell>
                                     <Badge variant={getStatusVariant(supply.supply_status)}>
                                         {getStatusLabel(supply.supply_status)}

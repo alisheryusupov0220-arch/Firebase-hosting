@@ -235,15 +235,47 @@ export async function createSupply(data: CreateSupplyData) {
         date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
         comment: data.comment,
       },
-      // Corrected payload key to 'ingredient' (singular)
+      // Poster expects price in the smallest currency unit (e.g. kopecks, tiyins)
       ingredient: data.ingredients.map(ing => ({
         id: String(ing.ingredient_id),
         num: String(ing.count),
         type: "4", 
-        price: String(ing.price)
+        price: String(ing.price * 100)
       }))
     };
     
-    // posterApiFetch will throw a detailed error on failure or return the new supply ID.
     return await posterApiFetch('storage.createSupply', 'POST', payload);
+}
+
+// Create Write-off
+export type NewWriteOffIngredient = {
+    ingredient_id: number;
+    num: number; // quantity
+    comment?: string;
+};
+
+export type CreateWriteOffData = {
+    storage_id: number;
+    comment?: string;
+    ingredients: NewWriteOffIngredient[];
+};
+
+/**
+ * Creates a new write-off in Poster.
+ */
+export async function createWriteOff(data: CreateWriteOffData) {
+    const payload = {
+      write_off: {
+        storage_id: data.storage_id,
+        comment: data.comment,
+      },
+      ingredient: data.ingredients.map(ing => ({
+        id: String(ing.ingredient_id),
+        num: String(ing.num),
+        type: "1", // 1 for regular write-off
+        comment: ing.comment || ''
+      }))
+    };
+
+    return await posterApiFetch('storage.createWriteOff', 'POST', payload);
 }
