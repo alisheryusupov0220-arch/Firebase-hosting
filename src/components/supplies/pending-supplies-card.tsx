@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useCollection, useFirestore } from '@/firebase/hooks';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -26,11 +26,9 @@ export function PendingSuppliesCard({ storages, suppliers, ingredients }: Pendin
     
     const pendingSuppliesQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(
-            collection(firestore, 'pendingSupplies'),
-            where('status', '==', 'pending'),
-            orderBy('createdAt', 'desc')
-        );
+        // DIAGNOSTIC: Temporarily simplify query to isolate permission issue.
+        // The original query had `where` and `orderBy` clauses.
+        return query(collection(firestore, 'pendingSupplies'));
     }, [firestore]);
 
     const { data: pendingSupplies, isLoading, error } = useCollection(pendingSuppliesQuery);
@@ -93,6 +91,14 @@ export function PendingSuppliesCard({ storages, suppliers, ingredients }: Pendin
         return null; 
     }
     
+    // Since we removed the `where('status', '==', 'pending')` from the query for diagnostics,
+    // we now filter on the client to ensure the UI remains correct.
+    const filteredSupplies = pendingSupplies.filter((s: any) => s.status === 'pending');
+
+    if (filteredSupplies.length === 0) {
+        return null;
+    }
+
     return (
         <Card>
             <CardHeader>
@@ -112,7 +118,7 @@ export function PendingSuppliesCard({ storages, suppliers, ingredients }: Pendin
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {pendingSupplies?.map((supply) => {
+                        {filteredSupplies.map((supply: any) => {
                              const totalSum = supply.ingredients.reduce((acc: number, ing: any) => acc + (ing.count * ing.price), 0);
                              return (
                                 <TableRow key={supply.id}>
