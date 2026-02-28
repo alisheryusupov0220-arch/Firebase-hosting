@@ -69,7 +69,8 @@ service cloud.firestore {
       // It's not sensitive and needs to be readable by clients to populate forms
       // but only for authenticated users.
       allow read: if isSignedIn();
-      allow write: if isAdmin(); // Only admins (or server functions acting as admin) can sync
+      // Any authenticated user can trigger a sync. The server action is trusted.
+      allow write: if isSignedIn();
     }
 
     /**
@@ -79,6 +80,7 @@ service cloud.firestore {
      */
     match /pendingSupplies/{supplyId} {
       allow get: if isSignedIn() && (isDocumentOwner(resource.data) || isAdmin());
+      // Only admins should be able to list all pending supplies.
       allow list: if isAdmin();
       allow create: if isSignedIn() && isCreatingOwnDocument();
       allow update: if isAdmin(); // Only admins can approve/reject
