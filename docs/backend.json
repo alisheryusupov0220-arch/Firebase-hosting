@@ -240,7 +240,7 @@
           }
         }
       },
-      "required": ["userId", "userName", "createdAt", "items"]
+      "required": ["userId", "userName", "createdAt", "items", "comment"]
     },
     "PendingSupply": {
       "$schema": "http://json-schema.org/draft-07/schema#",

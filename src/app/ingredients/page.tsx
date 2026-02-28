@@ -11,6 +11,7 @@ import { useCollection } from '@/firebase/hooks';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { useFirestore, useMemoFirebase } from '@/firebase/provider';
 import { RefreshCw } from 'lucide-react';
+import { translateUnit } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,7 +101,7 @@ export default function IngredientsPage() {
                             {ingredients?.map((ing) => (
                                 <TableRow key={ing.id}>
                                     <TableCell className="font-medium">{ing.name}</TableCell>
-                                    <TableCell>{ing.unit || '-'}</TableCell>
+                                    <TableCell>{translateUnit(ing.unit)}</TableCell>
                                     <TableCell className="text-muted-foreground">{ing.type}</TableCell>
                                     <TableCell className="text-right text-muted-foreground">{ing.id}</TableCell>
                                 </TableRow>

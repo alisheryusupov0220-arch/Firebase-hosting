@@ -11,6 +11,7 @@ import { useUser } from '@/firebase/hooks';
 import type { LocalIngredient } from '@/app/ingredients/actions';
 import { getIngredientsForInventory, saveInventoryCountAction } from './actions';
 import { Loader2 } from 'lucide-react';
+import { translateUnit } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,6 +49,11 @@ export default function InventoryPage() {
     }, [allIngredients, filter]);
 
     const handleSave = async () => {
+        if (!comment.trim()) {
+            toast({ variant: 'destructive', title: 'Ошибка', description: 'Пожалуйста, введите комментарий или название инвентаризации.' });
+            return;
+        }
+
         if (!user) {
             toast({ variant: 'destructive', title: 'Ошибка', description: 'Для сохранения вы должны быть авторизованы.' });
             return;
@@ -152,7 +158,7 @@ export default function InventoryPage() {
                                     filteredIngredients.map(ing => (
                                         <TableRow key={ing.id}>
                                             <TableCell className="font-medium">{ing.name}</TableCell>
-                                            <TableCell className="text-muted-foreground">{ing.unit}</TableCell>
+                                            <TableCell className="text-muted-foreground">{translateUnit(ing.unit)}</TableCell>
                                             <TableCell className="text-right">
                                                 <Input
                                                     type="number"
@@ -160,6 +166,8 @@ export default function InventoryPage() {
                                                     value={quantities[ing.id] || ''}
                                                     onChange={(e) => handleQuantityChange(ing.id, e.target.value)}
                                                     className="text-right"
+                                                    step="0.001"
+                                                    min="0"
                                                 />
                                             </TableCell>
                                         </TableRow>
