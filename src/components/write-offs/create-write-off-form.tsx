@@ -14,23 +14,15 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Trash } from 'lucide-react';
-import type { Ingredient, Storage } from '@/lib/poster';
 import { createWriteOffAction } from '@/app/write-offs/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Combobox } from '../ui/combobox';
 import { useUser } from '@/firebase/hooks';
+import type { LocalIngredient } from '@/app/ingredients/actions';
 
 const formSchema = z.object({
-  storage_id: z.string().min(1, 'Нужно выбрать склад'),
   comment: z.string().optional(),
   ingredients: z.array(z.object({
     ingredient_id: z.string().min(1, 'Нужно выбрать ингредиент'),
@@ -39,19 +31,19 @@ const formSchema = z.object({
 });
 
 type CreateWriteOffFormProps = {
-  storages: Storage[];
-  ingredients: Ingredient[];
+  ingredients: LocalIngredient[] | null;
   onFormSubmitted: () => void;
 };
 
-export function CreateWriteOffForm({ storages, ingredients, onFormSubmitted }: CreateWriteOffFormProps) {
+const DEFAULT_STORAGE_ID = 1;
+
+export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWriteOffFormProps) {
   const { toast } = useToast();
   const { user } = useUser();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      storage_id: '',
       comment: '',
       ingredients: [{ ingredient_id: '', quantity: 1 }],
     },
@@ -63,10 +55,12 @@ export function CreateWriteOffForm({ storages, ingredients, onFormSubmitted }: C
   });
   
   const ingredientOptions = useMemo(() =>
-    ingredients.map(ing => ({
-      value: String(ing.ingredient_id),
-      label: `${ing.ingredient_name} (${ing.ingredient_unit})`,
-    })),
+    ingredients
+      ? ingredients.map(ing => ({
+        value: String(ing.id),
+        label: `${ing.name} (${ing.unit})`,
+      }))
+      : [],
   [ingredients]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -77,8 +71,12 @@ export function CreateWriteOffForm({ storages, ingredients, onFormSubmitted }: C
 
     const finalComment = `Сотрудник: ${user.email}. ${values.comment || ''}`.trim();
 
+    const firstIngredientId = values.ingredients[0]?.ingredient_id;
+    const firstIngredient = ingredients?.find(i => i.id === firstIngredientId);
+    const storageId = firstIngredient?.storage_id ? Number(firstIngredient.storage_id) : DEFAULT_STORAGE_ID;
+
     const result = await createWriteOffAction({
-      storage_id: Number(values.storage_id),
+      storage_id: storageId,
       comment: finalComment,
       ingredients: values.ingredients.map(ing => ({
         ingredient_id: Number(ing.ingredient_id),
@@ -105,31 +103,6 @@ export function CreateWriteOffForm({ storages, ingredients, onFormSubmitted }: C
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="storage_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Склад</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите склад" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {storages.map((storage) => (
-                    <SelectItem key={storage.storage_id} value={String(storage.storage_id)}>
-                      {storage.storage_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
         <div className="space-y-2">
             <FormLabel>Ингредиенты для списания</FormLabel>
             {fields.map((field, index) => (
@@ -200,7 +173,7 @@ export function CreateWriteOffForm({ storages, ingredients, onFormSubmitted }: C
           )}
         />
         
-        <Button type="submit" disabled={form.formState.isSubmitting}>
+        <Button type="submit" disabled={form.formState.isSubmitting || !ingredients}>
           {form.formState.isSubmitting ? 'Отправка...' : 'Создать списание'}
         </Button>
       </form>

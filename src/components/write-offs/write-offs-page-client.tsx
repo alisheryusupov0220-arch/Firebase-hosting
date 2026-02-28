@@ -3,10 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { WriteOffsPageHeader } from '@/components/write-offs/write-offs-page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getLocalIngredients, type LocalIngredient } from '@/app/ingredients/actions';
-import { fetchStoragesAction } from '@/app/write-offs/actions';
-import type { Storage } from '@/lib/poster';
+import { type LocalIngredient } from '@/app/ingredients/actions';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCollection, useFirestore } from '@/firebase/hooks';
+import { useMemoFirebase } from '@/firebase/provider';
+import { collection, query, orderBy } from 'firebase/firestore';
 
 const PageSkeleton = () => (
     <div className="space-y-8">
@@ -33,29 +34,22 @@ const PageSkeleton = () => (
 
 
 export function WriteOffsPageClient() {
-    const [storages, setStorages] = useState<Storage[]>([]);
-    const [ingredients, setIngredients] = useState<LocalIngredient[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            const [storagesData, ingredientsData] = await Promise.all([
-                fetchStoragesAction(),
-                getLocalIngredients(),
-            ]);
-            setStorages(storagesData);
-            setIngredients(ingredientsData);
-            setLoading(false);
-        };
-        fetchData();
-    }, []);
+    const firestore = useFirestore();
+    const ingredientsQuery = useMemoFirebase(() => 
+        firestore 
+            ? query(collection(firestore, 'ingredients_master'), orderBy('name', 'asc'))
+            : null
+    , [firestore]);
 
-    const ingredientsForForm = ingredients.map(ing => ({
-      ingredient_id: ing.id,
-      ingredient_name: ing.name,
-      ingredient_unit: ing.unit,
-    }));
+    const { data: ingredients, isLoading: ingredientsLoading } = useCollection<LocalIngredient>(ingredientsQuery);
+
+    useEffect(() => {
+        if (!ingredientsLoading) {
+            setLoading(false);
+        }
+    }, [ingredientsLoading]);
     
     if (loading) {
         return <PageSkeleton />;
@@ -64,8 +58,7 @@ export function WriteOffsPageClient() {
     return (
         <div className="space-y-8">
             <WriteOffsPageHeader
-                storages={storages}
-                ingredients={ingredientsForForm}
+                ingredients={ingredients}
             />
         
             <Card>

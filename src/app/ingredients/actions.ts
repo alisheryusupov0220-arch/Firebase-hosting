@@ -33,6 +33,7 @@ export async function syncIngredientsAction() {
                 name: name,
                 type: 'ingredient',
                 unit: ing.ingredient_unit || '',
+                storage_id: ing.storage_id ? String(ing.storage_id) : null,
             });
             nameSet.add(name.toLowerCase());
         });
@@ -55,7 +56,8 @@ export async function syncIngredientsAction() {
                 name: name,
                 type: 'product',
                 unit: prod.unit || '',
-                poster_ingredient_id: prod.ingredient_id ? String(prod.ingredient_id) : null, 
+                poster_ingredient_id: prod.ingredient_id ? String(prod.ingredient_id) : null,
+                storage_id: prod.storage_id ? String(prod.storage_id) : null,
             });
             nameSet.add(name.toLowerCase());
         });
@@ -80,6 +82,7 @@ export type LocalIngredient = {
     unit: string;
     type: string;
     poster_ingredient_id?: string | null;
+    storage_id?: string | null;
 };
 
 

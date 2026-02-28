@@ -14,10 +14,13 @@ import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { SuppliesPageHeader } from "@/components/supplies/supplies-page-header";
 import { PendingSuppliesCard } from "@/components/supplies/pending-supplies-card";
-import { getLocalIngredients, type LocalIngredient } from "@/app/ingredients/actions";
+import { type LocalIngredient } from "@/app/ingredients/actions";
 import { fetchStoragesAction, fetchSuppliersAction } from '@/app/supplies/actions';
 import type { Supply, Storage, PosterSupplier } from '@/lib/poster';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCollection, useFirestore } from '@/firebase/hooks';
+import { useMemoFirebase } from '@/firebase/provider';
+import { collection, query, orderBy } from 'firebase/firestore';
 
 type SuppliesPageClientProps = {
     initialSupplies: Supply[];
@@ -51,30 +54,34 @@ const PageSkeleton = () => (
 export function SuppliesPageClient({ initialSupplies }: SuppliesPageClientProps) {
     const [storages, setStorages] = useState<Storage[]>([]);
     const [suppliers, setSuppliers] = useState<PosterSupplier[]>([]);
-    const [ingredients, setIngredients] = useState<LocalIngredient[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const firestore = useFirestore();
+    const ingredientsQuery = useMemoFirebase(() => 
+        firestore 
+            ? query(collection(firestore, 'ingredients_master'), orderBy('name', 'asc'))
+            : null
+    , [firestore]);
+
+    const { data: ingredients, isLoading: ingredientsLoading } = useCollection<LocalIngredient>(ingredientsQuery);
+
     useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            const [storagesData, suppliersData, ingredientsData] = await Promise.all([
+        const fetchDropdownData = async () => {
+            const [storagesData, suppliersData] = await Promise.all([
                 fetchStoragesAction(),
                 fetchSuppliersAction(),
-                getLocalIngredients(),
             ]);
             setStorages(storagesData);
             setSuppliers(suppliersData);
-            setIngredients(ingredientsData);
-            setLoading(false);
         };
-        fetchData();
+        fetchDropdownData();
     }, []);
 
-    const ingredientsForForm = ingredients.map(ing => ({
-        ingredient_id: ing.id,
-        ingredient_name: ing.name,
-        ingredient_unit: ing.unit,
-    }));
+    useEffect(() => {
+        if (!ingredientsLoading) {
+            setLoading(false);
+        }
+    }, [ingredientsLoading]);
 
     const getStatusVariant = (status: string) => {
         switch (status) {
@@ -99,15 +106,13 @@ export function SuppliesPageClient({ initialSupplies }: SuppliesPageClientProps)
     return (
         <div className="space-y-8">
             <SuppliesPageHeader
-                storages={storages}
-                suppliers={suppliers}
-                ingredients={ingredientsForForm}
+                ingredients={ingredients}
             />
 
             <PendingSuppliesCard 
                 storages={storages}
                 suppliers={suppliers}
-                ingredients={ingredientsForForm}
+                ingredients={ingredients || []}
             />
         
             <Card>

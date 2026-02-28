@@ -11,15 +11,14 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { PackageMinus } from 'lucide-react';
-import type { Ingredient, Storage } from '@/lib/poster';
 import { CreateWriteOffForm } from './create-write-off-form';
+import type { LocalIngredient } from '@/app/ingredients/actions';
 
 type AddWriteOffDialogProps = {
-  storages: Storage[];
-  ingredients: Ingredient[];
+  ingredients: LocalIngredient[] | null;
 };
 
-export function AddWriteOffDialog({ storages, ingredients }: AddWriteOffDialogProps) {
+export function AddWriteOffDialog({ ingredients }: AddWriteOffDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -43,11 +42,10 @@ export function AddWriteOffDialog({ storages, ingredients }: AddWriteOffDialogPr
         <DialogHeader>
           <DialogTitle>Новое списание</DialogTitle>
           <DialogDescription>
-            Выберите склад, сотрудника и ингредиенты для списания.
+            Выберите ингредиенты и укажите количество для списания.
           </DialogDescription>
         </DialogHeader>
         <CreateWriteOffForm
-          storages={storages}
           ingredients={ingredients}
           onFormSubmitted={() => setIsOpen(false)}
         />

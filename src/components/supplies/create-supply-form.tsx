@@ -13,25 +13,16 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Trash } from 'lucide-react';
-import type { Ingredient, PosterSupplier, Storage } from '@/lib/poster';
 import { requestSupplyAction } from '@/app/supplies/actions';
 import { useToast } from '@/hooks/use-toast';
 import React from 'react';
 import { Combobox } from '../ui/combobox';
 import { useUser } from '@/firebase/hooks';
+import type { LocalIngredient } from '@/app/ingredients/actions';
 
 const formSchema = z.object({
-  supplier_id: z.string().min(1, 'Нужно выбрать поставщика'),
-  storage_id: z.string().min(1, 'Нужно выбрать склад'),
   comment: z.string().optional(),
   ingredients: z.array(z.object({
     ingredient_id: z.string().min(1, 'Нужно выбрать ингредиент'),
@@ -41,31 +32,32 @@ const formSchema = z.object({
 });
 
 type CreateSupplyFormProps = {
-  suppliers: PosterSupplier[];
-  storages: Storage[];
-  ingredients: Ingredient[];
+  ingredients: LocalIngredient[] | null;
   onFormSubmitted: () => void;
 };
 
+const DEFAULT_SUPPLIER_ID = 1;
+const DEFAULT_STORAGE_ID = 1;
 
-export function CreateSupplyForm({ suppliers, storages, ingredients, onFormSubmitted }: CreateSupplyFormProps) {
+
+export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyFormProps) {
   const { toast } = useToast();
   const { user } = useUser();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      supplier_id: '',
-      storage_id: '',
       comment: '',
       ingredients: [{ ingredient_id: '', count: 1, price: 0 }],
     },
   });
   
   const ingredientOptions = React.useMemo(() => 
-    ingredients.map(ing => ({
-      value: String(ing.ingredient_id),
-      label: `${ing.ingredient_name} (${ing.ingredient_unit})`,
-    })), 
+    ingredients 
+    ? ingredients.map(ing => ({
+        value: String(ing.id),
+        label: `${ing.name} (${ing.unit})`,
+      }))
+    : [],
   [ingredients]);
 
   const { fields, append, remove } = useFieldArray({
@@ -85,9 +77,13 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, onFormSubmi
     
     const finalComment = `Сотрудник: ${user.email}. ${values.comment || ''}`.trim();
 
+    const firstIngredientId = values.ingredients[0]?.ingredient_id;
+    const firstIngredient = ingredients?.find(i => i.id === firstIngredientId);
+    const storageId = firstIngredient?.storage_id ? Number(firstIngredient.storage_id) : DEFAULT_STORAGE_ID;
+
     const result = await requestSupplyAction({
-      supplier_id: Number(values.supplier_id),
-      storage_id: Number(values.storage_id),
+      supplier_id: DEFAULT_SUPPLIER_ID,
+      storage_id: storageId,
       comment: finalComment,
       ingredients: values.ingredients.map(ing => ({
         ingredient_id: Number(ing.ingredient_id),
@@ -117,57 +113,6 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, onFormSubmi
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="supplier_id"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Поставщик</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите поставщика" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {suppliers.map((supplier) => (
-                      <SelectItem key={supplier.supplier_id} value={String(supplier.supplier_id)}>
-                        {supplier.supplier_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="storage_id"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Склад</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите склад" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {storages.map((storage) => (
-                      <SelectItem key={storage.storage_id} value={String(storage.storage_id)}>
-                        {storage.storage_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
         <div className="space-y-2">
             <FormLabel>Ингредиенты</FormLabel>
             {fields.map((field, index) => (
@@ -255,7 +200,7 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, onFormSubmi
           )}
         />
         
-        <Button type="submit" disabled={form.formState.isSubmitting}>
+        <Button type="submit" disabled={form.formState.isSubmitting || !ingredients}>
           {form.formState.isSubmitting ? 'Отправка...' : 'Отправить на утверждение'}
         </Button>
       </form>

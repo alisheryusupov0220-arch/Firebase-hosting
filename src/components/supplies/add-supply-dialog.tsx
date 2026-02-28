@@ -11,16 +11,14 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { PlusCircle } from 'lucide-react';
-import type { Ingredient, PosterSupplier, Storage } from '@/lib/poster';
 import { CreateSupplyForm } from './create-supply-form';
+import type { LocalIngredient } from '@/app/ingredients/actions';
 
 type AddSupplyDialogProps = {
-  suppliers: PosterSupplier[];
-  storages: Storage[];
-  ingredients: Ingredient[];
+  ingredients: LocalIngredient[] | null;
 };
 
-export function AddSupplyDialog({ suppliers, storages, ingredients }: AddSupplyDialogProps) {
+export function AddSupplyDialog({ ingredients }: AddSupplyDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -44,12 +42,10 @@ export function AddSupplyDialog({ suppliers, storages, ingredients }: AddSupplyD
         <DialogHeader>
           <DialogTitle>Новая поставка</DialogTitle>
           <DialogDescription>
-            Заполните данные для регистрации новой поставки.
+            Выберите ингредиенты, укажите количество и сумму для регистрации новой поставки.
           </DialogDescription>
         </DialogHeader>
         <CreateSupplyForm
-          suppliers={suppliers}
-          storages={storages}
           ingredients={ingredients}
           onFormSubmitted={() => setIsOpen(false)}
         />
