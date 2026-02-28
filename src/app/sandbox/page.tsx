@@ -116,12 +116,6 @@ export default function SandboxPage() {
               });
 
               errorEmitter.emit('permission-error', permissionError);
-
-              toast({ 
-                  variant: 'destructive', 
-                  title: 'Ошибка!', 
-                  description: 'Не удалось сохранить черновик. Недостаточно прав.' 
-              });
           });
     }
 
