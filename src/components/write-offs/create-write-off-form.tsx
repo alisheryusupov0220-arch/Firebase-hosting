@@ -165,48 +165,46 @@ export function CreateWriteOffForm({ storages, ingredients, employees, onFormSub
         
         <div className="space-y-2">
             <FormLabel>Ингредиенты для списания</FormLabel>
-            {fields.map((field, index) => {
-                return (
-                    <div key={field.id} className="grid grid-cols-[1fr_auto_auto] gap-2 items-end p-2 border rounded-md">
-                       <Controller
-                          control={form.control}
-                          name={`ingredients.${index}.ingredient_id`}
-                          render={({ field: controllerField, fieldState }) => (
-                              <FormItem>
-                                {index === 0 && <FormLabel className="text-xs">Ингредиент</FormLabel>}
-                                 <Combobox
-                                    options={ingredientOptions}
-                                    value={controllerField.value}
-                                    onChange={(value) => {
-                                      controllerField.onChange(value === null ? '' : String(value));
-                                    }}
-                                    placeholder="Выберите ингредиент..."
-                                    searchPlaceholder="Поиск..."
-                                    notFoundMessage="Не найден."
-                                  />
-                                <FormMessage>{fieldState.error?.message}</FormMessage>
-                              </FormItem>
-                          )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name={`ingredients.${index}.quantity`}
-                            render={({ field: formField }) => (
-                                <FormItem>
-                                    {index === 0 && <FormLabel className="text-xs">Количество</FormLabel>}
-                                    <FormControl>
-                                        <Input {...formField} type="number" step="0.001" placeholder="Кол-во" className="w-32" />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
-                            <Trash className="h-4 w-4" />
-                        </Button>
-                    </div>
-                )
-            })}
+            {fields.map((field, index) => (
+                <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-end gap-2 p-2 border rounded-md">
+                   <Controller
+                      control={form.control}
+                      name={`ingredients.${index}.ingredient_id`}
+                      render={({ field: controllerField, fieldState }) => (
+                          <FormItem>
+                            {index === 0 && <FormLabel className="text-xs">Ингредиент</FormLabel>}
+                             <Combobox
+                                options={ingredientOptions}
+                                value={controllerField.value}
+                                onChange={(value) => {
+                                  controllerField.onChange(value === null ? '' : String(value));
+                                }}
+                                placeholder="Выберите ингредиент..."
+                                searchPlaceholder="Поиск ингредиента..."
+                                notFoundMessage="Ингредиент не найден."
+                              />
+                            <FormMessage>{fieldState.error?.message}</FormMessage>
+                          </FormItem>
+                      )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name={`ingredients.${index}.quantity`}
+                        render={({ field }) => (
+                            <FormItem>
+                                {index === 0 && <FormLabel className="text-xs">Количество</FormLabel>}
+                                <FormControl>
+                                    <Input {...field} type="number" step="0.001" placeholder="Кол-во" className="w-24" />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
+                        <Trash className="h-4 w-4" />
+                    </Button>
+                </div>
+            ))}
             <Button
                 type="button"
                 variant="outline"
