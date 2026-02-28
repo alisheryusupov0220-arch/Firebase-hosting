@@ -241,12 +241,12 @@ export async function createSupply(data: CreateSupplyData) {
         comment: data.comment,
       },
       // Poster expects price in the smallest currency unit (e.g. kopecks, tiyins)
-      // Ensure numeric values are sent as numbers, not strings.
+      // The working Apps Script sends this as a string.
       ingredient: data.ingredients.map(ing => ({
         id: ing.ingredient_id,
         num: ing.count,
         type: 4, 
-        price: ing.price * 100
+        price: String(ing.price * 100)
       }))
     };
     
@@ -277,11 +277,11 @@ export async function createWriteOff(data: CreateWriteOffData) {
         storage_id: data.storage_id,
         comment: data.comment,
       },
-      // Ensure numeric values are sent as numbers, not strings.
+      // Based on the working Apps Script, key should be 'weight' and type should be 4.
       ingredient: data.ingredients.map(ing => ({
         id: ing.ingredient_id,
-        num: ing.num,
-        type: 1, // 1 for regular write-off
+        weight: ing.num,
+        type: 4, 
         comment: ing.comment || ''
       }))
     };
