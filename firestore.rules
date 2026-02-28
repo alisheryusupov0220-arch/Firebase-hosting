@@ -67,8 +67,8 @@ service cloud.firestore {
     match /ingredients_master/{ingredientId} {
       // This collection is a master list of ingredients from Poster.
       // It's not sensitive and needs to be readable by clients to populate forms
-      // even before a user is logged in.
-      allow read: if true;
+      // but only for authenticated users.
+      allow read: if isSignedIn();
       allow write: if isAdmin(); // Only admins (or server functions acting as admin) can sync
     }
 

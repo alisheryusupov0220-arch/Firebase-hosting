@@ -11,37 +11,10 @@ import { getSupplies, type Supply, getStorages, getPosterSuppliers } from '@/lib
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { SuppliesPageHeader } from "@/components/supplies/supplies-page-header";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { PendingSuppliesCard } from "@/components/supplies/pending-supplies-card";
 import { getLocalIngredients } from "@/app/ingredients/actions";
 
 export const dynamic = 'force-dynamic';
-
-// Data moved here to be passed down to the form
-const employees = [
-  {
-    id: 'employee-1',
-    name: "Елена Попова",
-    email: "elena.popova@example.com",
-    role: "Администратор",
-    avatar: PlaceHolderImages.find(p => p.id === 'employee-1')
-  },
-  {
-    id: 'employee-2',
-    name: "Михаил Захаров",
-    email: "mikhail.z@example.com",
-    role: "Сотрудник",
-    avatar: PlaceHolderImages.find(p => p.id === 'employee-2')
-  },
-  {
-    id: 'employee-3',
-    name: "София Кузнецова",
-    email: "sofia.k@example.com",
-    role: "Сотрудник",
-    avatar: PlaceHolderImages.find(p => p.id === 'employee-3')
-  },
-];
-
 
 export default async function SuppliesPage() {
   const [supplies, storages, suppliers, ingredients] = await Promise.all([
@@ -50,8 +23,6 @@ export default async function SuppliesPage() {
     getPosterSuppliers(),
     getLocalIngredients()
   ]);
-
-  const employeesForForm = employees.map(e => ({ id: e.id, name: e.name }));
 
   const ingredientsForForm = ingredients.map(ing => ({
       ingredient_id: ing.id,
@@ -86,7 +57,6 @@ export default async function SuppliesPage() {
         storages={storages}
         suppliers={suppliers}
         ingredients={ingredientsForForm}
-        employees={employeesForForm}
       />
 
       {currentUserRole === 'Администратор' && (

@@ -27,16 +27,11 @@ import { requestSupplyAction } from '@/app/supplies/actions';
 import { useToast } from '@/hooks/use-toast';
 import React from 'react';
 import { Combobox } from '../ui/combobox';
-
-type Employee = {
-  id: string;
-  name: string;
-};
+import { useUser } from '@/firebase/hooks';
 
 const formSchema = z.object({
   supplier_id: z.string().min(1, 'Нужно выбрать поставщика'),
   storage_id: z.string().min(1, 'Нужно выбрать склад'),
-  employee_id: z.string().min(1, 'Нужно выбрать сотрудника'),
   comment: z.string().optional(),
   ingredients: z.array(z.object({
     ingredient_id: z.string().min(1, 'Нужно выбрать ингредиент'),
@@ -49,19 +44,18 @@ type CreateSupplyFormProps = {
   suppliers: PosterSupplier[];
   storages: Storage[];
   ingredients: Ingredient[];
-  employees: Employee[];
   onFormSubmitted: () => void;
 };
 
 
-export function CreateSupplyForm({ suppliers, storages, ingredients, employees, onFormSubmitted }: CreateSupplyFormProps) {
+export function CreateSupplyForm({ suppliers, storages, ingredients, onFormSubmitted }: CreateSupplyFormProps) {
   const { toast } = useToast();
+  const { user } = useUser();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       supplier_id: '',
       storage_id: '',
-      employee_id: '',
       comment: '',
       ingredients: [{ ingredient_id: '', count: 1, price: 0 }],
     },
@@ -80,17 +74,16 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, employees, 
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    const employee = employees.find(e => e.id === values.employee_id);
-    if (!employee) {
+    if (!user) {
         toast({
             variant: 'destructive',
             title: 'Ошибка!',
-            description: 'Выбранный сотрудник не найден.',
+            description: 'Вы должны быть авторизованы для выполнения этого действия.',
         });
         return;
     }
     
-    const finalComment = `Сотрудник: ${employee.name}. ${values.comment || ''}`.trim();
+    const finalComment = `Сотрудник: ${user.email}. ${values.comment || ''}`.trim();
 
     const result = await requestSupplyAction({
       supplier_id: Number(values.supplier_id),
@@ -101,8 +94,8 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, employees, 
         count: ing.count,
         price: ing.price,
       })),
-      requesterId: employee.id,
-      requesterName: employee.name,
+      requesterId: user.uid,
+      requesterName: user.email || 'Пользователь без email',
     });
 
     if (result.success) {
@@ -174,31 +167,6 @@ export function CreateSupplyForm({ suppliers, storages, ingredients, employees, 
             )}
           />
         </div>
-         <FormField
-          control={form.control}
-          name="employee_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Сотрудник</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите сотрудника" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id}>
-                      {employee.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
 
         <div className="space-y-2">
             <FormLabel>Ингредиенты</FormLabel>

@@ -14,18 +14,12 @@ import { PackageMinus } from 'lucide-react';
 import type { Ingredient, Storage } from '@/lib/poster';
 import { CreateWriteOffForm } from './create-write-off-form';
 
-type Employee = {
-  id: string;
-  name: string;
-};
-
 type AddWriteOffDialogProps = {
   storages: Storage[];
   ingredients: Ingredient[];
-  employees: Employee[];
 };
 
-export function AddWriteOffDialog({ storages, ingredients, employees }: AddWriteOffDialogProps) {
+export function AddWriteOffDialog({ storages, ingredients }: AddWriteOffDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -55,7 +49,6 @@ export function AddWriteOffDialog({ storages, ingredients, employees }: AddWrite
         <CreateWriteOffForm
           storages={storages}
           ingredients={ingredients}
-          employees={employees}
           onFormSubmitted={() => setIsOpen(false)}
         />
       </DialogContent>

@@ -27,15 +27,10 @@ import type { Ingredient, Storage } from '@/lib/poster';
 import { createWriteOffAction } from '@/app/write-offs/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Combobox } from '../ui/combobox';
-
-type Employee = {
-  id: string;
-  name: string;
-};
+import { useUser } from '@/firebase/hooks';
 
 const formSchema = z.object({
   storage_id: z.string().min(1, 'Нужно выбрать склад'),
-  employee_id: z.string().min(1, 'Нужно выбрать сотрудника'),
   comment: z.string().optional(),
   ingredients: z.array(z.object({
     ingredient_id: z.string().min(1, 'Нужно выбрать ингредиент'),
@@ -46,18 +41,17 @@ const formSchema = z.object({
 type CreateWriteOffFormProps = {
   storages: Storage[];
   ingredients: Ingredient[];
-  employees: Employee[];
   onFormSubmitted: () => void;
 };
 
-export function CreateWriteOffForm({ storages, ingredients, employees, onFormSubmitted }: CreateWriteOffFormProps) {
+export function CreateWriteOffForm({ storages, ingredients, onFormSubmitted }: CreateWriteOffFormProps) {
   const { toast } = useToast();
+  const { user } = useUser();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       storage_id: '',
-      employee_id: '',
       comment: '',
       ingredients: [{ ingredient_id: '', quantity: 1 }],
     },
@@ -76,13 +70,12 @@ export function CreateWriteOffForm({ storages, ingredients, employees, onFormSub
   [ingredients]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    const employee = employees.find(e => e.id === values.employee_id);
-    if (!employee) {
-        toast({ variant: 'destructive', title: 'Ошибка!', description: 'Выбранный сотрудник не найден.' });
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Ошибка!', description: 'Вы должны быть авторизованы.' });
         return;
     }
 
-    const finalComment = `Сотрудник: ${employee.name}. ${values.comment || ''}`.trim();
+    const finalComment = `Сотрудник: ${user.email}. ${values.comment || ''}`.trim();
 
     const result = await createWriteOffAction({
       storage_id: Number(values.storage_id),
@@ -112,81 +105,57 @@ export function CreateWriteOffForm({ storages, ingredients, employees, onFormSub
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-           <FormField
-            control={form.control}
-            name="storage_id"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Склад</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите склад" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {storages.map((storage) => (
-                      <SelectItem key={storage.storage_id} value={String(storage.storage_id)}>
-                        {storage.storage_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-           <FormField
-            control={form.control}
-            name="employee_id"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Сотрудник</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите сотрудника" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {employees.map((employee) => (
-                      <SelectItem key={employee.id} value={employee.id}>
-                        {employee.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        <FormField
+          control={form.control}
+          name="storage_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Склад</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите склад" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {storages.map((storage) => (
+                    <SelectItem key={storage.storage_id} value={String(storage.storage_id)}>
+                      {storage.storage_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         
         <div className="space-y-2">
             <FormLabel>Ингредиенты для списания</FormLabel>
             {fields.map((field, index) => (
                 <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-end gap-2 p-2 border rounded-md">
-                   <Controller
-                      control={form.control}
-                      name={`ingredients.${index}.ingredient_id`}
-                      render={({ field: controllerField, fieldState }) => (
-                          <FormItem>
-                            {index === 0 && <FormLabel className="text-xs">Ингредиент</FormLabel>}
-                             <Combobox
-                                options={ingredientOptions}
-                                value={controllerField.value}
-                                onChange={(value) => {
-                                  controllerField.onChange(value === null ? '' : String(value));
-                                }}
-                                placeholder="Выберите ингредиент..."
-                                searchPlaceholder="Поиск ингредиента..."
-                                notFoundMessage="Ингредиент не найден."
-                              />
-                            <FormMessage>{fieldState.error?.message}</FormMessage>
-                          </FormItem>
-                      )}
-                    />
+                   <div className="flex flex-col">
+                      {index === 0 && <FormLabel className="text-xs">Ингредиент</FormLabel>}
+                      <Controller
+                        control={form.control}
+                        name={`ingredients.${index}.ingredient_id`}
+                        render={({ field: controllerField, fieldState }) => (
+                            <FormItem>
+                               <Combobox
+                                  options={ingredientOptions}
+                                  value={controllerField.value}
+                                  onChange={(value) => {
+                                    controllerField.onChange(value === null ? '' : String(value));
+                                  }}
+                                  placeholder="Выберите ингредиент..."
+                                  searchPlaceholder="Поиск ингредиента..."
+                                  notFoundMessage="Ингредиент не найден."
+                                />
+                              <FormMessage>{fieldState.error?.message}</FormMessage>
+                            </FormItem>
+                        )}
+                      />
+                   </div>
                     <FormField
                         control={form.control}
                         name={`ingredients.${index}.quantity`}

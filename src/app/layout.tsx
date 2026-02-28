@@ -4,7 +4,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
-import { Header } from '@/components/layout/header';
+import { AuthGuard } from '@/components/auth/auth-guard';
 
 export const metadata: Metadata = {
   title: 'Dog&Dog Invent+',
@@ -28,12 +28,9 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <FirebaseClientProvider>
           <ThemeProvider storageKey="dog-invent-theme">
-            <div className="flex min-h-screen w-full flex-col bg-muted/40">
-              <Header />
-              <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
-                {children}
-              </main>
-            </div>
+            <AuthGuard>
+              {children}
+            </AuthGuard>
             <Toaster />
             <FirebaseErrorListener />
           </ThemeProvider>

@@ -1,5 +1,27 @@
 {
   "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Represents a user's profile information.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's primary email address."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The user's display name."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "employee"],
+          "description": "The user's role within the application."
+        }
+      },
+      "required": ["email"]
+    },
     "IngredientMaster": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "IngredientMaster",
@@ -223,9 +245,9 @@
       {
         "path": "/users/{userId}",
         "definition": {
-          "entityName": "user",
+          "entityName": "UserProfile",
           "schema": {
-            "$ref": "#/backend/entities/User"
+            "$ref": "#/entities/UserProfile"
           },
           "description": "Collection for storing user profiles."
         }
@@ -233,18 +255,18 @@
       {
         "path": "/roles_admin/{userId}",
         "definition": {
-          "entityName": "role_admin",
+          "entityName": "UserProfile",
           "schema": {
-            "$ref": "#/backend/entities/User"
+            "$ref": "#/entities/UserProfile"
           },
-          "description": "Dedicated collection for administrative roles."
+          "description": "Dedicated collection for administrative roles. A user document here grants admin privileges."
         }
       },
       {
         "path": "/pendingSupplies/{supplyId}",
         "definition": {
           "entityName": "PendingSupply",
-          "schema": { "$ref": "#/backend/entities/PendingSupply" },
+          "schema": { "$ref": "#/entities/PendingSupply" },
           "description": "Stores supply requests awaiting approval. Regular users can create their own, admins can manage all."
         }
       },
@@ -252,7 +274,7 @@
         "path": "/ingredients/{ingredientId}/price_history/{priceId}",
         "definition": {
           "entityName": "PriceRecord",
-          "schema": { "$ref": "#/backend/entities/PriceRecord" },
+          "schema": { "$ref": "#/entities/PriceRecord" },
           "description": "Subcollection to store the historical price data for each ingredient. `ingredientId` is the Poster ID, `priceId` is the Poster Supply ID."
         }
       },
@@ -260,7 +282,7 @@
         "path": "/ingredients_master/{ingredientId}",
         "definition": {
           "entityName": "IngredientMaster",
-          "schema": { "$ref": "#/backend/entities/IngredientMaster" },
+          "schema": { "$ref": "#/entities/IngredientMaster" },
           "description": "Master data for ingredients, synchronized from Poster. Used to populate selection dropdowns."
         }
       },
@@ -268,7 +290,7 @@
         "path": "/sandbox_items/{sandboxId}",
         "definition": {
           "entityName": "SandboxItem",
-          "schema": { "$ref": "#/backend/entities/SandboxItem" },
+          "schema": { "$ref": "#/entities/SandboxItem" },
           "description": "Stores draft menu items created in the Sandbox. These are user-owned."
         }
       }
