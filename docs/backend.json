@@ -1,68 +1,322 @@
 {
   "entities": {
-    "UserProfile": {
-      "title": "User Profile",
-      "description": "Represents a user's profile information.",
+    "Category": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Category",
       "type": "object",
+      "description": "Represents a category for inventory items, typically synchronized from the Poster system.",
       "properties": {
-        "uid": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "displayName": { "type": "string" },
-        "photoURL": { "type": "string", "format": "uri" },
-        "role": {
+        "id": {
           "type": "string",
-          "enum": ["admin", "employee"]
+          "description": "Unique identifier for the Category entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the category."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the category."
+        },
+        "posterCategoryId": {
+          "type": "string",
+          "description": "The unique identifier for this category in the external Poster system. Used for automatic synchronization. (Relationship: Poster 1:1 Category)"
         }
       },
-      "required": ["uid", "email", "role"]
+      "required": [
+        "id",
+        "name",
+        "posterCategoryId"
+      ]
     },
-    "PendingSupply": {
-      "title": "Pending Supply",
-      "description": "A supply request waiting for admin approval.",
+    "Location": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Location",
       "type": "object",
+      "description": "Represents a physical or logical location where inventory is stored, enabling transfers and location-specific stock management.",
       "properties": {
-        "status": {
+        "id": {
           "type": "string",
-          "enum": ["pending", "approved", "rejected"]
+          "description": "Unique identifier for the Location entity."
         },
-        "requesterId": { "type": "string", "description": "User ID of the employee who created the request." },
-        "requesterName": { "type": "string", "description": "Name of the employee who created the request." },
-        "supplier_id": { "type": "number" },
-        "storage_id": { "type": "number" },
-        "comment": { "type": "string" },
-        "ingredients": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "ingredient_id": { "type": "number" },
-              "count": { "type": "number" },
-              "price": { "type": "number" }
-            },
-            "required": ["ingredient_id", "count", "price"]
-          }
+        "name": {
+          "type": "string",
+          "description": "The name of the location (e.g., 'Main Warehouse', 'Shop Floor A')."
         },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "approvedBy": { "type": "string", "description": "User ID of the admin who approved." },
-        "approvedAt": { "type": "string", "format": "date-time" },
-        "rejectedBy": { "type": "string", "description": "User ID of the admin who rejected." },
-        "rejectedAt": { "type": "string", "format": "date-time" },
-        "posterSupplyId": { "type": "string", "description": "The ID of the supply created in Poster after approval." }
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the location."
+        },
+        "address": {
+          "type": "string",
+          "description": "The physical address of the location."
+        }
       },
-      "required": ["status", "requesterId", "requesterName", "supplier_id", "storage_id", "ingredients", "createdAt"]
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "InventoryItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "InventoryItem",
+      "type": "object",
+      "description": "Represents a single stock-keeping unit (SKU) or product managed in the inventory, tracking its details and current stock.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the InventoryItem entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The common name of the inventory item."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the inventory item, including specifications or usage."
+        },
+        "sku": {
+          "type": "string",
+          "description": "Stock Keeping Unit, a unique code for the item used for identification and tracking."
+        },
+        "currentStock": {
+          "type": "number",
+          "description": "The current total quantity of this item across all known locations. This field represents the aggregated stock level."
+        },
+        "unitOfMeasure": {
+          "type": "string",
+          "description": "The standard unit in which the item is measured (e.g., 'pcs', 'kg', 'liter')."
+        },
+        "categoryId": {
+          "type": "string",
+          "description": "Reference to the Category this inventory item belongs to. (Relationship: Category 1:N InventoryItem)"
+        },
+        "posterProductId": {
+          "type": "string",
+          "description": "The unique identifier for this product in the external Poster system. Used for automatic stock updates. (Relationship: Poster 1:1 InventoryItem)"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "sku",
+        "currentStock",
+        "unitOfMeasure",
+        "categoryId",
+        "posterProductId"
+      ]
+    },
+    "InventoryMovement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "InventoryMovement",
+      "type": "object",
+      "description": "Records any change in inventory stock levels, serving as a log for supplies, write-offs, transfers, and inventory adjustments.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the InventoryMovement entity."
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of inventory movement (e.g., 'Supply', 'WriteOff', 'Transfer', 'Adjustment')."
+        },
+        "movementDate": {
+          "type": "string",
+          "description": "The date and time when the inventory movement was recorded.",
+          "format": "date-time"
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description or reason for the inventory movement (e.g., 'Damaged goods', 'Annual inventory count')."
+        },
+        "sourceLocationId": {
+          "type": "string",
+          "description": "Reference to the Location from which items are moved. Required for 'Transfer' and optional for 'WriteOff'. (Relationship: Location 1:N InventoryMovement)"
+        },
+        "destinationLocationId": {
+          "type": "string",
+          "description": "Reference to the Location to which items are moved. Required for 'Supply' and 'Transfer'. (Relationship: Location 1:N InventoryMovement)"
+        },
+        "recordedByUserId": {
+          "type": "string",
+          "description": "The unique identifier of the user who recorded this inventory movement, obtained from an external authentication system."
+        },
+        "posterDocumentId": {
+          "type": "string",
+          "description": "The unique identifier for the corresponding document (e.g., supply invoice, write-off act) in the external Poster system, if applicable. (Relationship: Poster 1:1 InventoryMovement)"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "movementDate",
+        "recordedByUserId"
+      ]
+    },
+    "InventoryMovementDetail": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "InventoryMovementDetail",
+      "type": "object",
+      "description": "Represents a single line item within an inventory movement, detailing the quantity and specific item affected by the movement.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the InventoryMovementDetail entity."
+        },
+        "inventoryMovementId": {
+          "type": "string",
+          "description": "Reference to the parent InventoryMovement this detail belongs to. (Relationship: InventoryMovement 1:N InventoryMovementDetail)"
+        },
+        "inventoryItemId": {
+          "type": "string",
+          "description": "Reference to the InventoryItem being moved. (Relationship: InventoryItem 1:N InventoryMovementDetail)"
+        },
+        "quantity": {
+          "type": "number",
+          "description": "The quantity of the item involved in this specific movement detail. Positive values indicate an increase (e.g., supply), negative values indicate a decrease (e.g., write-off). For adjustments, it represents the final difference."
+        },
+        "unitCost": {
+          "type": "number",
+          "description": "The cost per unit of the item at the time of this movement detail, especially relevant for 'Supply' movements."
+        },
+        "stockBeforeMovement": {
+          "type": "number",
+          "description": "The stock level of the item at the relevant location immediately before this movement detail was applied. Useful for auditing and historical tracking."
+        },
+        "stockAfterMovement": {
+          "type": "number",
+          "description": "The stock level of the item at the relevant location immediately after this movement detail was applied. Useful for auditing and historical tracking."
+        }
+      },
+      "required": [
+        "id",
+        "inventoryMovementId",
+        "inventoryItemId",
+        "quantity",
+        "stockBeforeMovement",
+        "stockAfterMovement"
+      ]
     }
   },
   "auth": {
-    "providers": ["anonymous"]
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": { "$ref": "#/entities/UserProfile" },
-      "description": "User profile documents, keyed by user ID."
-    },
-    "/pendingSupplies/{supplyId}": {
-      "schema": { "$ref": "#/entities/PendingSupply" },
-      "description": "Supply requests waiting for approval."
-    }
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "user",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Collection for storing user profiles. While specific user data is not detailed, this path is a common pattern for user-centric applications. This collection could eventually hold user-specific settings or non-role-related attributes."
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "role_admin",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Dedicated collection for administrative roles. The mere existence of a document at this path for a given userId signifies that user is an administrator. This adheres to the DBAC principle of 'Existence over Content' for global roles.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who has an admin role."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/categories/{categoryId}",
+        "definition": {
+          "entityName": "Category",
+          "schema": {
+            "$ref": "#/backend/entities/Category"
+          },
+          "description": "Master list of inventory categories, primarily synchronized from the external Poster system. Documents in this collection are generally readable by all authenticated users and managed (written/updated) by administrators or trusted system processes.",
+          "params": [
+            {
+              "name": "categoryId",
+              "description": "The unique identifier for a specific inventory category."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/locations/{locationId}",
+        "definition": {
+          "entityName": "Location",
+          "schema": {
+            "$ref": "#/backend/entities/Location"
+          },
+          "description": "Master list of physical or logical inventory locations. Documents are generally readable by all authenticated users and managed by administrators or system processes. No specific denormalization for authorization is required as it's a global resource with consistent access rules.",
+          "params": [
+            {
+              "name": "locationId",
+              "description": "The unique identifier for a specific inventory location."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/inventory_items/{itemId}",
+        "definition": {
+          "entityName": "InventoryItem",
+          "schema": {
+            "$ref": "#/backend/entities/InventoryItem"
+          },
+          "description": "Central repository for all stock-keeping units (SKUs) or products. Includes aggregated stock levels. These documents are generally readable by all authenticated users. Updates to `currentStock` are typically performed via server-side logic triggered by inventory movements to ensure data integrity. No specific denormalization for authorization is required as it's a global resource with consistent access rules.",
+          "params": [
+            {
+              "name": "itemId",
+              "description": "The unique identifier for a specific inventory item."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/inventory_movements/{movementId}",
+        "definition": {
+          "entityName": "InventoryMovement",
+          "schema": {
+            "$ref": "#/backend/entities/InventoryMovement"
+          },
+          "description": "Records details of all inventory transactions (supplies, write-offs, transfers, adjustments). Each document includes `recordedByUserId` to identify the creator and facilitate ownership-based access control and auditing. This collection allows listing based on `recordedByUserId` for regular users and full access for administrators, supporting QAPs.",
+          "params": [
+            {
+              "name": "movementId",
+              "description": "The unique identifier for a specific inventory movement record."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/inventory_movements/{movementId}/details/{detailId}",
+        "definition": {
+          "entityName": "InventoryMovementDetail",
+          "schema": {
+            "$ref": "#/backend/entities/InventoryMovementDetail"
+          },
+          "description": "Subcollection containing the detailed line items for a specific inventory movement. Each document includes denormalized `recordedByUserId` from the parent `InventoryMovement` for crucial authorization independence. It also includes `inventoryItemId` to directly reference the affected item, supporting quick lookups and rule-based checks without cross-document reads.",
+          "params": [
+            {
+              "name": "movementId",
+              "description": "The unique identifier of the parent inventory movement."
+            },
+            {
+              "name": "detailId",
+              "description": "The unique identifier for a specific detail line item within an inventory movement."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The proposed Firestore structure for 'Dog&Dog Invent+' prioritizes Authorization Independence and Query-Accurate Permissions (QAPs) through strategic denormalization and structural segregation.\n\n**Authorization Independence (CRITICAL):**\n1.  **`InventoryMovementDetail` Authorization:** To avoid `get()` calls in security rules and enable atomic operations, `InventoryMovementDetail` documents in the `/inventory_movements/{movementId}/details/{detailId}` subcollection will denormalize the `recordedByUserId` from their parent `InventoryMovement`. This allows rules for `InventoryMovementDetail` to directly check `resource.data.recordedByUserId` without needing to fetch the parent `InventoryMovement` document, thus maintaining authorization independence and simplifying rule logic.\n2.  **Global Entities:** Entities like `Category`, `Location`, and `InventoryItem` are treated as 'global' or 'organizational' data. Their security posture is homogeneous: generally readable by all authenticated users and writable only by administrators or trusted server processes (e.g., Poster sync). This structural segregation prevents mixing different access levels within the same collection.\n\n**Query-Accurate Permissions (QAPs):**\n1.  **Role-Based Access:** Global administrative roles are managed via a dedicated `/roles_admin/{userId}` collection. The existence of a document for a `userId` in this collection grants admin privileges. This allows security rules to explicitly check `exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))` for QAP-compliant permission checks for administrative actions across any collection.\n2.  **`InventoryMovement` Listing:** The `/inventory_movements/{movementId}` collection includes a `recordedByUserId` field. For regular users, listing operations will filter by this field client-side (e.g., `db.collection('inventory_movements').where('recordedByUserId', '==', auth.currentUser.uid)`). Security rules will enforce that `request.auth.uid == resource.data.recordedByUserId` (for owned documents) or `exists(/roles_admin/$(request.auth.uid))` (for admins). This approach ensures that client queries align with security rules, satisfying QAP for listing specific movements or all movements for an administrator.\n3.  **Denormalized Subcollections:** For `InventoryMovementDetail`, as they are subcollections, querying is always scoped under a specific parent `InventoryMovement`. The denormalized `recordedByUserId` ensures that authorization for listing details also adheres to QAP, as rules can efficiently check this field within each detail document.\n\n**Overall Structure and Other Principles:**\n*   **DBAC:** Roles are explicitly stored in Firestore (`/roles_admin/{userId}`).\n*   **Structural Segregation:** Each collection (`/categories`, `/locations`, `/inventory_items`, `/inventory_movements`, `/users`) has a clear, consistent security posture.\n*   **Hierarchical Paths for Nested Data:** `InventoryMovementDetail` is nested under `InventoryMovement` (`/inventory_movements/{movementId}/details/{detailId}`) which is a natural fit for 1:N relationships.\n*   **Data Clarity:** Entity names are reflected in path segments (e.g., `inventory_movements`, `inventory_items`). Wildcards are descriptive (e.g., `{movementId}`, `{itemId}`)."
   }
 }
