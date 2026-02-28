@@ -18,9 +18,9 @@ import { Trash } from 'lucide-react';
 import { requestSupplyAction } from '@/app/supplies/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useMemo } from 'react';
-import { Combobox } from '../ui/combobox';
 import { useUser } from '@/firebase/hooks';
 import type { LocalIngredient } from '@/app/ingredients/actions';
+import { SearchableSelect } from '../ui/searchable-select';
 
 const formSchema = z.object({
   comment: z.string().optional(),
@@ -120,13 +120,11 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
                       render={({ field }) => (
                         <FormItem className="flex-1">
                           <FormControl>
-                            <Combobox
+                            <SearchableSelect
                               options={ingredientOptions}
                               value={field.value}
                               onChange={field.onChange}
                               placeholder="Выберите ингредиент"
-                              searchPlaceholder="Поиск ингредиента..."
-                              notFoundMessage="Не найдено."
                             />
                           </FormControl>
                           <FormMessage />

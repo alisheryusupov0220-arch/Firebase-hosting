@@ -29,14 +29,7 @@ export function AddWriteOffDialog({ ingredients }: AddWriteOffDialogProps) {
           Добавить списание
         </Button>
       </DialogTrigger>
-      <DialogContent
-        className="sm:max-w-[625px]"
-        onPointerDownOutside={(event) => {
-          if ((event.target as HTMLElement).closest('[cmdk-root]')) {
-            event.preventDefault();
-          }
-        }}
-      >
+      <DialogContent className="sm:max-w-[625px]">
         <DialogHeader>
           <DialogTitle>Новое списание</DialogTitle>
           <DialogDescription>
