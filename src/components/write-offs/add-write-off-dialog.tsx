@@ -29,7 +29,7 @@ export function AddWriteOffDialog({ storages, ingredients, employees }: AddWrite
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen} modal={false}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button>
           <PackageMinus className="mr-2 h-4 w-4" />
