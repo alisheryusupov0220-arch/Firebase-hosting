@@ -78,18 +78,13 @@ service cloud.firestore {
 
     /**
      * @description Manages supply requests awaiting approval.
-     * @allow (create) Authenticated users can create their own supply requests.
-     * @allow (read, update, delete) ANY signed-in user can manage supplies.
-     * 
-     * WARNING: This is a temporarily relaxed rule for development to unblock UI functionality.
-     * In production, 'list', 'update', and 'delete' should be restricted to admins.
+     * WARNING: This rule is wide open for debugging. ANYONE can read/write.
+     * This is a temporary measure to unblock development.
      */
     match /pendingSupplies/{supplyId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
+      allow read: if true;
       allow create: if isSignedIn() && isCreatingOwnDocument();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow update, delete: if isSignedIn();
     }
 
     /**

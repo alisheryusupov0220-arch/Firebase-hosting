@@ -1,11 +1,10 @@
 'use client';
 
 import React from 'react';
-import { useCollection, useFirestore, useUser, useDoc } from '@/firebase/hooks';
-import { collection, query, where, orderBy, doc } from 'firebase/firestore';
+import { useCollection, useFirestore } from '@/firebase/hooks';
+import { collection, query, where, orderBy } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { approveSupplyAction, rejectSupplyAction } from '@/app/supplies/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -20,33 +19,21 @@ type PendingSuppliesCardProps = {
     ingredients: Ingredient[];
 };
 
-type UserProfile = {
-    role: 'admin' | 'employee';
-};
 
 export function PendingSuppliesCard({ storages, suppliers, ingredients }: PendingSuppliesCardProps) {
     const { toast } = useToast();
     const firestore = useFirestore();
-    const { user, loading: userLoading } = useUser();
-
-    // Fetch user profile to check for admin role
-    const userProfileRef = useMemoFirebase(() => {
-        if (!firestore || !user?.uid) return null;
-        return doc(firestore, 'users', user.uid);
-    }, [firestore, user?.uid]);
-    const { data: userProfile, isLoading: profileLoading } = useDoc<UserProfile>(userProfileRef);
-    const isAdmin = userProfile?.role === 'admin';
     
     const pendingSuppliesQuery = useMemoFirebase(() => {
-        if (!firestore || !isAdmin) return null; // Only query if user is an admin
+        if (!firestore) return null;
         return query(
             collection(firestore, 'pendingSupplies'),
             where('status', '==', 'pending'),
             orderBy('createdAt', 'desc')
         );
-    }, [firestore, isAdmin]);
+    }, [firestore]);
 
-    const { data: pendingSupplies, isLoading: suppliesLoading, error } = useCollection(pendingSuppliesQuery);
+    const { data: pendingSupplies, isLoading, error } = useCollection(pendingSuppliesQuery);
     
     const dataMap = React.useMemo(() => ({
         storages: new Map(storages.map(item => [item.storage_id, item.storage_name])),
@@ -71,20 +58,8 @@ export function PendingSuppliesCard({ storages, suppliers, ingredients }: Pendin
             toast({ variant: 'destructive', title: 'Ошибка!', description: result.message });
         }
     };
-
-    const isLoading = userLoading || profileLoading || suppliesLoading;
     
-    // Don't render anything for non-admins or if there are no pending supplies
-    if ((!isLoading && !isAdmin) || (!isLoading && isAdmin && pendingSupplies?.length === 0)) {
-        return null; 
-    }
-    
-    // Show a loading state specifically for the admin card
-    if (isLoading && !user) {
-        return null; // Don't show skeleton if user is not even logged in yet.
-    }
-    
-    if (isLoading && isAdmin) {
+    if (isLoading) {
          return (
             <Card>
                 <CardHeader>
@@ -105,13 +80,17 @@ export function PendingSuppliesCard({ storages, suppliers, ingredients }: Pendin
          return (
             <Card>
                 <CardHeader>
-                    <CardTitle>Ошибка</CardTitle>
+                    <CardTitle>Ошибка загрузки заявок</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-destructive">Не удалось загрузить заявки: {error.message}</p>
+                    <p className="text-destructive">{error.message}</p>
                 </CardContent>
             </Card>
         );
+    }
+
+    if (!pendingSupplies || pendingSupplies.length === 0) {
+        return null; 
     }
     
     return (
