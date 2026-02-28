@@ -20,7 +20,7 @@ import { createWriteOffAction } from '@/app/write-offs/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/hooks';
 import type { LocalIngredient } from '@/app/ingredients/actions';
-import { SearchableSelect } from '../ui/searchable-select';
+import { Combobox } from '../ui/combobox';
 
 const formSchema = z.object({
   comment: z.string().optional(),
@@ -73,10 +73,11 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
 
     const result = await createWriteOffAction({
       storage_id: storageId,
-      comment: finalComment,
+      reason: finalComment,
       ingredients: values.ingredients.map(ing => ({
-        ingredient_id: Number(ing.ingredient_id),
-        num: ing.quantity,
+        id: Number(ing.ingredient_id),
+        type: 4,
+        weight: ing.quantity,
       }))
     });
 
@@ -109,11 +110,13 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
                       render={({ field }) => (
                         <FormItem className="flex-1">
                           <FormControl>
-                            <SearchableSelect
+                            <Combobox
                               options={ingredientOptions}
                               value={field.value}
                               onChange={field.onChange}
                               placeholder="Выберите ингредиент"
+                              searchPlaceholder="Поиск..."
+                              notFoundMessage="Ингредиент не найден."
                             />
                           </FormControl>
                           <FormMessage />

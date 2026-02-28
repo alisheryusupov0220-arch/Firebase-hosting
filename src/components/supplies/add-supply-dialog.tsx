@@ -29,7 +29,14 @@ export function AddSupplyDialog({ ingredients }: AddSupplyDialogProps) {
           Добавить поставку
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[625px]">
+      <DialogContent
+        className="sm:max-w-[625px]"
+        onPointerDownOutside={(e) => {
+          if ((e.target as HTMLElement).closest('[cmdk-root]')) {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Новая поставка</DialogTitle>
           <DialogDescription>
