@@ -21,6 +21,7 @@ import type { Waste } from '@/lib/poster';
 
 type WriteOffsPageClientProps = {
     initialWastes: Waste[];
+    comments: Record<string, string>;
 };
 
 const PageSkeleton = () => (
@@ -47,7 +48,7 @@ const PageSkeleton = () => (
 );
 
 
-export function WriteOffsPageClient({ initialWastes }: WriteOffsPageClientProps) {
+export function WriteOffsPageClient({ initialWastes, comments }: WriteOffsPageClientProps) {
     const [loading, setLoading] = useState(true);
 
     const firestore = useFirestore();
@@ -92,14 +93,19 @@ export function WriteOffsPageClient({ initialWastes }: WriteOffsPageClientProps)
                         </TableHeader>
                         <TableBody>
                             {initialWastes.length > 0 ? (
-                                initialWastes.map((waste) => (
-                                    <TableRow key={waste.waste_id}>
-                                        <TableCell className="font-medium">{waste.waste_id}</TableCell>
-                                        <TableCell>{waste.date ? format(new Date(waste.date.replace(' ', 'T')), 'dd.MM.yyyy HH:mm') : '-'}</TableCell>
-                                        <TableCell>{waste.reason_name || '-'}</TableCell>
-                                        <TableCell className="text-right">{new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(waste.total_sum) / 100)}</TableCell>
-                                    </TableRow>
-                                ))
+                                initialWastes.map((waste) => {
+                                    const firestoreComment = comments[waste.waste_id];
+                                    const displayReason = firestoreComment || waste.reason_name;
+                                    
+                                    return (
+                                        <TableRow key={waste.waste_id}>
+                                            <TableCell className="font-medium">{waste.waste_id}</TableCell>
+                                            <TableCell>{waste.date ? format(new Date(waste.date.replace(' ', 'T')), 'dd.MM.yyyy HH:mm') : '-'}</TableCell>
+                                            <TableCell>{displayReason || '-'}</TableCell>
+                                            <TableCell className="text-right">{new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(waste.total_sum) / 100)}</TableCell>
+                                        </TableRow>
+                                    );
+                                })
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={4} className="h-24 text-center">
