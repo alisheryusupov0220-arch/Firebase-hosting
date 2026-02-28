@@ -1,41 +1,47 @@
 'use server';
 
-import { getStorageBalance, getStorages, type Storage, type StorageBalanceItem } from '@/lib/poster';
-import { getFirestore, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { getFirebaseApp } from '@/firebase/server';
+import { getLocalIngredients, type LocalIngredient } from '@/app/ingredients/actions';
 
-// This server action fetches balance for a given storage
-export async function getBalanceForStorage(storageId: string): Promise<StorageBalanceItem[]> {
-    return getStorageBalance(storageId);
+// This action fetches all ingredients from our local master list.
+export async function getIngredientsForInventory(): Promise<LocalIngredient[]> {
+    return getLocalIngredients();
 }
 
-// This server action fetches latest prices for given ingredient IDs
-export async function getLatestPrices(ingredientIds: string[]): Promise<Record<string, number>> {
-    const db = getFirestore(getFirebaseApp());
-    const prices: Record<string, number> = {};
+export type InventoryItemData = {
+    ingredientId: string;
+    ingredientName: string;
+    unit: string;
+    quantity: number;
+};
 
-    const pricePromises = ingredientIds.map(async (id) => {
-        const pricesQuery = query(
-            collection(db, `ingredients/${id}/price_history`),
-            orderBy('date', 'desc'),
-            limit(1)
-        );
-        const querySnapshot = await getDocs(pricesQuery);
-        if (!querySnapshot.empty) {
-            return { id, price: querySnapshot.docs[0].data().price };
-        }
-        return { id, price: 0 }; // Default to 0 if no price history
-    });
+export type SaveInventoryPayload = {
+    comment: string;
+    items: InventoryItemData[];
+    userId: string;
+    userName: string;
+};
 
-    const results = await Promise.all(pricePromises);
-    results.forEach(result => {
-        prices[result.id] = result.price;
-    });
+// This server action saves the inventory count to Firestore.
+export async function saveInventoryCountAction(payload: SaveInventoryPayload) {
+    if (!payload.items || payload.items.length === 0) {
+        return { success: false, message: 'Нет данных для сохранения.' };
+    }
 
-    return prices;
-}
+    try {
+        const db = getFirestore(getFirebaseApp());
+        const inventoryCountsCollection = collection(db, 'inventory_counts');
 
-// This server action fetches all storages
-export async function fetchStoragesAction(): Promise<Storage[]> {
-    return getStorages();
+        await addDoc(inventoryCountsCollection, {
+            ...payload,
+            createdAt: serverTimestamp(),
+        });
+
+        return { success: true, message: 'Инвентаризация успешно сохранена.' };
+    } catch (error) {
+        console.error('Failed to save inventory count:', error);
+        const message = error instanceof Error ? error.message : 'Произошла неизвестная ошибка.';
+        return { success: false, message: `Ошибка сохранения: ${message}` };
+    }
 }

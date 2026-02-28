@@ -4,184 +4,184 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { type Storage, type StorageBalanceItem } from '@/lib/poster';
-import { getBalanceForStorage, getLatestPrices, fetchStoragesAction } from './actions';
-
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/firebase/hooks';
+import type { LocalIngredient } from '@/app/ingredients/actions';
+import { getIngredientsForInventory, saveInventoryCountAction } from './actions';
+import { Loader2 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-type EnrichedBalanceItem = StorageBalanceItem & {
-    latestPrice: number;
-    actual?: number;
-};
-
 export default function InventoryPage() {
-    const [storages, setStorages] = useState<Storage[]>([]);
-    const [selectedStorage, setSelectedStorage] = useState<string>('');
-    const [balanceItems, setBalanceItems] = useState<EnrichedBalanceItem[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [loadingStorages, setLoadingStorages] = useState(true);
+    const { toast } = useToast();
+    const { user } = useUser();
+    const [allIngredients, setAllIngredients] = useState<LocalIngredient[]>([]);
+    const [quantities, setQuantities] = useState<Record<string, string>>({});
+    const [comment, setComment] = useState('');
+    const [filter, setFilter] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        const loadStorages = async () => {
-            setLoadingStorages(true);
-            const fetchedStorages = await fetchStoragesAction();
-            setStorages(fetchedStorages);
-            setLoadingStorages(false);
+        async function loadIngredients() {
+            setIsLoading(true);
+            const ingredients = await getIngredientsForInventory();
+            setAllIngredients(ingredients);
+            setIsLoading(false);
         }
-        loadStorages();
-    }, [])
+        loadIngredients();
+    }, []);
 
-    useEffect(() => {
-        if (!selectedStorage) {
-            setBalanceItems([]);
-            return;
-        };
-
-        const fetchBalanceAndPrices = async () => {
-            setLoading(true);
-            try {
-                const balance = await getBalanceForStorage(selectedStorage);
-                const ingredientIds = balance.map(item => item.ingredient_id);
-                if (ingredientIds.length > 0) {
-                    const prices = await getLatestPrices(ingredientIds);
-                    const enrichedItems = balance.map(item => ({
-                        ...item,
-                        latestPrice: prices[item.ingredient_id] || 0,
-                    }));
-                    setBalanceItems(enrichedItems);
-                } else {
-                    setBalanceItems([]);
-                }
-            } catch (error) {
-                console.error("Failed to fetch inventory data:", error);
-                // Here you would show a toast to the user
-            }
-            setLoading(false);
-        };
-
-        fetchBalanceAndPrices();
-    }, [selectedStorage]);
-
-    const handleActualChange = (ingredientId: string, value: string) => {
-        const numericValue = value === '' ? undefined : parseFloat(value);
-        setBalanceItems(prev =>
-            prev.map(item =>
-                item.ingredient_id === ingredientId ? { ...item, actual: numericValue } : item
-            )
-        );
+    const handleQuantityChange = (ingredientId: string, value: string) => {
+        setQuantities(prev => ({ ...prev, [ingredientId]: value }));
     };
 
-    const totalLoss = useMemo(() => {
-        return balanceItems.reduce((acc, item) => {
-            if (item.actual !== undefined) {
-                const plan = parseFloat(item.balance);
-                const diff = item.actual - plan;
-                if (diff < 0) {
-                    const loss = -diff * item.latestPrice;
-                    return acc + loss;
-                }
-            }
-            return acc;
-        }, 0);
-    }, [balanceItems]);
+    const filteredIngredients = useMemo(() => {
+        if (!filter) {
+            return allIngredients;
+        }
+        return allIngredients.filter(ing =>
+            ing.name.toLowerCase().includes(filter.toLowerCase())
+        );
+    }, [allIngredients, filter]);
+
+    const handleSave = async () => {
+        if (!user) {
+            toast({ variant: 'destructive', title: 'Ошибка', description: 'Для сохранения вы должны быть авторизованы.' });
+            return;
+        }
+
+        const itemsToSave = Object.entries(quantities)
+            .map(([ingredientId, quantityStr]) => {
+                const quantity = parseFloat(quantityStr);
+                if (!quantity || quantity <= 0) return null;
+
+                const ingredient = allIngredients.find(ing => ing.id === ingredientId);
+                if (!ingredient) return null;
+
+                return {
+                    ingredientId: ingredient.id,
+                    ingredientName: ingredient.name,
+                    unit: ingredient.unit,
+                    quantity: quantity,
+                };
+            })
+            .filter((item): item is NonNullable<typeof item> => item !== null);
+
+        if (itemsToSave.length === 0) {
+            toast({ variant: 'destructive', title: 'Нечего сохранять', description: 'Введите количество хотя бы для одного ингредиента.' });
+            return;
+        }
+
+        setIsSaving(true);
+        const result = await saveInventoryCountAction({
+            comment,
+            items: itemsToSave,
+            userId: user.uid,
+            userName: user.email || 'Unknown User',
+        });
+        setIsSaving(false);
+
+        if (result.success) {
+            toast({ title: 'Успех!', description: 'Данные инвентаризации сохранены.' });
+            setQuantities({});
+            setComment('');
+            setFilter('');
+        } else {
+            toast({ variant: 'destructive', title: 'Ошибка сохранения', description: result.message });
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex min-h-[400px] w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
-            <PageHeader title="Инвентаризация" description="Проведение инвентаризаций для обновления остатков." />
+            <PageHeader
+                title="Проведение инвентаризации"
+                description="Зафиксируйте фактические остатки ингредиентов в системе."
+            />
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Выбор склада</CardTitle>
-                    <CardDescription>Выберите склад для проведения инвентаризации.</CardDescription>
+                    <CardTitle>Новая инвентаризация</CardTitle>
+                    <CardDescription>
+                        Введите название (например, &quot;Еженедельная проверка бара&quot;) и заполните фактическое количество для нужных позиций.
+                        Пустые поля не будут сохранены.
+                    </CardDescription>
                 </CardHeader>
-                <CardContent>
-                    {loadingStorages ? (
-                        <p>Загрузка складов...</p>
-                    ) : (
-                        <Select value={selectedStorage} onValueChange={setSelectedStorage}>
-                            <SelectTrigger className="w-[280px]">
-                                <SelectValue placeholder="Выберите склад..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {storages.map(storage => (
-                                    <SelectItem key={storage.storage_id} value={storage.storage_id}>
-                                        {storage.storage_name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    )}
+                <CardContent className="space-y-4">
+                    <Input
+                        placeholder="Комментарий или название инвентаризации..."
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        className="max-w-lg"
+                    />
+                    <Input
+                        placeholder="Поиск ингредиента..."
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                        className="max-w-lg"
+                    />
                 </CardContent>
             </Card>
 
-            {selectedStorage && (
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Проведение инвентаризации</CardTitle>
-                         <CardDescription>
-                            Введите фактические остатки. Разница будет рассчитана автоматически.
-                         </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {loading ? (
-                            <p>Загрузка данных...</p>
-                        ) : balanceItems.length > 0 ? (
-                           <>
-                            <Table>
-                                <TableHeader>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Список ингредиентов</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Название ингредиента</TableHead>
+                                    <TableHead className="w-[100px]">Ед. изм.</TableHead>
+                                    <TableHead className="w-[180px] text-right">Фактическое кол-во</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredIngredients.length > 0 ? (
+                                    filteredIngredients.map(ing => (
+                                        <TableRow key={ing.id}>
+                                            <TableCell className="font-medium">{ing.name}</TableCell>
+                                            <TableCell className="text-muted-foreground">{ing.unit}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Input
+                                                    type="number"
+                                                    placeholder="0.00"
+                                                    value={quantities[ing.id] || ''}
+                                                    onChange={(e) => handleQuantityChange(ing.id, e.target.value)}
+                                                    className="text-right"
+                                                />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
                                     <TableRow>
-                                        <TableHead>Ингредиент</TableHead>
-                                        <TableHead className="text-right">План (Poster)</TableHead>
-                                        <TableHead className="w-[150px] text-right">Факт</TableHead>
-                                        <TableHead className="text-right">Разница</TableHead>
-                                        <TableHead className="text-right">Потери (в деньгах)</TableHead>
+                                        <TableCell colSpan={3} className="h-24 text-center">
+                                            Ингредиенты не найдены.
+                                        </TableCell>
                                     </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {balanceItems.map(item => {
-                                        const plan = parseFloat(item.balance);
-                                        const actual = item.actual;
-                                        const difference = actual !== undefined ? actual - plan : undefined;
-                                        const loss = difference !== undefined && difference < 0 ? -difference * item.latestPrice : 0;
-                                        
-                                        return (
-                                            <TableRow key={item.ingredient_id}>
-                                                <TableCell>{item.ingredient_name}</TableCell>
-                                                <TableCell className="text-right">{plan.toFixed(3)} {item.unit}</TableCell>
-                                                <TableCell className="text-right">
-                                                    <Input
-                                                        type="number"
-                                                        value={actual ?? ''}
-                                                        onChange={(e) => handleActualChange(item.ingredient_id, e.target.value)}
-                                                        className="text-right"
-                                                    />
-                                                </TableCell>
-                                                <TableCell className={`text-right font-medium ${difference === undefined ? '' : difference < 0 ? 'text-red-500' : 'text-green-500'}`}>
-                                                    {difference !== undefined ? difference.toFixed(3) : '-'}
-                                                </TableCell>
-                                                <TableCell className="text-right font-medium text-red-500">
-                                                    {loss > 0 ? new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(loss) : '-'}
-                                                </TableCell>
-                                            </TableRow>
-                                        )
-                                    })}
-                                </TableBody>
-                            </Table>
-                             <div className="mt-4 text-right">
-                                <p className="text-lg font-bold">
-                                    Общие потери: {new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(totalLoss)}
-                                </p>
-                            </div>
-                           </>
-                        ) : (
-                            <p>На этом складе нет остатков.</p>
-                        )}
-                    </CardContent>
-                 </Card>
-            )}
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                    <div className="mt-6 flex justify-end">
+                        <Button onClick={handleSave} disabled={isSaving}>
+                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Сохранить инвентаризацию
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }

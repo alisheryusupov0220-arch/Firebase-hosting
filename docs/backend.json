@@ -202,6 +202,46 @@
       },
       "required": ["name", "userId", "totalCost", "ingredients", "createdAt"]
     },
+    "InventoryCount": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "InventoryCount",
+      "description": "Represents a snapshot of an inventory count performed by a user.",
+      "type": "object",
+      "properties": {
+        "comment": {
+          "type": "string",
+          "description": "A user-provided name or comment for the inventory count (e.g., 'Weekly bar check')."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who performed the count."
+        },
+        "userName": {
+          "type": "string",
+          "description": "The name or email of the user who performed the count."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp of when the count was saved."
+        },
+        "items": {
+          "type": "array",
+          "description": "The list of ingredients and their counted quantities.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ingredientId": { "type": "string" },
+              "ingredientName": { "type": "string" },
+              "unit": { "type": "string" },
+              "quantity": { "type": "number" }
+            },
+            "required": ["ingredientId", "ingredientName", "unit", "quantity"]
+          }
+        }
+      },
+      "required": ["userId", "userName", "createdAt", "items"]
+    },
     "PendingSupply": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PendingSupply",
@@ -282,6 +322,14 @@
           "entityName": "SandboxItem",
           "schema": { "$ref": "#/entities/SandboxItem" },
           "description": "Stores draft menu items created in the Sandbox. These are user-owned."
+        }
+      },
+      {
+        "path": "/inventory_counts/{inventoryCountId}",
+        "definition": {
+          "entityName": "InventoryCount",
+          "schema": { "$ref": "#/entities/InventoryCount" },
+          "description": "Stores saved inventory counts. Users can create their own."
         }
       }
     ]
