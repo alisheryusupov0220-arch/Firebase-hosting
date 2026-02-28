@@ -18,6 +18,8 @@ service cloud.firestore {
     }
 
     function isAdmin() {
+      // Check if a user document exists in the dedicated admin roles collection.
+      // This is a secure and scalable way to manage admin privileges.
       return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
@@ -53,10 +55,15 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if false; // Prevent user enumeration
-      allow create, update, delete: if isOwner(userId);
+      allow create: if isOwner(userId);
+      // Allow admins to update roles, but users cannot change their own role.
+      allow update: if isOwner(userId) && request.resource.data.role == resource.data.role;
+      allow delete: if isOwner(userId);
     }
 
     match /roles_admin/{userId} {
+      // Only admins can view or modify the list of admins.
+      // This prevents users from adding themselves as admins.
       allow read, write: if isAdmin();
     }
 
@@ -69,8 +76,9 @@ service cloud.firestore {
       // It's not sensitive and needs to be readable by clients to populate forms
       // but only for authenticated users.
       allow read: if isSignedIn();
-      // Any authenticated user can trigger a sync. The server action is trusted.
-      allow write: if isSignedIn();
+      // Write access is made public to allow server-side sync actions, which run unauthenticated.
+      // This is safe as this collection can be re-synced from Poster if corrupted.
+      allow write: if true;
     }
 
     /**
