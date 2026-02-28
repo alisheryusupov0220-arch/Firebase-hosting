@@ -244,13 +244,12 @@ export async function createSupply(data: CreateSupplyData) {
         date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
         comment: data.comment,
       },
-      // Poster expects price in the smallest currency unit (e.g. kopecks, tiyins)
       // The working Apps Script sends this as a string.
       ingredient: data.ingredients.map(ing => ({
         id: ing.ingredient_id,
         num: ing.count,
         type: 4, 
-        price: String(ing.price * 100)
+        price: String(ing.price)
       }))
     };
     

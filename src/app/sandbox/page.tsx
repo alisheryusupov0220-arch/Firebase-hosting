@@ -209,7 +209,7 @@ export default function SandboxPage() {
                         </CardHeader>
                         <CardContent>
                              <div className="text-2xl font-bold">
-                                Общая себестоимость: {new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS' }).format(totalCost)}
+                                Общая себестоимость: {new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(totalCost)}
                              </div>
                         </CardContent>
                     </Card>

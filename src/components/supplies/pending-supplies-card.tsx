@@ -129,7 +129,7 @@ export function PendingSuppliesCard({ storages, suppliers, ingredients }: Pendin
                                     <TableCell>{dataMap.suppliers.get(String(supply.supplier_id)) || supply.supplier_id}</TableCell>
                                     <TableCell>{dataMap.storages.get(String(supply.storage_id)) || supply.storage_id}</TableCell>
                                     <TableCell className="text-right">
-                                        {new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS' }).format(totalSum)}
+                                        {new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(totalSum)}
                                     </TableCell>
                                     <TableCell className="text-right space-x-2">
                                         <Button size="sm" onClick={() => handleApprove(supply.id)}>Одобрить</Button>

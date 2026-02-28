@@ -163,7 +163,7 @@ export default function InventoryPage() {
                                                     {difference !== undefined ? difference.toFixed(3) : '-'}
                                                 </TableCell>
                                                 <TableCell className="text-right font-medium text-red-500">
-                                                    {loss > 0 ? new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS' }).format(loss) : '-'}
+                                                    {loss > 0 ? new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(loss) : '-'}
                                                 </TableCell>
                                             </TableRow>
                                         )
@@ -172,7 +172,7 @@ export default function InventoryPage() {
                             </Table>
                              <div className="mt-4 text-right">
                                 <p className="text-lg font-bold">
-                                    Общие потери: {new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS' }).format(totalLoss)}
+                                    Общие потери: {new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(totalLoss)}
                                 </p>
                             </div>
                            </>
