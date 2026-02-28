@@ -24,9 +24,12 @@ export async function syncIngredientsAction() {
             const name = ing.ingredient_name.trim();
             if (!name || nameSet.has(name.toLowerCase())) return;
 
-            const docRef = doc(ingredientsMasterCollection, ing.ingredient_id);
+            const docId = String(ing.ingredient_id);
+            if (!docId || docId === 'undefined' || docId === 'null') return;
+
+            const docRef = doc(ingredientsMasterCollection, docId);
             batch.set(docRef, {
-                id: ing.ingredient_id,
+                id: docId,
                 name: name,
                 type: 'ingredient',
                 unit: ing.ingredient_unit || '',
@@ -41,15 +44,18 @@ export async function syncIngredientsAction() {
             
             const name = prod.product_name.trim();
             if (!name || nameSet.has(name.toLowerCase())) return;
+            
+            const docId = String(prod.product_id);
+            if (!docId || docId === 'undefined' || docId === 'null') return;
 
             // These products act like ingredients. Use their own product_id as the key.
-            const docRef = doc(ingredientsMasterCollection, prod.product_id);
+            const docRef = doc(ingredientsMasterCollection, docId);
             batch.set(docRef, {
-                id: prod.product_id,
+                id: docId,
                 name: name,
                 type: 'product',
                 unit: prod.unit || '',
-                poster_ingredient_id: prod.ingredient_id || null, 
+                poster_ingredient_id: prod.ingredient_id ? String(prod.ingredient_id) : null, 
             });
             nameSet.add(name.toLowerCase());
         });
