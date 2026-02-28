@@ -15,7 +15,7 @@ import { serverTimestamp, collection, addDoc } from 'firebase/firestore';
 import { useUser, useFirestore } from '@/firebase/hooks';
 import { useToast } from '@/hooks/use-toast';
 import { getLatestPrices, getIngredientsAction } from './actions';
-import { IngredientCombobox } from '@/components/supplies/ingredient-combobox';
+import { Combobox } from '@/components/ui/combobox';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
 
@@ -167,7 +167,7 @@ export default function SandboxPage() {
                                             name={`ingredients.${index}.ingredientId`}
                                             render={({ field: controllerField, fieldState }) => (
                                                 <FormItem>
-                                                    <IngredientCombobox
+                                                    <Combobox
                                                         options={ingredientOptions}
                                                         value={controllerField.value}
                                                         onChange={(value) => controllerField.onChange(value)}
