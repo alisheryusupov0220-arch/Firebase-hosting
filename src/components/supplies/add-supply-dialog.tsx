@@ -31,7 +31,7 @@ export function AddSupplyDialog({ ingredients }: AddSupplyDialogProps) {
       </DialogTrigger>
       <DialogContent
         className="sm:max-w-[625px]"
-        onInteractOutside={(event) => {
+        onPointerDownOutside={(event) => {
           if ((event.target as HTMLElement).closest('[cmdk-root]')) {
             event.preventDefault();
           }
