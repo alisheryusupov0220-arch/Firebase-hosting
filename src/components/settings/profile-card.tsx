@@ -1,6 +1,6 @@
 'use client';
 import { useUser, useFirestore, useDoc } from '@/firebase/hooks';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, writeBatch } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -30,30 +30,42 @@ export function ProfileCard() {
     const { data: userProfile, isLoading: profileLoading } = useDoc<UserProfile>(userProfileRef);
 
     const handleRoleChange = async (newRole: 'admin' | 'employee') => {
-        if (!userProfileRef) return;
+        if (!firestore || !user?.uid) return;
         
-        const originalRole = userProfile?.role;
+        const userDocRef = doc(firestore, 'users', user.uid);
+        const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
+        
+        const batch = writeBatch(firestore);
 
-        updateDoc(userProfileRef, { role: newRole })
-            .then(() => {
-                 toast({
-                    title: 'Успех!',
-                    description: `Ваша роль обновлена на "${newRole}".`,
-                });
-            })
-            .catch((error) => {
-                 const permissionError = new FirestorePermissionError({
-                    path: userProfileRef.path,
-                    operation: 'update',
-                    requestResourceData: { ...userProfile, role: newRole },
-                });
-                errorEmitter.emit('permission-error', permissionError);
-                toast({
-                    variant: 'destructive',
-                    title: 'Ошибка обновления роли',
-                    description: 'Недостаточно прав для смены роли.',
-                });
-            })
+        // Update the user's profile document
+        batch.update(userDocRef, { role: newRole });
+
+        // Update the roles_admin collection
+        if (newRole === 'admin') {
+            batch.set(adminRoleRef, { uid: user.uid, role: 'admin' });
+        } else {
+            batch.delete(adminRoleRef);
+        }
+
+        try {
+            await batch.commit();
+            toast({
+                title: 'Успех!',
+                description: `Ваша роль обновлена на "${newRole}".`,
+            });
+        } catch (error) {
+             const permissionError = new FirestorePermissionError({
+                path: user.uid, // a bit generic, but it's a multi-path operation
+                operation: 'write',
+                requestResourceData: { userProfile: { role: newRole }, adminRole: newRole === 'admin' },
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            toast({
+                variant: 'destructive',
+                title: 'Ошибка обновления роли',
+                description: 'Недостаточно прав для выполнения операции. Попробуйте обновить страницу.',
+            });
+        }
     };
     
     const isLoading = userLoading || profileLoading;

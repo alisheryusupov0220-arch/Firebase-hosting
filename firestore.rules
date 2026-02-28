@@ -17,10 +17,9 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Admin check is based on the existence of a document in the roles_admin collection.
     function isAdmin() {
-      // An admin user has a 'role' field set to 'admin' in their user profile document.
-      // This makes the user profile the single source of truth for their role.
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
     function isOwner(userId) {
@@ -53,12 +52,25 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
 
     match /users/{userId} {
+      // User can read their own profile. Admins can read any profile.
       allow get: if isOwner(userId) || isAdmin();
       allow list: if false; // Prevent user enumeration
+      // User can create their own profile during signup.
       allow create: if isOwner(userId);
-      // Allow user to update their own profile, including their role. Admins can also update profiles.
+      // User can update their own profile. Admins can also update profiles.
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if isOwner(userId);
+    }
+    
+    // This collection is a mirror for admin roles to allow for fast and secure rule checks.
+    match /roles_admin/{userId} {
+        // A user can create or delete their own admin role document.
+        // This is triggered by the UI when changing their role in the profile.
+        allow read, create, delete: if isOwner(userId);
+        // Only admins can see who else is an admin.
+        allow list: if isAdmin();
+        // Prevent updating the document, only creation and deletion.
+        allow update: if false;
     }
 
     // -------------------------------------------------------------------------
