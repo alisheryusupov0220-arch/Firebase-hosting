@@ -239,17 +239,16 @@ export type CreateSupplyData = {
 export async function createSupply(data: CreateSupplyData) {
     const payload = {
       supply: {
-        supplier_id: data.supplier_id,
-        storage_id: data.storage_id,
+        supplier_id: String(data.supplier_id),
+        storage_id: String(data.storage_id),
         date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
         comment: data.comment,
       },
-      // The working Apps Script sends this as a string.
       ingredient: data.ingredients.map(ing => ({
-        id: ing.ingredient_id,
-        num: ing.count,
-        type: 4, 
-        price: String(ing.price)
+        id: String(ing.ingredient_id),
+        num: ing.count.toFixed(2),
+        type: '4', 
+        price: ing.price.toFixed(2)
       }))
     };
     
@@ -277,14 +276,14 @@ export type CreateWriteOffData = {
 export async function createWriteOff(data: CreateWriteOffData) {
     const payload = {
       write_off: {
-        storage_id: Number(data.storage_id),
-        comment: data.comment,
+        storage_id: String(data.storage_id),
+        reason: data.comment,
+        date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
       },
       ingredient: data.ingredients.map(ing => ({
-        id: Number(ing.ingredient_id),
-        num: ing.num,
-        type: 4, 
-        comment: ing.comment || ''
+        id: String(ing.ingredient_id),
+        type: '4', 
+        weight: ing.num.toFixed(3),
       }))
     };
 
