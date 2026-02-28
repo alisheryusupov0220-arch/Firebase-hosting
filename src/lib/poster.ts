@@ -280,10 +280,9 @@ export async function createWriteOff(data: CreateWriteOffData) {
         storage_id: Number(data.storage_id),
         comment: data.comment,
       },
-      // Based on the working Apps Script, key should be 'weight' and type should be 4.
       ingredient: data.ingredients.map(ing => ({
         id: Number(ing.ingredient_id),
-        weight: ing.num,
+        num: ing.num,
         type: 4, 
         comment: ing.comment || ''
       }))
@@ -292,4 +291,26 @@ export async function createWriteOff(data: CreateWriteOffData) {
     const response = await posterApiFetch('storage.createWriteOff', 'POST', payload);
     // On success, Poster API returns the new write_off_id
     return response;
+}
+
+
+// Get Write-offs
+export type WriteOff = {
+    write_off_id: string;
+    date_created: string; // YYYY-MM-DD HH:mm:ss
+    user_id: string;
+    storage_id: string;
+    storage_name: string;
+    sum: string; // in cents
+    comment: string;
+};
+
+export async function getWriteOffs(): Promise<WriteOff[]> {
+    try {
+        const response = await posterApiFetch('storage.getWriteOffs', 'GET');
+        return Array.isArray(response) ? response : [];
+    } catch (error) {
+        console.error("Failed to get write-offs:", error);
+        return [];
+    }
 }
