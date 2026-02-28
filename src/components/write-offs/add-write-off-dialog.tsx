@@ -32,7 +32,7 @@ export function AddWriteOffDialog({ ingredients }: AddWriteOffDialogProps) {
       <DialogContent
         className="sm:max-w-[625px]"
         onPointerDownOutside={(event) => {
-          if ((event.target as HTMLElement).closest('[data-radix-popper-content-wrapper]')) {
+          if ((event.target as HTMLElement).closest('[data-radix-popover-content]')) {
             event.preventDefault();
           }
         }}

@@ -5,13 +5,13 @@ import { ChevronsUpDown, Check } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { Input } from "@/components/ui/input"
+import { ScrollArea } from "./scroll-area"
 
 type ComboboxProps = {
   options: { value: string; label: string }[];
@@ -41,12 +41,11 @@ export function Combobox({
 
   const filteredOptions = React.useMemo(() => {
     if (!searchTerm) return options
-    return options.filter(option => 
+    return options.filter(option =>
       option.label.toLowerCase().includes(searchTerm.toLowerCase())
     )
   }, [options, searchTerm])
 
-  // Reset search term when popover closes to ensure the full list is shown next time.
   React.useEffect(() => {
     if (!open) {
       setSearchTerm("")
@@ -69,42 +68,48 @@ export function Combobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <div className="border-b p-2">
-            <Input 
-                placeholder={searchPlaceholder}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                autoFocus
-                className="h-9"
-            />
+      <PopoverContent
+        className="w-[--radix-popover-trigger-width] p-0"
+        align="start"
+      >
+        <div className="p-2 border-b">
+          <Input
+            placeholder={searchPlaceholder}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="h-9"
+            autoFocus
+          />
         </div>
-        <ScrollArea className="h-[200px]">
+        <ScrollArea className="h-auto max-h-60">
+          <div className="p-1">
             {filteredOptions.length > 0 ? (
-                <div className="p-1">
-                    {filteredOptions.map((option) => (
-                        <Button
-                            key={option.value}
-                            variant="ghost"
-                            className="w-full justify-start font-normal h-auto py-1.5 px-2"
-                            onClick={() => {
-                                onChange(option.value)
-                                setOpen(false)
-                            }}
-                        >
-                             <Check
-                                className={cn(
-                                "mr-2 h-4 w-4",
-                                value === option.value ? "opacity-100" : "opacity-0"
-                                )}
-                            />
-                            <span className="truncate">{option.label}</span>
-                        </Button>
-                    ))}
+              filteredOptions.map((option) => (
+                <div
+                  key={option.value}
+                  onClick={() => {
+                    onChange(option.value)
+                    setOpen(false)
+                  }}
+                  className="flex items-center p-2 rounded-sm cursor-pointer hover:bg-accent"
+                  role="option"
+                  aria-selected={value === option.value}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === option.value ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  <span className="flex-1 truncate">{option.label}</span>
                 </div>
+              ))
             ) : (
-                <p className="p-4 text-center text-sm text-muted-foreground">{notFoundMessage}</p>
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                {notFoundMessage}
+              </div>
             )}
+          </div>
         </ScrollArea>
       </PopoverContent>
     </Popover>

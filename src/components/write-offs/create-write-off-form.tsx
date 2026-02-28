@@ -102,7 +102,7 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
         <div className="space-y-2">
             <FormLabel>Ингредиенты для списания</FormLabel>
             {fields.map((field, index) => (
-                <div key={field.id} className="flex items-start gap-2 p-2 border rounded-md">
+                <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-2 p-2 border rounded-md">
                     <FormField
                       control={form.control}
                       name={`ingredients.${index}.ingredient_id`}
@@ -115,6 +115,7 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
                               onChange={field.onChange}
                               placeholder="Выберите ингредиент"
                               searchPlaceholder="Поиск ингредиента..."
+                              notFoundMessage="Не найдено."
                             />
                           </FormControl>
                           <FormMessage />
