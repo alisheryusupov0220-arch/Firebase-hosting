@@ -7,12 +7,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { getSupplies, type Supply, getStorages, getPosterSuppliers, getIngredients } from '@/lib/poster';
+import { getSupplies, type Supply, getStorages, getPosterSuppliers } from '@/lib/poster';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { SuppliesPageHeader } from "@/components/supplies/supplies-page-header";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { PendingSuppliesCard } from "@/components/supplies/pending-supplies-card";
+import { getLocalIngredients } from "@/app/ingredients/actions";
 
 export const dynamic = 'force-dynamic';
 
@@ -47,10 +48,16 @@ export default async function SuppliesPage() {
     getSupplies(),
     getStorages(),
     getPosterSuppliers(),
-    getIngredients()
+    getLocalIngredients()
   ]);
 
   const employeesForForm = employees.map(e => ({ id: e.id, name: e.name }));
+
+  const ingredientsForForm = ingredients.map(ing => ({
+      ingredient_id: ing.id,
+      ingredient_name: ing.name,
+      ingredient_unit: ing.unit,
+  }));
 
   // For now, let's assume the current user is an admin to show the approval card.
   // In a real app, this would come from `useUser()` hook.
@@ -78,7 +85,7 @@ export default async function SuppliesPage() {
       <SuppliesPageHeader
         storages={storages}
         suppliers={suppliers}
-        ingredients={ingredients}
+        ingredients={ingredientsForForm}
         employees={employeesForForm}
       />
 
@@ -86,7 +93,7 @@ export default async function SuppliesPage() {
          <PendingSuppliesCard 
             storages={storages}
             suppliers={suppliers}
-            ingredients={ingredients}
+            ingredients={ingredientsForForm}
          />
       )}
      

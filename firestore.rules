@@ -63,6 +63,11 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     // Application Data Collections
     // -------------------------------------------------------------------------
+    
+    match /ingredients_master/{ingredientId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin(); // Only admins (or server functions acting as admin) can sync
+    }
 
     /**
      * @description Manages supply requests awaiting approval.

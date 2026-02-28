@@ -1,5 +1,19 @@
 {
   "entities": {
+    "IngredientMaster": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "IngredientMaster",
+      "description": "Represents a master record of an ingredient, synchronized from Poster.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The Poster ID of the ingredient or product." },
+        "name": { "type": "string", "description": "The name of the item." },
+        "type": { "type": "string", "enum": ["ingredient", "product"], "description": "The type of item in Poster." },
+        "unit": { "type": "string", "description": "The unit of measure (e.g., 'кг', 'шт')." },
+        "poster_ingredient_id": { "type": "string" }
+      },
+      "required": ["id", "name", "type"]
+    },
     "Category": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Category",
@@ -240,6 +254,14 @@
           "entityName": "PriceRecord",
           "schema": { "$ref": "#/backend/entities/PriceRecord" },
           "description": "Subcollection to store the historical price data for each ingredient. `ingredientId` is the Poster ID, `priceId` is the Poster Supply ID."
+        }
+      },
+      {
+        "path": "/ingredients_master/{ingredientId}",
+        "definition": {
+          "entityName": "IngredientMaster",
+          "schema": { "$ref": "#/backend/entities/IngredientMaster" },
+          "description": "Master data for ingredients, synchronized from Poster. Used to populate selection dropdowns."
         }
       },
       {

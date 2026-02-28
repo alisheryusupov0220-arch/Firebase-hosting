@@ -55,7 +55,7 @@ const getMarginLabel = (margin: number | null) => {
 }
 
 export default async function MenuAnalyticsPage() {
-    const products = await getProducts();
+    const products = await getProducts({ with_composition: 1 });
 
     const allIngredientIds = new Set<string>();
     products.forEach(product => {

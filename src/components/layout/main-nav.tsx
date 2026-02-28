@@ -10,6 +10,7 @@ import {
   Settings,
   PieChart,
   FlaskConical,
+  Boxes,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -44,6 +45,11 @@ export const routes = [
     href: '/sandbox',
     label: 'Конструктор',
     icon: FlaskConical,
+  },
+  {
+    href: '/ingredients',
+    label: 'Ингредиенты',
+    icon: Boxes,
   },
   {
     href: '/settings',

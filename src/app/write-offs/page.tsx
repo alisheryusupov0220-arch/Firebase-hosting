@@ -1,7 +1,8 @@
 import { WriteOffsPageHeader } from '@/components/write-offs/write-offs-page-header';
-import { getStorages, getIngredients } from '@/lib/poster';
+import { getStorages } from '@/lib/poster';
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { getLocalIngredients } from '@/app/ingredients/actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,16 +35,23 @@ const employees = [
 export default async function WriteOffsPage() {
     const [storages, ingredients] = await Promise.all([
         getStorages(),
-        getIngredients()
+        getLocalIngredients()
     ]);
 
     const employeesForForm = employees.map(e => ({ id: e.id, name: e.name }));
+    
+    const ingredientsForForm = ingredients.map(ing => ({
+      ingredient_id: ing.id,
+      ingredient_name: ing.name,
+      ingredient_unit: ing.unit,
+    }));
+
 
     return (
         <div className="space-y-8">
             <WriteOffsPageHeader
                 storages={storages}
-                ingredients={ingredients}
+                ingredients={ingredientsForForm}
                 employees={employeesForForm}
             />
         

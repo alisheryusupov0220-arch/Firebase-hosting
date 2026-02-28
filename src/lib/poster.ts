@@ -163,13 +163,17 @@ export type TechCardIngredient = {
 export type Product = {
     product_id: string;
     product_name: string;
-    price: { [key: string]: string }; // Price per spot, e.g. "1": "15000.00"
-    composition: TechCardIngredient[];
+    price?: { [key: string]: string };
+    composition?: TechCardIngredient[];
+    type: string;
+    unit?: string;
+    ingredient_id?: string;
 };
 
-export async function getProducts(): Promise<Product[]> {
+export async function getProducts(options?: { with_composition: number }): Promise<Product[]> {
     try {
-        const response = await posterApiFetch('menu.getProducts', 'GET', { with_composition: 1 });
+        const payload = options || {};
+        const response = await posterApiFetch('menu.getProducts', 'GET', payload);
         return Array.isArray(response) ? response : [];
     } catch (error) {
         console.error("Failed to get products:", error);
@@ -274,12 +278,12 @@ export type CreateWriteOffData = {
 export async function createWriteOff(data: CreateWriteOffData) {
     const payload = {
       write_off: {
-        storage_id: data.storage_id,
+        storage_id: Number(data.storage_id),
         comment: data.comment,
       },
       // Based on the working Apps Script, key should be 'weight' and type should be 4.
       ingredient: data.ingredients.map(ing => ({
-        id: ing.ingredient_id,
+        id: Number(ing.ingredient_id),
         weight: ing.num,
         type: 4, 
         comment: ing.comment || ''
