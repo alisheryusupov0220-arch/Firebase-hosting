@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
@@ -50,14 +50,12 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
     },
   });
   
-  const ingredientOptions = React.useMemo(() => 
-    ingredients 
-    ? ingredients.map(ing => ({
-        value: String(ing.id),
-        label: `${ing.name} (${ing.unit})`,
-      }))
-    : [],
-  [ingredients]);
+  const ingredientOptions = React.useMemo(() => {
+    return (ingredients || []).map(ing => ({
+      value: String(ing.id),
+      label: ing.name || 'Без названия'
+    }));
+  }, [ingredients]);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -115,23 +113,24 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
         <div className="space-y-2">
             <FormLabel>Ингредиенты</FormLabel>
             {fields.map((field, index) => (
-                <div key={field.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-end p-2 border rounded-md">
-                   <Controller
+                <div key={field.id} className="flex items-start gap-2 p-2 border rounded-md">
+                   <FormField
                       control={form.control}
                       name={`ingredients.${index}.ingredient_id`}
-                      render={({ field: controllerField, fieldState }) => (
-                          <FormItem>
-                            {index === 0 && <FormLabel className="text-xs">Ингредиент</FormLabel>}
-                             <Combobox
-                                options={ingredientOptions}
-                                value={controllerField.value}
-                                onChange={(value) => controllerField.onChange(value)}
-                                placeholder="Выберите ингредиент..."
-                                searchPlaceholder="Поиск ингредиента..."
-                                notFoundMessage="Ингредиент не найден."
-                              />
-                            <FormMessage>{fieldState.error?.message}</FormMessage>
-                          </FormItem>
+                      render={({ field }) => (
+                        <FormItem className="flex-1">
+                          <FormControl>
+                            <Combobox
+                              options={ingredientOptions}
+                              value={field.value}
+                              onChange={field.onChange}
+                              placeholder="Выберите ингредиент"
+                              searchPlaceholder="Поиск..."
+                              notFoundMessage="Ингредиент не найден."
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
                       )}
                     />
                     <FormField
@@ -139,7 +138,6 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
                         name={`ingredients.${index}.count`}
                         render={({ field }) => (
                             <FormItem>
-                                {index === 0 && <FormLabel className="text-xs">Кол-во</FormLabel>}
                                 <FormControl>
                                     <Input {...field} type="number" step="0.001" placeholder="Кол-во" className="w-24" />
                                 </FormControl>
@@ -152,7 +150,6 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
                         name={`ingredients.${index}.price`}
                         render={({ field }) => (
                             <FormItem>
-                                {index === 0 && <FormLabel className="text-xs">Цена за ед.</FormLabel>}
                                 <FormControl>
                                     <Input
                                         {...field}
