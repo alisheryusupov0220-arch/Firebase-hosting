@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useCollection, useFirestore } from '@/firebase/hooks';
+import { useCollection, useFirestore, useUser } from '@/firebase/hooks';
 import { collection, query, where, orderBy } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -22,15 +22,16 @@ type PendingSuppliesCardProps = {
 export function PendingSuppliesCard({ storages, suppliers, ingredients }: PendingSuppliesCardProps) {
     const { toast } = useToast();
     const firestore = useFirestore();
+    const { user, loading: userLoading } = useUser();
     
     const pendingSuppliesQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (!firestore || !user) return null;
         return query(
             collection(firestore, 'pendingSupplies'),
             where('status', '==', 'pending'),
             orderBy('createdAt', 'desc')
         );
-    }, [firestore]);
+    }, [firestore, user]);
 
     const { data: pendingSupplies, isLoading, error } = useCollection(pendingSuppliesQuery);
     
@@ -57,6 +58,20 @@ export function PendingSuppliesCard({ storages, suppliers, ingredients }: Pendin
             toast({ variant: 'destructive', title: 'Ошибка!', description: result.message });
         }
     };
+
+    if (userLoading) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Ожидают подтверждения</CardTitle>
+                    <CardDescription>Заявки на поставку, требующие вашего одобрения.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p>Проверка авторизации...</p>
+                </CardContent>
+            </Card>
+        );
+    }
     
     if (isLoading) {
         return (
