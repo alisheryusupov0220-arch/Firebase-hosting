@@ -15,12 +15,14 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Trash } from 'lucide-react';
-import { requestSupplyAction } from '@/app/supplies/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useMemo } from 'react';
-import { useUser } from '@/firebase/hooks';
+import { useUser, useFirestore } from '@/firebase/hooks';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import type { LocalIngredient } from '@/app/ingredients/actions';
 import { SearchableSelect } from '../ui/searchable-select';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const formSchema = z.object({
   comment: z.string().optional(),
@@ -42,6 +44,8 @@ const DEFAULT_SUPPLIER_ID = 1;
 export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyFormProps) {
   const { toast } = useToast();
   const { user } = useUser();
+  const firestore = useFirestore();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -63,7 +67,7 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!user) {
+    if (!user || !firestore) {
         toast({
             variant: 'destructive',
             title: 'Ошибка!',
@@ -78,7 +82,7 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
     const firstIngredient = ingredients?.find(i => i.id === firstIngredientId);
     const storageId = firstIngredient?.storage_id ? Number(firstIngredient.storage_id) : 1;
 
-    const result = await requestSupplyAction({
+    const supplyRequestData = {
       supplier_id: DEFAULT_SUPPLIER_ID,
       storage_id: storageId,
       comment: finalComment,
@@ -89,22 +93,35 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
       })),
       requesterId: user.uid,
       requesterName: user.email || 'Пользователь без email',
-    });
+      status: 'pending',
+      createdAt: serverTimestamp(),
+    };
 
-    if (result.success) {
-      toast({
-        title: 'Успех!',
-        description: 'Заявка на поставку отправлена на утверждение.',
-      });
-      onFormSubmitted();
-      form.reset();
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Ошибка!',
-        description: result.message || 'Не удалось создать заявку.',
-      });
-    }
+    const pendingSuppliesCollection = collection(firestore, 'pendingSupplies');
+
+    addDoc(pendingSuppliesCollection, supplyRequestData)
+        .then(() => {
+            toast({
+                title: 'Успех!',
+                description: 'Заявка на поставку отправлена на утверждение.',
+            });
+            onFormSubmitted();
+            form.reset();
+        })
+        .catch((error) => {
+            console.error("Error creating supply request:", error);
+            const permissionError = new FirestorePermissionError({
+                path: pendingSuppliesCollection.path,
+                operation: 'create',
+                requestResourceData: supplyRequestData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            toast({
+                variant: 'destructive',
+                title: 'Ошибка создания заявки',
+                description: 'Недостаточно прав для выполнения операции. Убедитесь, что у вас есть права на создание заявок.'
+            });
+        });
   }
 
   return (

@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ProfileCard } from "@/components/settings/profile-card";
 
 
 export default function SettingsPage() {
@@ -19,6 +20,7 @@ export default function SettingsPage() {
       />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <ProfileCard />
         <Card>
           <CardHeader>
             <CardTitle>Тема</CardTitle>

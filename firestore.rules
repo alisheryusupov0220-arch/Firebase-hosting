@@ -56,8 +56,8 @@ service cloud.firestore {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if false; // Prevent user enumeration
       allow create: if isOwner(userId);
-      // Allow admins to update roles, but users cannot change their own role.
-      allow update: if isOwner(userId) && request.resource.data.role == resource.data.role;
+      // Allow user to update their own profile, including their role. Admins can also update profiles.
+      allow update: if isOwner(userId) || isAdmin();
       allow delete: if isOwner(userId);
     }
 

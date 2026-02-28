@@ -2,12 +2,14 @@
 
 import { revalidatePath } from 'next/cache';
 import { createSupply, type CreateSupplyData, getStorages, getPosterSuppliers } from '@/lib/poster';
-import { getFirestore, doc, addDoc, updateDoc, collection, serverTimestamp, getDoc, writeBatch } from 'firebase/firestore';
+import { getFirestore, doc, updateDoc, collection, serverTimestamp, getDoc, writeBatch } from 'firebase/firestore';
 import { getFirebaseApp } from '@/firebase/server';
 
 const app = getFirebaseApp();
 const db = getFirestore(app);
 
+// This action is no longer needed as the creation logic is moved to the client.
+// We keep the file for other server actions.
 export type RequestSupplyPayload = {
     supplier_id: number;
     storage_id: number;
@@ -21,25 +23,6 @@ export type RequestSupplyPayload = {
     requesterName: string;
 };
 
-export async function requestSupplyAction(data: RequestSupplyPayload) {
-  try {
-    const { requesterId, requesterName, ...supplyData } = data;
-    const docRef = await addDoc(collection(db, 'pendingSupplies'), {
-        ...supplyData,
-        requesterId,
-        requesterName,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-    });
-
-    revalidatePath('/supplies');
-    return { success: true, data: docRef.id };
-  } catch (error) {
-    console.error('Failed to create supply request:', error);
-    const message = error instanceof Error ? error.message : 'Произошла неизвестная ошибка.';
-    return { success: false, message: `Ошибка создания заявки: ${message}` };
-  }
-}
 
 export async function approveSupplyAction(pendingSupplyId: string) {
     const pendingSupplyRef = doc(db, 'pendingSupplies', pendingSupplyId);
