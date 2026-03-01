@@ -4,7 +4,8 @@ import { useEffect, useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { provisionUserAction, getUsersAction, updateUserAction, type UserProfileServer } from '@/app/settings/actions';
+import { getUsersAction, updateUserAction } from '@/app/settings/actions';
+import type { UserProfileServer } from '@/app/settings/actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -15,10 +16,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Plus, UserCog } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase/hooks';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { firebaseConfig } from '@/firebase/config';
 
 const newUserSchema = z.object({
     displayName: z.string().min(1, "Имя обязательно для заполнения"),
     telegramId: z.string().min(1, "Telegram ID обязателен для заполнения"),
+    email: z.string().email("Неверный формат email"),
+    password: z.string().min(6, "Пароль должен быть не менее 6 символов"),
     role: z.enum(['admin', 'employee']).default('employee'),
 });
 
@@ -27,27 +36,57 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: () => void }) {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
+    const firestore = useFirestore();
 
     const form = useForm<z.infer<typeof newUserSchema>>({
         resolver: zodResolver(newUserSchema),
         defaultValues: {
             displayName: '',
             telegramId: '',
+            email: '',
+            password: '',
             role: 'employee',
         },
     });
 
     const onSubmit = (values: z.infer<typeof newUserSchema>) => {
         startTransition(async () => {
-            const result = await provisionUserAction(values);
+            if (!firestore) {
+                toast({ variant: "destructive", title: "Ошибка", description: "Firestore не инициализирован." });
+                return;
+            }
 
-            if (result.success) {
-                toast({ title: "Успех!", description: result.message });
+            const tempAppName = `user-creation-${Date.now()}`;
+            const tempApp = initializeApp(firebaseConfig, tempAppName);
+            const tempAuth = getAuth(tempApp);
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(tempAuth, values.email, values.password);
+                const user = userCredential.user;
+
+                const userRef = doc(firestore, 'users', user.uid);
+                await setDoc(userRef, {
+                    displayName: values.displayName,
+                    telegramId: values.telegramId,
+                    email: values.email,
+                    role: values.role,
+                });
+                
+                toast({ title: "Успех!", description: "Сотрудник успешно добавлен." });
                 onUserAdded();
                 setIsOpen(false);
                 form.reset();
-            } else {
-                toast({ variant: "destructive", title: "Ошибка", description: result.message });
+
+            } catch (error: any) {
+                let errorMessage = "Произошла неизвестная ошибка.";
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = "Этот email уже используется.";
+                } else if (error.message) {
+                    errorMessage = error.message;
+                }
+                toast({ variant: "destructive", title: "Ошибка создания сотрудника", description: errorMessage });
+            } finally {
+                await deleteApp(tempApp);
             }
         });
     };
@@ -84,6 +123,32 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: () => void }) {
                                     <FormLabel>Telegram ID</FormLabel>
                                     <FormControl>
                                         <Input placeholder="123456789" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="email"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Email</FormLabel>
+                                    <FormControl>
+                                        <Input type="email" placeholder="user@example.com" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="password"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Пароль</FormLabel>
+                                    <FormControl>
+                                        <Input type="password" placeholder="******" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
