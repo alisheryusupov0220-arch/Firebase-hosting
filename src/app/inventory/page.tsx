@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -12,6 +11,7 @@ import type { LocalIngredient } from '@/app/ingredients/actions';
 import { getIngredientsForInventory, saveInventoryCountAction } from './actions';
 import { Loader2 } from 'lucide-react';
 import { translateUnit } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,6 +48,37 @@ export default function InventoryPage() {
         );
     }, [allIngredients, filter]);
 
+    const isUnitBased = (unit: string) => {
+        const translated = translateUnit(unit);
+        return translated === 'штук';
+    };
+
+    const getInputAttributes = (unit: string) => {
+        if (isUnitBased(unit)) {
+            return {
+                placeholder: '1, 2, 3...',
+                step: '1',
+                pattern: '\\d*',
+            };
+        }
+        return {
+            placeholder: '1.123',
+            step: '0.001',
+        };
+    };
+
+    const allVisibleItemsFilled = useMemo(() => {
+        if (filteredIngredients.length === 0) {
+            return false;
+        }
+        return filteredIngredients.every(ing => {
+            const quantityStr = quantities[ing.id];
+            if (!quantityStr) return false;
+            const quantity = parseFloat(quantityStr);
+            return !isNaN(quantity) && quantity > 0;
+        });
+    }, [filteredIngredients, quantities]);
+
     const handleSave = async () => {
         if (!comment.trim()) {
             toast({ variant: 'destructive', title: 'Ошибка', description: 'Пожалуйста, введите комментарий или название инвентаризации.' });
@@ -58,14 +89,13 @@ export default function InventoryPage() {
             toast({ variant: 'destructive', title: 'Ошибка', description: 'Для сохранения вы должны быть авторизованы.' });
             return;
         }
-
-        const itemsToSave = Object.entries(quantities)
-            .map(([ingredientId, quantityStr]) => {
+        
+        const itemsToSave = filteredIngredients
+            .map(ingredient => {
+                const quantityStr = quantities[ingredient.id];
                 const quantity = parseFloat(quantityStr);
-                if (!quantity || quantity <= 0) return null;
-
-                const ingredient = allIngredients.find(ing => ing.id === ingredientId);
-                if (!ingredient) return null;
+                
+                if (!quantityStr || isNaN(quantity) || quantity <= 0) return null;
 
                 return {
                     ingredientId: ingredient.id,
@@ -75,9 +105,9 @@ export default function InventoryPage() {
                 };
             })
             .filter((item): item is NonNullable<typeof item> => item !== null);
-
-        if (itemsToSave.length === 0) {
-            toast({ variant: 'destructive', title: 'Нечего сохранять', description: 'Введите количество хотя бы для одного ингредиента.' });
+        
+        if (itemsToSave.length !== filteredIngredients.length) {
+            toast({ variant: 'destructive', title: 'Не все поля заполнены', description: 'Заполните количество для всех отображенных позиций.' });
             return;
         }
 
@@ -107,31 +137,26 @@ export default function InventoryPage() {
             </div>
         );
     }
-
+    
     return (
         <div className="space-y-6">
-            <PageHeader
-                title="Проведение инвентаризации"
-                description="Зафиксируйте фактические остатки ингредиентов в системе."
-            />
-
             <Card>
                 <CardHeader>
                     <CardTitle>Новая инвентаризация</CardTitle>
                     <CardDescription>
-                        Введите название (например, &quot;Еженедельная проверка бара&quot;) и заполните фактическое количество для нужных позиций.
-                        Пустые поля не будут сохранены.
+                        Введите название (например, &quot;Еженедельная проверка бара&quot;), отфильтруйте список при необходимости,
+                        и заполните фактическое количество для всех видимых позиций.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <Input
-                        placeholder="Комментарий или название инвентаризации..."
+                        placeholder="* Обязательный комментарий или название инвентаризации..."
                         value={comment}
                         onChange={(e) => setComment(e.target.value)}
                         className="max-w-lg"
                     />
                     <Input
-                        placeholder="Поиск ингредиента..."
+                        placeholder="Поиск для частичной инвентаризации..."
                         value={filter}
                         onChange={(e) => setFilter(e.target.value)}
                         className="max-w-lg"
@@ -142,6 +167,9 @@ export default function InventoryPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Список ингредиентов</CardTitle>
+                     <CardDescription>
+                        Для сохранения необходимо заполнить количество для всех позиций в текущем списке.
+                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="overflow-x-auto">
@@ -150,7 +178,7 @@ export default function InventoryPage() {
                                 <TableRow>
                                     <TableHead>Название ингредиента</TableHead>
                                     <TableHead className="w-[100px]">Ед. изм.</TableHead>
-                                    <TableHead className="w-[180px] text-right">Фактическое кол-во</TableHead>
+                                    <TableHead className="w-[220px] text-right">Фактическое кол-во</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -161,12 +189,11 @@ export default function InventoryPage() {
                                             <TableCell className="text-muted-foreground">{translateUnit(ing.unit)}</TableCell>
                                             <TableCell className="text-right">
                                                 <Input
+                                                    {...getInputAttributes(ing.unit)}
                                                     type="number"
-                                                    placeholder="0.00"
                                                     value={quantities[ing.id] || ''}
                                                     onChange={(e) => handleQuantityChange(ing.id, e.target.value)}
                                                     className="text-right"
-                                                    step="0.001"
                                                     min="0"
                                                 />
                                             </TableCell>
@@ -183,10 +210,23 @@ export default function InventoryPage() {
                         </Table>
                     </div>
                     <div className="mt-6 flex justify-end">
-                        <Button onClick={handleSave} disabled={isSaving}>
-                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Сохранить инвентаризацию
-                        </Button>
+                       <TooltipProvider>
+                         <Tooltip>
+                           <TooltipTrigger asChild>
+                             <div tabIndex={0}> 
+                                <Button onClick={handleSave} disabled={isSaving || !allVisibleItemsFilled || !comment.trim()}>
+                                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Сохранить инвентаризацию
+                                </Button>
+                              </div>
+                           </TooltipTrigger>
+                           {(!allVisibleItemsFilled || !comment.trim()) && (
+                             <TooltipContent>
+                               <p>Заполните комментарий и количество для всех видимых позиций.</p>
+                             </TooltipContent>
+                           )}
+                         </Tooltip>
+                       </TooltipProvider>
                     </div>
                 </CardContent>
             </Card>

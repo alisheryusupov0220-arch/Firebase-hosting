@@ -1,6 +1,6 @@
 'use server';
 
-import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, getDocs } from 'firebase/firestore';
 import { getFirebaseApp } from '@/firebase/server';
 import { getLocalIngredients, type LocalIngredient } from '@/app/ingredients/actions';
 
@@ -43,5 +43,27 @@ export async function saveInventoryCountAction(payload: SaveInventoryPayload) {
         console.error('Failed to save inventory count:', error);
         const message = error instanceof Error ? error.message : 'Произошла неизвестная ошибка.';
         return { success: false, message: `Ошибка сохранения: ${message}` };
+    }
+}
+
+
+export type InventoryCountHistoryItem = SaveInventoryPayload & {
+    id: string;
+    createdAt: { seconds: number, nanoseconds: number };
+};
+
+export async function getInventoryHistoryAction(): Promise<InventoryCountHistoryItem[]> {
+    try {
+        const db = getFirestore(getFirebaseApp());
+        const countsQuery = query(collection(db, 'inventory_counts'), orderBy('createdAt', 'desc'));
+        const querySnapshot = await getDocs(countsQuery);
+        const history: InventoryCountHistoryItem[] = [];
+        querySnapshot.forEach((doc) => {
+            history.push({ id: doc.id, ...doc.data() } as InventoryCountHistoryItem);
+        });
+        return history;
+    } catch (error) {
+        console.error('Failed to get inventory history:', error);
+        return [];
     }
 }

@@ -14,15 +14,15 @@ export function translateUnit(unit: string | null | undefined): string {
         'г': 'г',
         'g': 'г',
         'gram': 'г',
-        'l': 'л',
-        'liter': 'л',
+        'l': 'литр',
+        'liter': 'литр',
         'мл': 'мл',
         'ml': 'мл',
         'milliliter': 'мл',
-        'шт': 'шт',
-        'pcs': 'шт',
-        'piece': 'шт',
-        'unit': 'шт',
+        'шт': 'штук',
+        'pcs': 'штук',
+        'piece': 'штук',
+        'unit': 'штук',
     };
     return map[lowerUnit] || unit;
 }
