@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase/hooks';
+import { useUser, useDoc, useFirestore } from '@/firebase/hooks';
 import { getInventoryHistoryAction, type InventoryCountHistoryItem } from '../actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -11,6 +11,7 @@ import { ru } from 'date-fns/locale';
 import { translateUnit } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 import { doc } from 'firebase/firestore';
+import { useMemoFirebase } from '@/firebase/provider';
 
 export const dynamic = 'force-dynamic';
 

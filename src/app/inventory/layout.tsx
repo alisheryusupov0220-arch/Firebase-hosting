@@ -3,8 +3,9 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/layout/page-header';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase/hooks';
+import { useUser, useDoc, useFirestore } from '@/firebase/hooks';
 import { doc } from 'firebase/firestore';
+import { useMemoFirebase } from '@/firebase/provider';
 
 
 export default function InventoryLayout({
