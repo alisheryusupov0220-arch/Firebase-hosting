@@ -21,9 +21,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 
 const newUserSchema = z.object({
     displayName: z.string().min(1, "Имя обязательно для заполнения"),
-    email: z.string().email("Неверный формат email"),
-    password: z.string().min(6, "Пароль должен быть не менее 6 символов"),
-    telegramId: z.string().optional(),
+    telegramId: z.string().min(1, "Telegram ID обязателен для заполнения"),
+    role: z.enum(['admin', 'employee']).default('employee'),
 });
 
 
@@ -38,9 +37,8 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: () => void }) {
         resolver: zodResolver(newUserSchema),
         defaultValues: {
             displayName: '',
-            email: '',
-            password: '',
             telegramId: '',
+            role: 'employee',
         },
     });
 
@@ -51,15 +49,20 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: () => void }) {
                 return;
             }
             try {
-                const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+                // Generate dummy credentials since they are not provided,
+                // but required for Firebase Auth user creation on the client.
+                const email = `telegram_${values.telegramId}@doganddog.invent`;
+                const password = Math.random().toString(36).slice(2) + 'aA1!';
+
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
 
                 const userRef = doc(firestore, 'users', user.uid);
                 await setDoc(userRef, {
                     displayName: values.displayName,
-                    email: values.email,
-                    role: 'employee', // New users are always employees by default
-                    telegramId: values.telegramId || '',
+                    email: email, // Store dummy email
+                    role: values.role,
+                    telegramId: values.telegramId,
                 });
                 
                 toast({ title: "Успех", description: "Новый сотрудник добавлен." });
@@ -68,7 +71,11 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: () => void }) {
                 form.reset();
 
             } catch (error: any) {
-                toast({ variant: "destructive", title: "Ошибка", description: error.message });
+                let errorMessage = error.message;
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = "Сотрудник с таким Telegram ID уже существует.";
+                }
+                toast({ variant: "destructive", title: "Ошибка", description: errorMessage });
             }
         });
     };
@@ -97,32 +104,6 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: () => void }) {
                                 </FormItem>
                             )}
                         />
-                        <FormField
-                            control={form.control}
-                            name="email"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Email</FormLabel>
-                                    <FormControl>
-                                        <Input type="email" placeholder="user@example.com" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                         <FormField
-                            control={form.control}
-                            name="password"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Пароль</FormLabel>
-                                    <FormControl>
-                                        <Input type="password" placeholder="••••••••" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
                          <FormField
                             control={form.control}
                             name="telegramId"
@@ -132,6 +113,27 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: () => void }) {
                                     <FormControl>
                                         <Input placeholder="123456789" {...field} />
                                     </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="role"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Роль</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Выберите роль" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="employee">Сотрудник</SelectItem>
+                                            <SelectItem value="admin">Администратор</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                     <FormMessage />
                                 </FormItem>
                             )}
