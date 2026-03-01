@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useTransition } from 'react';
 import { getDoc, doc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/hooks';
-import { notFound } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,8 +14,9 @@ import { useToast } from '@/hooks/use-toast';
 import { getIngredientsForInventory, updateTemplateIngredientsAction, type InventoryTemplate } from '@/app/inventory/actions';
 import type { LocalIngredient } from '@/app/ingredients/actions';
 
-export default function EditInventoryTemplatePage({ params }: { params: { templateId: string } }) {
-    const { templateId } = params;
+export default function EditInventoryTemplatePage() {
+    const params = useParams();
+    const templateId = params.templateId as string;
     const firestore = useFirestore();
     const { toast } = useToast();
     const [template, setTemplate] = useState<InventoryTemplate | null>(null);
@@ -27,7 +28,7 @@ export default function EditInventoryTemplatePage({ params }: { params: { templa
 
     useEffect(() => {
         async function fetchData() {
-            if (!firestore) return;
+            if (!firestore || !templateId) return;
             setIsLoading(true);
 
             try {
@@ -69,6 +70,7 @@ export default function EditInventoryTemplatePage({ params }: { params: { templa
 
     const handleSave = () => {
         startSavingTransition(async () => {
+            if (!templateId) return;
             const result = await updateTemplateIngredientsAction(templateId, Array.from(selectedIngredients));
             if (result.success) {
                 toast({ title: 'Успех!', description: 'Шаблон обновлен.' });

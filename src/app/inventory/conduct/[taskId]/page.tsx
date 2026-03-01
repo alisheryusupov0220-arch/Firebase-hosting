@@ -12,12 +12,13 @@ import { getTaskWithIngredients, saveInventoryCountAction } from '@/app/inventor
 import { Loader2 } from 'lucide-react';
 import { translateUnit } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
-export default function ConductInventoryPage({ params }: { params: { taskId: string } }) {
-    const { taskId } = params;
+export default function ConductInventoryPage() {
+    const params = useParams();
+    const taskId = params.taskId as string;
     const router = useRouter();
     const { toast } = useToast();
     const { user } = useUser();
@@ -31,6 +32,7 @@ export default function ConductInventoryPage({ params }: { params: { taskId: str
 
     useEffect(() => {
         async function loadTask() {
+            if (!taskId) return;
             setIsLoading(true);
             const data = await getTaskWithIngredients(taskId);
             if (data) {
@@ -120,6 +122,7 @@ export default function ConductInventoryPage({ params }: { params: { taskId: str
         }
 
         setIsSaving(true);
+        if (!taskId) return;
         const result = await saveInventoryCountAction({
             taskId: taskId,
             comment,
