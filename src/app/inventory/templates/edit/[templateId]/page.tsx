@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useTransition } from 'react';
 import { getDoc, doc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/hooks';
-import { notFound, useParams } from 'next/navigation';
+import { notFound, useParams, useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import type { LocalIngredient } from '@/app/ingredients/actions';
 
 export default function EditInventoryTemplatePage() {
     const params = useParams();
+    const router = useRouter();
     const templateId = params.templateId as string;
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -74,6 +75,7 @@ export default function EditInventoryTemplatePage() {
             const result = await updateTemplateIngredientsAction(templateId, Array.from(selectedIngredients));
             if (result.success) {
                 toast({ title: 'Успех!', description: 'Шаблон обновлен.' });
+                router.push('/inventory/templates');
             } else {
                 toast({ variant: 'destructive', title: 'Ошибка', description: result.message });
             }

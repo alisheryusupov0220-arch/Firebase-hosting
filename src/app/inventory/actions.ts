@@ -255,7 +255,7 @@ export async function startInventoryTaskAction({ templateId, userId, userName }:
 export async function getPendingInventoryTasksAction(): Promise<InventoryTask[]> {
     try {
         const db = getFirestore(getFirebaseApp());
-        const tasksQuery = query(collection(db, 'inventory_tasks'), where('status', '==', 'pending'), orderBy('createdAt', 'desc'));
+        const tasksQuery = query(collection(db, 'inventory_tasks'), where('status', '==', 'pending'));
         const querySnapshot = await getDocs(tasksQuery);
         const tasks: InventoryTask[] = [];
         querySnapshot.forEach((doc) => {
@@ -272,6 +272,7 @@ export async function getPendingInventoryTasksAction(): Promise<InventoryTask[]>
                  } as InventoryTask);
              }
         });
+        tasks.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
         return tasks;
     } catch (error) {
         console.error('Failed to get pending tasks:', error);
