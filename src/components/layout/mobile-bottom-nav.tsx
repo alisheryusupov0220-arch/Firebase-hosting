@@ -9,8 +9,8 @@ export function MobileBottomNav() {
   const pathname = usePathname();
 
   return (
-    <div className="fixed bottom-0 left-0 z-20 w-full border-t bg-background" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      <div className="grid h-16 grid-cols-4">
+    <div className="fixed bottom-0 left-0 z-20 w-full border-t bg-background" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)' }}>
+      <div className="grid h-16 grid-cols-4 pt-2">
         {employeeRoutes.map((route) => {
           const isActive = pathname.startsWith(route.href);
           return (

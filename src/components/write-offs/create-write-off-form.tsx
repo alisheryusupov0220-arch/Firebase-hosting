@@ -16,19 +16,24 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Trash } from 'lucide-react';
-import { createWriteOffAction } from '@/app/write-offs/actions';
 import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/firebase/hooks';
+import { useUser, useFirestore } from '@/firebase/hooks';
 import type { LocalIngredient } from '@/app/ingredients/actions';
 import { SearchableSelect } from '../ui/searchable-select';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { translateUnit } from '@/lib/utils';
 
 const formSchema = z.object({
   comment: z.string().optional(),
   ingredients: z.array(z.object({
     ingredient_id: z.string().min(1, 'Нужно выбрать ингредиент'),
-    quantity: z.coerce.number().min(0.001, 'Количество должно быть больше 0'),
+    quantity: z.string().min(1, 'Введите кол-во').pipe(z.coerce.number().positive('Кол-во > 0')),
   })).min(1, 'Нужно добавить хотя бы один ингредиент'),
 });
+
+type CreateWriteOffFormValues = z.infer<typeof formSchema>;
 
 type CreateWriteOffFormProps = {
   ingredients: LocalIngredient[] | null;
@@ -38,12 +43,13 @@ type CreateWriteOffFormProps = {
 export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWriteOffFormProps) {
   const { toast } = useToast();
   const { user } = useUser();
+  const firestore = useFirestore();
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<CreateWriteOffFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       comment: '',
-      ingredients: [{ ingredient_id: '', quantity: 1 }],
+      ingredients: [{ ingredient_id: '', quantity: '' }],
     },
   });
 
@@ -59,8 +65,10 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
     }));
   }, [ingredients]);
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!user) {
+  const watchedIngredients = form.watch('ingredients');
+
+  async function onSubmit(values: CreateWriteOffFormValues) {
+    if (!user || !firestore) {
         toast({ variant: 'destructive', title: 'Ошибка!', description: 'Вы должны быть авторизованы.' });
         return;
     }
@@ -71,84 +79,110 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
     const firstIngredient = ingredients?.find(i => i.id === firstIngredientId);
     const storageId = firstIngredient?.storage_id ? Number(firstIngredient.storage_id) : 1;
 
-    const result = await createWriteOffAction({
+    const writeOffRequestData = {
       storage_id: storageId,
-      reason: finalComment,
+      comment: finalComment,
       ingredients: values.ingredients.map(ing => ({
-        id: Number(ing.ingredient_id),
-        type: 4,
-        weight: ing.quantity,
-      }))
-    });
+        ingredient_id: Number(ing.ingredient_id),
+        quantity: ing.quantity,
+      })),
+      requesterId: user.uid,
+      requesterName: user.email || 'Пользователь без email',
+      status: 'pending',
+      createdAt: serverTimestamp(),
+    };
 
-    if (result.success) {
-      toast({
-        title: 'Успех!',
-        description: 'Списание успешно создано и отправлено в Poster.',
+    const pendingWriteOffsCollection = collection(firestore, 'pendingWriteOffs');
+
+    addDoc(pendingWriteOffsCollection, writeOffRequestData)
+      .then(() => {
+          toast({
+              title: 'Успех!',
+              description: 'Заявка на списание отправлена на утверждение.',
+          });
+          onFormSubmitted();
+          form.reset();
+      })
+      .catch((error) => {
+          console.error("Error creating write-off request:", error);
+          const permissionError = new FirestorePermissionError({
+              path: pendingWriteOffsCollection.path,
+              operation: 'create',
+              requestResourceData: writeOffRequestData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+          toast({
+              variant: 'destructive',
+              title: 'Ошибка создания заявки',
+              description: 'Недостаточно прав для выполнения операции. Убедитесь, что у вас есть права на создание заявок.'
+          });
       });
-      onFormSubmitted();
-      form.reset();
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Ошибка!',
-        description: result.message || 'Не удалось создать списание.',
-      });
-    }
   }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-2">
-            <FormLabel>Ингредиенты для списания</FormLabel>
-            {fields.map((field, index) => (
-                <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-2 p-2 border rounded-md">
-                    <FormField
-                      control={form.control}
-                      name={`ingredients.${index}.ingredient_id`}
-                      render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormControl>
-                            <SearchableSelect
-                              options={ingredientOptions}
-                              value={field.value}
-                              onChange={field.onChange}
-                              placeholder="Выберите ингредиент"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name={`ingredients.${index}.quantity`}
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormControl>
-                                    <Input {...field} type="number" step="0.001" placeholder="Кол-во" className="w-24" />
-                                </FormControl>
-                                <FormMessage />
+            <div className="grid grid-cols-[1fr_auto_auto] items-start gap-2 px-2">
+                <FormLabel>Ингредиент</FormLabel>
+                <FormLabel className="w-28 text-center">Кол-во</FormLabel>
+                <div className="w-9" />
+            </div>
+            {fields.map((field, index) => {
+                const selectedIngredientId = watchedIngredients[index]?.ingredient_id;
+                const selectedIngredient = ingredients?.find(ing => ing.id === selectedIngredientId);
+                const unit = selectedIngredient ? translateUnit(selectedIngredient.unit) : 'кг/л/шт';
+                const isUnitBased = unit === 'штук';
+                const countPlaceholder = isUnitBased ? 'шт' : 'кг/л';
+                const countStep = isUnitBased ? '1' : '0.001';
+
+                return (
+                    <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-2 p-2 border rounded-md">
+                        <FormField
+                          control={form.control}
+                          name={`ingredients.${index}.ingredient_id`}
+                          render={({ field }) => (
+                            <FormItem className="flex-1">
+                              <FormControl>
+                                <SearchableSelect
+                                  options={ingredientOptions}
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  placeholder="Выберите ингредиент"
+                                />
+                              </FormControl>
+                              <FormMessage />
                             </FormItem>
-                        )}
-                    />
-                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
-                        <Trash className="h-4 w-4" />
-                    </Button>
-                </div>
-            ))}
+                          )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name={`ingredients.${index}.quantity`}
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormControl>
+                                        <Input {...field} value={field.value || ''} type="number" step={countStep} placeholder={countPlaceholder} className="w-28 text-right" />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
+                            <Trash className="h-4 w-4" />
+                        </Button>
+                    </div>
+                )
+            })}
             <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 className="mt-2"
-                onClick={() => append({ ingredient_id: '', quantity: 1 })}
+                onClick={() => append({ ingredient_id: '', quantity: '' })}
             >
                 Добавить ингредиент
             </Button>
         </div>
-
 
         <FormField
           control={form.control}
@@ -165,7 +199,7 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
         />
         
         <Button type="submit" disabled={form.formState.isSubmitting || !ingredients}>
-          {form.formState.isSubmitting ? 'Отправка...' : 'Создать списание'}
+          {form.formState.isSubmitting ? 'Отправка...' : 'Отправить на утверждение'}
         </Button>
       </form>
     </Form>

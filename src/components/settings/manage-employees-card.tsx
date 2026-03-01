@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { updateUserAction } from '@/app/settings/actions';
+import { updateUserAction, getUsersAction } from '@/app/settings/actions';
 import type { UserProfileServer } from '@/app/settings/actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -18,7 +18,7 @@ import { Loader2, Plus, UserCog } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { useCollection, useFirestore } from '@/firebase/hooks';
+import { useFirestore, useCollection } from '@/firebase/hooks';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
@@ -59,6 +59,8 @@ function AddUserDialog() {
                 return;
             }
 
+            // Using a temporary, secondary Firebase App instance for user creation
+            // to avoid logging out the current admin user.
             const tempAppName = `user-creation-${Date.now()}`;
             const tempApp = initializeApp(firebaseConfig, tempAppName);
             const tempAuth = getAuth(tempApp);
@@ -76,7 +78,6 @@ function AddUserDialog() {
                 });
                 
                 toast({ title: "Успех!", description: "Сотрудник успешно добавлен." });
-                // onUserAdded is not needed, useCollection will handle the update
                 setIsOpen(false);
                 form.reset();
 
@@ -89,6 +90,7 @@ function AddUserDialog() {
                 }
                 toast({ variant: "destructive", title: "Ошибка создания сотрудника", description: errorMessage });
             } finally {
+                // Clean up the temporary app instance
                 await deleteApp(tempApp);
             }
         });
@@ -207,7 +209,6 @@ function EditUserDialog({ user }: { user: UserProfileServer }) {
             const result = await updateUserAction(user.id, { role, telegramId });
             if (result.success) {
                 toast({ title: "Успех", description: "Данные пользователя обновлены." });
-                // onUpdate is not needed, useCollection will handle the update
                 setIsOpen(false);
             } else {
                 toast({ variant: "destructive", title: "Ошибка", description: result.message });
@@ -275,6 +276,8 @@ function EditUserDialog({ user }: { user: UserProfileServer }) {
 export function ManageEmployeesCard() {
     const firestore = useFirestore();
 
+    // Use a real-time hook to listen for changes in the users collection.
+    // This is the definitive fix.
     const usersQuery = useMemoFirebase(() => {
         if (!firestore) return null;
         return query(collection(firestore, 'users'), orderBy('displayName', 'asc'));
@@ -294,12 +297,12 @@ export function ManageEmployeesCard() {
                 <AddUserDialog />
             </CardHeader>
             <CardContent>
-                {isLoading ? (
-                    <div className="flex items-center justify-center h-24">
-                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    </div>
-                ) : (
-                    <ScrollArea className="h-72">
+                <ScrollArea className="h-72">
+                    {isLoading ? (
+                        <div className="flex items-center justify-center h-24">
+                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        </div>
+                    ) : (
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -324,8 +327,8 @@ export function ManageEmployeesCard() {
                                 ))}
                             </TableBody>
                         </Table>
-                    </ScrollArea>
-                )}
+                    )}
+                </ScrollArea>
             </CardContent>
         </Card>
     );

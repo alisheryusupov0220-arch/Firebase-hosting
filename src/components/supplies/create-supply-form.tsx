@@ -23,15 +23,20 @@ import type { LocalIngredient } from '@/app/ingredients/actions';
 import { SearchableSelect } from '../ui/searchable-select';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { formatNumberString, translateUnit } from '@/lib/utils';
 
 const formSchema = z.object({
   comment: z.string().optional(),
   ingredients: z.array(z.object({
     ingredient_id: z.string().min(1, 'Нужно выбрать ингредиент'),
-    count: z.coerce.number().min(0.001, 'Количество должно быть больше 0'),
-    price: z.coerce.number().min(0, 'Цена не может быть отрицательной'),
+    count: z.string().min(1, 'Введите кол-во').pipe(z.coerce.number().positive('Кол-во > 0')),
+    price: z.string().min(1, 'Введите цену')
+      .transform(val => val.replace(/\s/g, '')) // remove spaces
+      .pipe(z.coerce.number().min(0, 'Цена >= 0')),
   })).min(1, 'Нужно добавить хотя бы один ингредиент'),
 });
+
+type CreateSupplyFormValues = z.infer<typeof formSchema>;
 
 type CreateSupplyFormProps = {
   ingredients: LocalIngredient[] | null;
@@ -46,11 +51,11 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
   const { user } = useUser();
   const firestore = useFirestore();
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<CreateSupplyFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       comment: '',
-      ingredients: [{ ingredient_id: '', count: 1, price: 0 }],
+      ingredients: [{ ingredient_id: '', count: '', price: '' }],
     },
   });
 
@@ -66,7 +71,9 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
     name: 'ingredients',
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  const watchedIngredients = form.watch('ingredients');
+
+  async function onSubmit(values: CreateSupplyFormValues) {
     if (!user || !firestore) {
         toast({
             variant: 'destructive',
@@ -128,72 +135,88 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-2">
-            <FormLabel>Ингредиенты</FormLabel>
-            {fields.map((field, index) => (
-                <div key={field.id} className="grid grid-cols-[1fr_auto_auto_auto] items-start gap-2 p-2 border rounded-md">
-                   <FormField
-                      control={form.control}
-                      name={`ingredients.${index}.ingredient_id`}
-                      render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormControl>
-                            <SearchableSelect
-                              options={ingredientOptions}
-                              value={field.value}
-                              onChange={field.onChange}
-                              placeholder="Выберите ингредиент"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name={`ingredients.${index}.count`}
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormControl>
-                                    <Input {...field} type="number" step="0.001" placeholder="Кол-во" className="w-24" />
-                                </FormControl>
-                                <FormMessage />
+            <div className="grid grid-cols-[1fr_auto_auto_auto] items-start gap-2 px-2">
+                <FormLabel>Ингредиент</FormLabel>
+                <FormLabel className="w-28 text-center">Кол-во</FormLabel>
+                <FormLabel className="w-28 text-center">Сумма</FormLabel>
+                <div className="w-9"></div>
+            </div>
+            {fields.map((field, index) => {
+                const selectedIngredientId = watchedIngredients[index]?.ingredient_id;
+                const selectedIngredient = ingredients?.find(ing => ing.id === selectedIngredientId);
+                const unit = selectedIngredient ? translateUnit(selectedIngredient.unit) : 'кг/л/шт';
+                const isUnitBased = unit === 'штук';
+                const countPlaceholder = isUnitBased ? 'шт' : 'кг/л';
+                const countStep = isUnitBased ? '1' : '0.001';
+
+                return (
+                    <div key={field.id} className="grid grid-cols-[1fr_auto_auto_auto] items-start gap-2 p-2 border rounded-md">
+                       <FormField
+                          control={form.control}
+                          name={`ingredients.${index}.ingredient_id`}
+                          render={({ field }) => (
+                            <FormItem className="flex-1">
+                              <FormControl>
+                                <SearchableSelect
+                                  options={ingredientOptions}
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  placeholder="Выберите ингредиент"
+                                />
+                              </FormControl>
+                              <FormMessage />
                             </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name={`ingredients.${index}.price`}
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormControl>
-                                    <Input
-                                        {...field}
-                                        type="number"
-                                        step="0.01"
-                                        placeholder="Цена"
-                                        className="w-24 text-right"
-                                     />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
-                        <Trash className="h-4 w-4" />
-                    </Button>
-                </div>
-            ))}
+                          )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name={`ingredients.${index}.count`}
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormControl>
+                                        <Input {...field} value={field.value || ''} type="number" step={countStep} placeholder={countPlaceholder} className="w-28 text-right" />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name={`ingredients.${index}.price`}
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormControl>
+                                        <Input
+                                            {...field}
+                                            value={field.value || ''}
+                                            onChange={(e) => {
+                                                const formatted = formatNumberString(e.target.value);
+                                                field.onChange(formatted);
+                                            }}
+                                            placeholder="Сумма"
+                                            className="w-28 text-right"
+                                         />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
+                            <Trash className="h-4 w-4" />
+                        </Button>
+                    </div>
+                )
+            })}
             <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 className="mt-2"
-                onClick={() => append({ ingredient_id: '', count: 1, price: 0 })}
+                onClick={() => append({ ingredient_id: '', count: '', price: '' })}
             >
                 Добавить ингредиент
             </Button>
         </div>
-
 
         <FormField
           control={form.control}

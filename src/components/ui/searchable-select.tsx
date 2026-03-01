@@ -74,7 +74,7 @@ export function SearchableSelect({
       />
       {isOpen && (
         <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-md shadow-lg">
-          <ScrollArea className="h-auto max-h-60">
+          <ScrollArea className="h-auto max-h-60" style={{ overflowY: 'auto' }}>
             <div className="p-1">
               {filteredOptions.length > 0 ? (
                 filteredOptions.map((option) => (

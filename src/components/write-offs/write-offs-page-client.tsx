@@ -14,10 +14,12 @@ import { WriteOffsPageHeader } from '@/components/write-offs/write-offs-page-hea
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { type LocalIngredient } from '@/app/ingredients/actions';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCollection, useFirestore } from '@/firebase/hooks';
+import { useCollection, useFirestore, useUser, useDoc } from '@/firebase/hooks';
 import { useMemoFirebase } from '@/firebase/provider';
-import { collection, query, orderBy } from 'firebase/firestore';
-import type { Waste } from '@/lib/poster';
+import { collection, query, orderBy, doc } from 'firebase/firestore';
+import type { Waste, Storage } from '@/lib/poster';
+import { PendingWriteOffsCard } from './pending-write-offs-card';
+import { fetchStoragesAction } from '@/app/write-offs/actions';
 
 type WriteOffsPageClientProps = {
     initialWastes: Waste[];
@@ -49,9 +51,18 @@ const PageSkeleton = () => (
 
 
 export function WriteOffsPageClient({ initialWastes, comments }: WriteOffsPageClientProps) {
+    const [storages, setStorages] = useState<Storage[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const { user } = useUser();
     const firestore = useFirestore();
+
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !user?.uid) return null;
+        return doc(firestore, 'users', user.uid);
+    }, [firestore, user?.uid]);
+    const { data: userProfile } = useDoc(userProfileRef);
+
     const ingredientsQuery = useMemoFirebase(() => 
         firestore 
             ? query(collection(firestore, 'ingredients_master'), orderBy('name', 'asc'))
@@ -59,6 +70,15 @@ export function WriteOffsPageClient({ initialWastes, comments }: WriteOffsPageCl
     , [firestore]);
 
     const { data: ingredients, isLoading: ingredientsLoading } = useCollection<LocalIngredient>(ingredientsQuery);
+
+    useEffect(() => {
+        const fetchDropdownData = async () => {
+            const storagesData = await fetchStoragesAction();
+            setStorages(storagesData);
+        };
+        fetchDropdownData();
+    }, []);
+
 
     useEffect(() => {
         if (!ingredientsLoading) {
@@ -75,6 +95,13 @@ export function WriteOffsPageClient({ initialWastes, comments }: WriteOffsPageCl
             <WriteOffsPageHeader
                 ingredients={ingredients}
             />
+
+            {userProfile?.role === 'admin' && (
+                <PendingWriteOffsCard 
+                    storages={storages}
+                    ingredients={ingredients || []}
+                />
+            )}
         
             <Card>
                 <CardHeader>

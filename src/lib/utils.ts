@@ -27,3 +27,13 @@ export function translateUnit(unit: string | null | undefined): string {
     };
     return map[lowerUnit] || unit;
 }
+
+export function formatNumberString(value: string): string {
+  const rawValue = value.replace(/[^0-9]/g, '');
+  if (rawValue === '') return '';
+  return rawValue.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+export function parseFormattedNumber(value: string): number {
+  return Number(value.replace(/\s/g, ''));
+}

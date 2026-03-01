@@ -24,6 +24,14 @@ service cloud.firestore {
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
+    
+    match /pendingWriteOffs/{writeOffId} {
+      allow read: if request.auth != null;
+      allow create: if request.resource.data.requesterId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
 
     // Allow authenticated users to read/write to their own data or if they are an admin
     match /{path=**}/{document} {
