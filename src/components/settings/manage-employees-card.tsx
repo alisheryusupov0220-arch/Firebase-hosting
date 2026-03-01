@@ -22,6 +22,7 @@ import { useFirestore } from '@/firebase/hooks';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
+import { ScrollArea } from '../ui/scroll-area';
 
 const newUserSchema = z.object({
     displayName: z.string().min(1, "Имя обязательно для заполнения"),
@@ -301,30 +302,32 @@ export function ManageEmployeesCard() {
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     </div>
                 ) : (
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Имя</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead>Роль</TableHead>
-                                <TableHead>Telegram ID</TableHead>
-                                <TableHead className="text-right">Действия</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {users.map(user => (
-                                <TableRow key={user.id}>
-                                    <TableCell>{user.displayName || '-'}</TableCell>
-                                    <TableCell>{user.email}</TableCell>
-                                    <TableCell>{user.role}</TableCell>
-                                    <TableCell>{user.telegramId || '-'}</TableCell>
-                                    <TableCell className="text-right">
-                                        <EditUserDialog user={user} onUpdate={fetchUsers} />
-                                    </TableCell>
+                    <ScrollArea className="h-72">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Имя</TableHead>
+                                    <TableHead>Email</TableHead>
+                                    <TableHead>Роль</TableHead>
+                                    <TableHead>Telegram ID</TableHead>
+                                    <TableHead className="text-right">Действия</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {users.map(user => (
+                                    <TableRow key={user.id}>
+                                        <TableCell>{user.displayName || '-'}</TableCell>
+                                        <TableCell>{user.email}</TableCell>
+                                        <TableCell>{user.role}</TableCell>
+                                        <TableCell>{user.telegramId || '-'}</TableCell>
+                                        <TableCell className="text-right">
+                                            <EditUserDialog user={user} onUpdate={fetchUsers} />
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
                 )}
             </CardContent>
         </Card>
