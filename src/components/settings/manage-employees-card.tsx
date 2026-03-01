@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { useAuth, useFirestore } from '@/firebase/hooks';
 import { getUsersAction, updateUserAction, type UserProfileServer } from '@/app/settings/actions';
@@ -64,10 +64,16 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: () => void }) {
                     telegramId: values.telegramId,
                 });
                 
-                toast({ title: "Успех", description: "Новый сотрудник добавлен." });
-                onUserAdded();
-                setIsOpen(false);
-                form.reset();
+                toast({ title: "Успех!", description: "Сотрудник добавлен. Сейчас страница перезагрузится." });
+
+                // The new user is now signed in. We sign them out to return control to the admin.
+                if (auth) {
+                    await signOut(auth);
+                }
+                
+                // Reload the page. The admin will be prompted to log in again, and will see the new user.
+                window.location.reload();
+
 
             } catch (error: any) {
                 let errorMessage = error.message;

@@ -9,6 +9,7 @@ import { doc, getDocs, query, collection, where, limit } from 'firebase/firestor
 import { useMemoFirebase } from '@/firebase/provider';
 import { EmployeeLayout } from '../layout/employee-layout';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { getUsersAction } from '@/app/settings/actions';
 
 const publicPaths = ['/login', '/register'];
 
@@ -44,17 +45,16 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
                     const loginWithTelegram = async () => {
                         try {
-                            const usersRef = collection(firestore, 'users');
-                            const q = query(usersRef, where('telegramId', '==', telegramId), limit(1));
-                            const querySnapshot = await getDocs(q);
-
-                            if (querySnapshot.empty) {
-                                console.log(`No user found for Telegram ID: ${telegramId}`);
+                            const allUsers = await getUsersAction();
+                            const userProfile = allUsers.find(u => u.telegramId === telegramId);
+                    
+                            if (!userProfile || !userProfile.email) {
+                                console.log(`No user found for Telegram ID: ${telegramId} or user has no email.`);
                                 setIsTelegramAuthAttempted(true);
                                 return;
                             }
 
-                            const email = `telegram_${telegramId}@doganddog.invent`;
+                            const email = userProfile.email;
                             const password = `tg_pass_${telegramId}_secret`;
 
                             await signInWithEmailAndPassword(auth, email, password);
