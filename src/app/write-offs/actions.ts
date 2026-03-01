@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createWriteOff, type CreateWriteOffData, getStorages } from '@/lib/poster';
-import { getFirestore, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { getFirebaseApp } from '@/firebase/server';
 
 const app = getFirebaseApp();
@@ -14,7 +14,7 @@ export async function fetchStoragesAction() {
 }
 
 
-export async function approveWriteOffAction(pendingWriteOffId: string, approverName: string) {
+export async function approveWriteOffOnPosterAction(pendingWriteOffId: string): Promise<{ success: true, data: string } | { success: false, message: string }> {
     const pendingWriteOffRef = doc(db, 'pendingWriteOffs', pendingWriteOffId);
 
     try {
@@ -41,43 +41,17 @@ export async function approveWriteOffAction(pendingWriteOffId: string, approverN
             throw new Error('API Poster не вернул ID списания.');
         }
 
-        await updateDoc(pendingWriteOffRef, {
-            status: 'approved',
-            approvedBy: approverName,
-            approvedAt: serverTimestamp(),
-            posterWriteOffId: posterWriteOffId,
-        });
-
         revalidatePath('/write-offs');
         revalidatePath('/inventory');
 
         return { success: true, data: posterWriteOffId };
     } catch (error) {
-        console.error('Failed to approve write-off:', error);
+        console.error('Failed to approve write-off on Poster:', error);
         const message = error instanceof Error ? error.message : 'Произошла неизвестная ошибка.';
-        return { success: false, message: `Ошибка одобрения списания: ${message}` };
+        return { success: false, message: `Ошибка одобрения списания в Poster: ${message}` };
     }
 }
 
-
-export async function rejectWriteOffAction(pendingWriteOffId: string, rejectorName: string) {
-    try {
-        const pendingWriteOffRef = doc(db, 'pendingWriteOffs', pendingWriteOffId);
-        
-        await updateDoc(pendingWriteOffRef, {
-            status: 'rejected',
-            rejectedBy: rejectorName,
-            rejectedAt: serverTimestamp(),
-        });
-        
-        revalidatePath('/write-offs');
-        return { success: true };
-    } catch(error) {
-        console.error('Failed to reject write-off:', error);
-        const message = error instanceof Error ? error.message : 'Произошла неизвестная ошибка.';
-        return { success: false, message: `Ошибка отклонения списания: ${message}` };
-    }
-}
 
 export async function getWriteOffCommentsAction(): Promise<Record<string, string>> {
     try {

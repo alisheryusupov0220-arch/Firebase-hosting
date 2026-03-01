@@ -2,11 +2,11 @@
 
 import React from 'react';
 import { useCollection, useFirestore, useUser } from '@/firebase/hooks';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { approveWriteOffAction, rejectWriteOffAction } from '@/app/write-offs/actions';
+import { approveWriteOffOnPosterAction } from '@/app/write-offs/actions';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import type { LocalIngredient } from '@/app/ingredients/actions';
@@ -44,22 +44,49 @@ export function PendingWriteOffsCard({ storages, ingredients }: PendingWriteOffs
     }), [storages, ingredients]);
 
     const handleApprove = async (id: string) => {
-        if (!user || !user.email) return;
-        const result = await approveWriteOffAction(id, user.email);
-        if (result.success) {
+        if (!user || !user.email || !firestore) {
+             toast({ variant: 'destructive', title: 'Ошибка!', description: 'Вы не авторизованы.' });
+            return;
+        }
+
+        const result = await approveWriteOffOnPosterAction(id);
+        if (!result.success) {
+            toast({ variant: 'destructive', title: 'Ошибка Poster!', description: result.message });
+            return;
+        }
+        
+        const posterWriteOffId = result.data;
+        const pendingWriteOffRef = doc(firestore, 'pendingWriteOffs', id);
+
+        try {
+            await updateDoc(pendingWriteOffRef, {
+                status: 'approved',
+                approvedBy: user.email,
+                approvedAt: serverTimestamp(),
+                posterWriteOffId: posterWriteOffId,
+            });
             toast({ title: 'Успех!', description: 'Списание одобрено и отправлено в Poster.' });
-        } else {
-            toast({ variant: 'destructive', title: 'Ошибка!', description: result.message });
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: 'Ошибка Firestore!', description: `Не удалось обновить статус заявки: ${e.message}` });
         }
     };
 
     const handleReject = async (id: string) => {
-        if (!user || !user.email) return;
-        const result = await rejectWriteOffAction(id, user.email);
-        if (result.success) {
+        if (!user || !user.email || !firestore) {
+            toast({ variant: 'destructive', title: 'Ошибка!', description: 'Вы не авторизованы.' });
+            return;
+        }
+        const pendingWriteOffRef = doc(firestore, 'pendingWriteOffs', id);
+
+        try {
+            await updateDoc(pendingWriteOffRef, {
+                status: 'rejected',
+                rejectedBy: user.email,
+                rejectedAt: serverTimestamp(),
+            });
             toast({ title: 'Успех!', description: 'Заявка на списание отклонена.' });
-        } else {
-            toast({ variant: 'destructive', title: 'Ошибка!', description: result.message });
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: 'Ошибка!', description: `Ошибка отклонения списания: ${e.message}` });
         }
     };
     

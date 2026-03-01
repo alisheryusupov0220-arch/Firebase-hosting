@@ -2,29 +2,14 @@
 
 import { revalidatePath } from 'next/cache';
 import { createSupply, type CreateSupplyData, getStorages, getPosterSuppliers } from '@/lib/poster';
-import { getFirestore, doc, updateDoc, collection, serverTimestamp, getDoc, writeBatch } from 'firebase/firestore';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { getFirebaseApp } from '@/firebase/server';
 
 const app = getFirebaseApp();
 const db = getFirestore(app);
 
-// This action is no longer needed as the creation logic is moved to the client.
-// We keep the file for other server actions.
-export type RequestSupplyPayload = {
-    supplier_id: number;
-    storage_id: number;
-    comment?: string;
-    ingredients: {
-        ingredient_id: number;
-        count: number;
-        price: number;
-    }[];
-    requesterId: string;
-    requesterName: string;
-};
-
-
-export async function approveSupplyAction(pendingSupplyId: string) {
+export async function approveSupplyOnPosterAction(pendingSupplyId: string): Promise<{ success: true, data: string } | { success: false, message: string }> {
+    // This action only gets the pending supply data to send to Poster.
     const pendingSupplyRef = doc(db, 'pendingSupplies', pendingSupplyId);
     
     try {
@@ -35,9 +20,6 @@ export async function approveSupplyAction(pendingSupplyId: string) {
         }
 
         const pendingSupplyData = pendingSupplySnap.data();
-
-        // Assume the user approving is an admin
-        const adminId = 'admin-user'; 
 
         const posterData: CreateSupplyData = {
             supplier_id: pendingSupplyData.supplier_id,
@@ -51,66 +33,19 @@ export async function approveSupplyAction(pendingSupplyId: string) {
             throw new Error('API Poster не вернул ID поставки.');
         }
         
-        // Use a batch to perform multiple writes atomically
-        const batch = writeBatch(db);
-
-        // 1. Update the original pending supply document
-        batch.update(pendingSupplyRef, {
-            status: 'approved',
-            approvedBy: adminId,
-            approvedAt: serverTimestamp(),
-            posterSupplyId: newSupplyId,
-        });
-
-        // 2. Record the price history for each ingredient in the supply
-        const approvalTimestamp = new Date(); // Use the same timestamp for all price records in this batch
-        pendingSupplyData.ingredients.forEach((ingredient: any) => {
-            const priceHistoryRef = doc(db, `ingredients/${ingredient.ingredient_id}/price_history`, String(newSupplyId));
-            batch.set(priceHistoryRef, {
-                price: ingredient.price,
-                date: approvalTimestamp,
-                supplierId: String(pendingSupplyData.supplier_id)
-            });
-        });
-
-        // Commit the batch
-        await batch.commit();
-
+        // Revalidate paths that show Poster data
         revalidatePath('/supplies');
         revalidatePath('/menu-analytics');
-        revalidatePath('/inventory');
 
         return { success: true, data: newSupplyId };
 
     } catch (error) {
-        console.error('Failed to approve supply:', error);
+        console.error('Failed to approve supply on Poster:', error);
         const message = error instanceof Error ? error.message : 'Произошла неизвестная ошибка.';
-        return { success: false, message: `Ошибка одобрения поставки: ${message}` };
+        return { success: false, message: `Ошибка одобрения поставки в Poster: ${message}` };
     }
 }
 
-
-export async function rejectSupplyAction(pendingSupplyId: string) {
-    try {
-        const pendingSupplyRef = doc(db, 'pendingSupplies', pendingSupplyId);
-        
-        // Assume the user rejecting is an admin
-        const adminId = 'admin-user';
-
-        await updateDoc(pendingSupplyRef, {
-            status: 'rejected',
-            rejectedBy: adminId,
-            rejectedAt: serverTimestamp(),
-        });
-        
-        revalidatePath('/supplies');
-        return { success: true };
-    } catch(error) {
-        console.error('Failed to reject supply:', error);
-        const message = error instanceof Error ? error.message : 'Произошла неизвестная ошибка.';
-        return { success: false, message: `Ошибка отклонения поставки: ${message}` };
-    }
-}
 
 export async function fetchStoragesAction() {
     return getStorages();

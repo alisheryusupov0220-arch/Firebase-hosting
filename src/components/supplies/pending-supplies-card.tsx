@@ -1,12 +1,12 @@
 'use client';
 
 import React from 'react';
-import { useCollection, useFirestore } from '@/firebase/hooks';
-import { collection, query } from 'firebase/firestore';
+import { useCollection, useFirestore, useUser } from '@/firebase/hooks';
+import { collection, query, doc, updateDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { approveSupplyAction, rejectSupplyAction } from '@/app/supplies/actions';
+import { approveSupplyOnPosterAction } from '@/app/supplies/actions';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Ingredient, PosterSupplier, Storage } from '@/lib/poster';
@@ -23,6 +23,7 @@ type PendingSuppliesCardProps = {
 export function PendingSuppliesCard({ storages, suppliers, ingredients }: PendingSuppliesCardProps) {
     const { toast } = useToast();
     const firestore = useFirestore();
+    const { user } = useUser();
     
     const pendingSuppliesQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -39,21 +40,65 @@ export function PendingSuppliesCard({ storages, suppliers, ingredients }: Pendin
         ingredients: new Map(ingredients.map(item => [item.ingredient_id, item.ingredient_name])),
     }), [storages, suppliers, ingredients]);
 
-    const handleApprove = async (id: string) => {
-        const result = await approveSupplyAction(id);
-        if (result.success) {
-            toast({ title: 'Успех!', description: 'Поставка одобрена и отправлена в Poster.' });
-        } else {
-            toast({ variant: 'destructive', title: 'Ошибка!', description: result.message });
+    const handleApprove = async (supply: any) => {
+        if (!user || !firestore) {
+            toast({ variant: 'destructive', title: 'Ошибка!', description: 'Вы не авторизованы.' });
+            return;
+        }
+
+        const result = await approveSupplyOnPosterAction(supply.id);
+
+        if (!result.success) {
+            toast({ variant: 'destructive', title: 'Ошибка Poster!', description: result.message });
+            return;
+        }
+
+        const newSupplyId = result.data;
+        const pendingSupplyRef = doc(firestore, 'pendingSupplies', supply.id);
+        
+        try {
+            const batch = writeBatch(firestore);
+
+            batch.update(pendingSupplyRef, {
+                status: 'approved',
+                approvedBy: user.email,
+                approvedAt: serverTimestamp(),
+                posterSupplyId: newSupplyId,
+            });
+
+            const approvalTimestamp = new Date();
+            supply.ingredients.forEach((ingredient: any) => {
+                const priceHistoryRef = doc(firestore, `ingredients/${ingredient.ingredient_id}/price_history`, String(newSupplyId));
+                batch.set(priceHistoryRef, {
+                    price: ingredient.price,
+                    date: approvalTimestamp,
+                    supplierId: String(supply.supplier_id)
+                });
+            });
+
+            await batch.commit();
+            toast({ title: 'Успех!', description: 'Поставка одобрена.' });
+
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: 'Ошибка Firestore!', description: `Не удалось обновить статус заявки: ${e.message}` });
         }
     };
 
     const handleReject = async (id: string) => {
-        const result = await rejectSupplyAction(id);
-        if (result.success) {
+        if (!user || !firestore) {
+            toast({ variant: 'destructive', title: 'Ошибка!', description: 'Вы не авторизованы.' });
+            return;
+        }
+        const pendingSupplyRef = doc(firestore, 'pendingSupplies', id);
+        try {
+            await updateDoc(pendingSupplyRef, {
+                status: 'rejected',
+                rejectedBy: user.email,
+                rejectedAt: serverTimestamp(),
+            });
             toast({ title: 'Успех!', description: 'Заявка на поставку отклонена.' });
-        } else {
-            toast({ variant: 'destructive', title: 'Ошибка!', description: result.message });
+        } catch(e: any) {
+            toast({ variant: 'destructive', title: 'Ошибка!', description: `Ошибка отклонения: ${e.message}` });
         }
     };
     
@@ -91,8 +136,6 @@ export function PendingSuppliesCard({ storages, suppliers, ingredients }: Pendin
         return null; 
     }
     
-    // Since we removed the `where('status', '==', 'pending')` from the query for diagnostics,
-    // we now filter on the client to ensure the UI remains correct.
     const filteredSupplies = pendingSupplies.filter((s: any) => s.status === 'pending');
 
     if (filteredSupplies.length === 0) {
@@ -132,7 +175,7 @@ export function PendingSuppliesCard({ storages, suppliers, ingredients }: Pendin
                                         {new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(totalSum)}
                                     </TableCell>
                                     <TableCell className="text-right space-x-2">
-                                        <Button size="sm" onClick={() => handleApprove(supply.id)}>Одобрить</Button>
+                                        <Button size="sm" onClick={() => handleApprove(supply)}>Одобрить</Button>
                                         <Button size="sm" variant="outline" onClick={() => handleReject(supply.id)}>Отклонить</Button>
                                     </TableCell>
                                 </TableRow>
