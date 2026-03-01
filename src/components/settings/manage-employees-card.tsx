@@ -1,6 +1,12 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { useAuth, useFirestore } from '@/firebase/hooks';
 import { getUsersAction, updateUserAction, type UserProfileServer } from '@/app/settings/actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -10,7 +16,141 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, UserCog } from 'lucide-react';
+import { Loader2, Plus, UserCog } from 'lucide-react';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+
+const newUserSchema = z.object({
+    displayName: z.string().min(1, "Имя обязательно для заполнения"),
+    email: z.string().email("Неверный формат email"),
+    password: z.string().min(6, "Пароль должен быть не менее 6 символов"),
+    telegramId: z.string().optional(),
+});
+
+
+function AddUserDialog({ onUserAdded }: { onUserAdded: () => void }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [isPending, startTransition] = useTransition();
+    const { toast } = useToast();
+    const auth = useAuth();
+    const firestore = useFirestore();
+
+    const form = useForm<z.infer<typeof newUserSchema>>({
+        resolver: zodResolver(newUserSchema),
+        defaultValues: {
+            displayName: '',
+            email: '',
+            password: '',
+            telegramId: '',
+        },
+    });
+
+    const onSubmit = (values: z.infer<typeof newUserSchema>) => {
+        startTransition(async () => {
+            if (!auth || !firestore) {
+                toast({ variant: "destructive", title: "Ошибка", description: "Сервисы Firebase не инициализированы." });
+                return;
+            }
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+                const user = userCredential.user;
+
+                const userRef = doc(firestore, 'users', user.uid);
+                await setDoc(userRef, {
+                    displayName: values.displayName,
+                    email: values.email,
+                    role: 'employee', // New users are always employees by default
+                    telegramId: values.telegramId || '',
+                });
+                
+                toast({ title: "Успех", description: "Новый сотрудник добавлен." });
+                onUserAdded();
+                setIsOpen(false);
+                form.reset();
+
+            } catch (error: any) {
+                toast({ variant: "destructive", title: "Ошибка", description: error.message });
+            }
+        });
+    };
+    
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button><Plus className="mr-2 h-4 w-4" /> Добавить</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Добавить нового сотрудника</DialogTitle>
+                </DialogHeader>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+                        <FormField
+                            control={form.control}
+                            name="displayName"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Имя</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="Иван Петров" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="email"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Email</FormLabel>
+                                    <FormControl>
+                                        <Input type="email" placeholder="user@example.com" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="password"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Пароль</FormLabel>
+                                    <FormControl>
+                                        <Input type="password" placeholder="••••••••" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="telegramId"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Telegram ID</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="123456789" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <DialogFooter className="pt-4">
+                            <DialogClose asChild>
+                                <Button type="button" variant="outline">Отмена</Button>
+                            </DialogClose>
+                            <Button type="submit" disabled={isPending}>
+                                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Создать
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 function EditUserDialog({ user, onUpdate }: { user: UserProfileServer, onUpdate: () => void }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -107,11 +247,14 @@ export function ManageEmployeesCard() {
 
     return (
         <Card className="lg:col-span-2">
-            <CardHeader>
-                <CardTitle>Управление сотрудниками</CardTitle>
-                <CardDescription>
-                    Настройте роли и данные сотрудников для доступа к системе.
-                </CardDescription>
+            <CardHeader className="flex-row items-start justify-between">
+                <div>
+                    <CardTitle>Управление сотрудниками</CardTitle>
+                    <CardDescription>
+                        Настройте роли и данные сотрудников для доступа к системе.
+                    </CardDescription>
+                </div>
+                <AddUserDialog onUserAdded={fetchUsers} />
             </CardHeader>
             <CardContent>
                 {isLoading ? (
