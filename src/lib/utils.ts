@@ -23,6 +23,7 @@ export function translateUnit(unit: string | null | undefined): string {
         'pcs': 'штук',
         'piece': 'штук',
         'unit': 'штук',
+        'p': 'штук'
     };
     return map[lowerUnit] || unit;
 }

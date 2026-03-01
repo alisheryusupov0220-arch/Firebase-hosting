@@ -242,6 +242,47 @@
       },
       "required": ["userId", "userName", "createdAt", "items", "comment"]
     },
+    "InventoryTemplate": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "InventoryTemplate",
+      "description": "Represents a template for conducting inventory counts.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the template (e.g., 'Weekly Bar Check')."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["full", "partial"],
+          "description": "The type of inventory: full or partial."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the template."
+        },
+        "ingredientIds": {
+          "type": "array",
+          "description": "A list of ingredient IDs for partial inventory counts.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who created this template."
+        },
+        "userName": {
+            "type": "string",
+            "description": "The name of the user who created this template."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["name", "type", "userId", "createdAt"]
+    },
     "PendingSupply": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PendingSupply",
@@ -330,6 +371,16 @@
           "entityName": "InventoryCount",
           "schema": { "$ref": "#/entities/InventoryCount" },
           "description": "Stores saved inventory counts. Users can create their own."
+        }
+      },
+      {
+        "path": "/inventory_templates/{templateId}",
+        "definition": {
+          "entityName": "InventoryTemplate",
+          "schema": {
+            "$ref": "#/entities/InventoryTemplate"
+          },
+          "description": "Stores templates for inventory counts."
         }
       }
     ]
