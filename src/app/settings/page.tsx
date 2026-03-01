@@ -4,9 +4,10 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ProfileCard } from "@/components/settings/profile-card";
-import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase/hooks";
+import { useUser, useDoc, useFirestore } from "@/firebase/hooks";
 import { doc } from "firebase/firestore";
 import { ManageEmployeesCard } from "@/components/settings/manage-employees-card";
+import { useMemoFirebase } from "@/firebase/provider";
 
 export default function SettingsPage() {
   const { user } = useUser();

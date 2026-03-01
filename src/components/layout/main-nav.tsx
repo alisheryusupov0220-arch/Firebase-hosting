@@ -14,9 +14,6 @@ import {
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
-import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase/hooks';
-import { doc } from 'firebase/firestore';
-
 
 export const mainRoutes = [
   {
