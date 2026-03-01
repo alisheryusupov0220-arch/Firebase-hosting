@@ -15,6 +15,7 @@ import { getIngredientsForInventory, updateTemplateIngredientsAction, type Inven
 import type { LocalIngredient } from '@/app/ingredients/actions';
 
 export default function EditInventoryTemplatePage({ params }: { params: { templateId: string } }) {
+    const { templateId } = params;
     const firestore = useFirestore();
     const { toast } = useToast();
     const [template, setTemplate] = useState<InventoryTemplate | null>(null);
@@ -25,7 +26,6 @@ export default function EditInventoryTemplatePage({ params }: { params: { templa
     const [isSaving, startSavingTransition] = useTransition();
 
     useEffect(() => {
-        const { templateId } = params;
         async function fetchData() {
             if (!firestore) return;
             setIsLoading(true);
@@ -53,7 +53,7 @@ export default function EditInventoryTemplatePage({ params }: { params: { templa
         }
 
         fetchData();
-    }, [firestore, params, toast]);
+    }, [firestore, templateId, toast]);
 
     const handleSelect = (ingredientId: string, checked: boolean) => {
         setSelectedIngredients(prev => {
@@ -68,7 +68,6 @@ export default function EditInventoryTemplatePage({ params }: { params: { templa
     };
 
     const handleSave = () => {
-        const { templateId } = params;
         startSavingTransition(async () => {
             const result = await updateTemplateIngredientsAction(templateId, Array.from(selectedIngredients));
             if (result.success) {
