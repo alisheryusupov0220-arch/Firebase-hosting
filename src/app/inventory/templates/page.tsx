@@ -9,15 +9,19 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/hooks';
-import { saveInventoryTemplateAction, getInventoryTemplatesAction, type InventoryTemplate } from '../actions';
-import { Loader2, Plus } from 'lucide-react';
+import { saveInventoryTemplateAction, getInventoryTemplatesAction, type InventoryTemplate, startInventoryTaskAction } from '../actions';
+import { Edit, Loader2, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function InventoryTemplatesPage() {
     const { toast } = useToast();
     const { user } = useUser();
+    const router = useRouter();
     const [isSaving, startSavingTransition] = useTransition();
+    const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
 
     const [templates, setTemplates] = useState<InventoryTemplate[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -61,7 +65,6 @@ export default function InventoryTemplatesPage() {
                 setName('');
                 setDescription('');
                 setType('full');
-                // Refresh list
                 await fetchTemplates();
             } else {
                 toast({ variant: 'destructive', title: 'Ошибка сохранения', description: result.message });
@@ -70,11 +73,31 @@ export default function InventoryTemplatesPage() {
     };
     
     const handleStartInventory = (template: InventoryTemplate) => {
-        // This is where the logic to create an InventoryTask would go.
-        // For now, it will just show a toast.
-        toast({
-            title: 'Функция в разработке',
-            description: `Запуск инвентаризации по шаблону "${template.name}" скоро будет доступен.`,
+        if (!user) {
+            toast({ variant: 'destructive', title: 'Ошибка', description: 'Вы должны быть авторизованы.' });
+            return;
+        }
+        setStartingTaskId(template.id);
+        startSavingTransition(async () => {
+            const result = await startInventoryTaskAction({
+                templateId: template.id,
+                userId: user.uid,
+                userName: user.email || 'Unknown User',
+            });
+            setStartingTaskId(null);
+            if (result.success) {
+                toast({
+                    title: 'Успех!',
+                    description: result.message,
+                });
+                router.push('/inventory');
+            } else {
+                toast({
+                    variant: 'destructive',
+                    title: 'Ошибка',
+                    description: result.message,
+                });
+            }
         });
     };
 
@@ -117,7 +140,7 @@ export default function InventoryTemplatesPage() {
                             </div>
                         </RadioGroup>
                          <p className="text-xs text-muted-foreground pt-1">
-                            При частичной инвентаризации нужно будет выбрать конкретные ингредиенты (эта функция в разработке).
+                            Для частичной инвентаризации нужно будет выбрать конкретные ингредиенты.
                          </p>
                     </div>
                     <Button onClick={handleSaveTemplate} disabled={isSaving}>
@@ -149,10 +172,19 @@ export default function InventoryTemplatesPage() {
                                             {template.type === 'full' ? 'Полная' : 'Частичная'} | Создан: {format(template.createdAt.seconds * 1000, 'dd MMM yyyy', { locale: ru })}
                                         </p>
                                     </div>
-                                    <Button size="sm" variant="outline" onClick={() => handleStartInventory(template)}>
-                                        <Plus className="mr-2 h-4 w-4"/>
-                                        Начать
-                                    </Button>
+                                    <div className="flex items-center gap-2">
+                                        {template.type === 'partial' && (
+                                            <Button asChild size="sm" variant="ghost">
+                                                <Link href={`/inventory/templates/edit/${template.id}`}>
+                                                    <Edit className="h-4 w-4" />
+                                                </Link>
+                                            </Button>
+                                        )}
+                                        <Button size="sm" variant="outline" onClick={() => handleStartInventory(template)} disabled={startingTaskId === template.id || isSaving}>
+                                            {startingTaskId === template.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4"/>}
+                                            Начать
+                                        </Button>
+                                    </div>
                                 </div>
                             ))}
                         </div>

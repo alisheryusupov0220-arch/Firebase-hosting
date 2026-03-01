@@ -283,6 +283,26 @@
       },
       "required": ["name", "type", "userId", "createdAt"]
     },
+    "InventoryTask": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "InventoryTask",
+      "description": "Represents an active inventory counting task created from a template.",
+      "type": "object",
+      "properties": {
+        "templateId": { "type": "string" },
+        "templateName": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "completed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "createdByName": { "type": "string" },
+        "ingredientIds": {
+          "type": "array",
+          "description": "The list of ingredient IDs to be counted in this task.",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["templateId", "templateName", "status", "createdAt", "createdBy"]
+    },
     "PendingSupply": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PendingSupply",
@@ -381,6 +401,14 @@
             "$ref": "#/entities/InventoryTemplate"
           },
           "description": "Stores templates for inventory counts."
+        }
+      },
+      {
+        "path": "/inventory_tasks/{taskId}",
+        "definition": {
+          "entityName": "InventoryTask",
+          "schema": { "$ref": "#/entities/InventoryTask" },
+          "description": "Stores active inventory counting tasks created from templates."
         }
       }
     ]

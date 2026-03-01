@@ -1,235 +1,49 @@
-'use client';
-
-import React, { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
+import Link from 'next/link';
+import { getPendingInventoryTasksAction, type InventoryTask } from './actions';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/firebase/hooks';
-import type { LocalIngredient } from '@/app/ingredients/actions';
-import { getIngredientsForInventory, saveInventoryCountAction } from './actions';
-import { Loader2 } from 'lucide-react';
-import { translateUnit } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { format } from 'date-fns';
+import { ru } from 'date-fns/locale';
+import { FilePenLine } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-export default function InventoryPage() {
-    const { toast } = useToast();
-    const { user } = useUser();
-    const [allIngredients, setAllIngredients] = useState<LocalIngredient[]>([]);
-    const [quantities, setQuantities] = useState<Record<string, string>>({});
-    const [comment, setComment] = useState('');
-    const [filter, setFilter] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
+export default async function InventoryTasksPage() {
+    const tasks = await getPendingInventoryTasksAction();
 
-    useEffect(() => {
-        async function loadIngredients() {
-            setIsLoading(true);
-            const ingredients = await getIngredientsForInventory();
-            setAllIngredients(ingredients);
-            setIsLoading(false);
-        }
-        loadIngredients();
-    }, []);
-
-    const handleQuantityChange = (ingredientId: string, value: string) => {
-        setQuantities(prev => ({ ...prev, [ingredientId]: value }));
-    };
-
-    const filteredIngredients = useMemo(() => {
-        if (!filter) {
-            return allIngredients;
-        }
-        return allIngredients.filter(ing =>
-            ing.name.toLowerCase().includes(filter.toLowerCase())
-        );
-    }, [allIngredients, filter]);
-
-    const isUnitBased = (unit: string) => {
-        const translated = translateUnit(unit);
-        return translated === 'штук';
-    };
-
-    const getInputAttributes = (unit: string) => {
-        if (isUnitBased(unit)) {
-            return {
-                placeholder: '1, 2, 3...',
-                step: '1',
-                pattern: '\\d*',
-            };
-        }
-        return {
-            placeholder: '1.123',
-            step: '0.001',
-        };
-    };
-
-    const allVisibleItemsFilled = useMemo(() => {
-        if (filteredIngredients.length === 0) {
-            return false;
-        }
-        return filteredIngredients.every(ing => {
-            const quantityStr = quantities[ing.id];
-            if (!quantityStr) return false;
-            const quantity = parseFloat(quantityStr);
-            return !isNaN(quantity) && quantity > 0;
-        });
-    }, [filteredIngredients, quantities]);
-
-    const handleSave = async () => {
-        if (!comment.trim()) {
-            toast({ variant: 'destructive', title: 'Ошибка', description: 'Пожалуйста, введите комментарий или название инвентаризации.' });
-            return;
-        }
-
-        if (!user) {
-            toast({ variant: 'destructive', title: 'Ошибка', description: 'Для сохранения вы должны быть авторизованы.' });
-            return;
-        }
-        
-        const itemsToSave = filteredIngredients
-            .map(ingredient => {
-                const quantityStr = quantities[ingredient.id];
-                const quantity = parseFloat(quantityStr);
-                
-                if (!quantityStr || isNaN(quantity) || quantity <= 0) return null;
-
-                return {
-                    ingredientId: ingredient.id,
-                    ingredientName: ingredient.name,
-                    unit: ingredient.unit,
-                    quantity: quantity,
-                };
-            })
-            .filter((item): item is NonNullable<typeof item> => item !== null);
-        
-        if (itemsToSave.length !== filteredIngredients.length) {
-            toast({ variant: 'destructive', title: 'Не все поля заполнены', description: 'Заполните количество для всех отображенных позиций.' });
-            return;
-        }
-
-        setIsSaving(true);
-        const result = await saveInventoryCountAction({
-            comment,
-            items: itemsToSave,
-            userId: user.uid,
-            userName: user.email || 'Unknown User',
-        });
-        setIsSaving(false);
-
-        if (result.success) {
-            toast({ title: 'Успех!', description: 'Данные инвентаризации сохранены.' });
-            setQuantities({});
-            setComment('');
-            setFilter('');
-        } else {
-            toast({ variant: 'destructive', title: 'Ошибка сохранения', description: result.message });
-        }
-    };
-
-    if (isLoading) {
-        return (
-            <div className="flex min-h-[400px] w-full items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-        );
-    }
-    
     return (
-        <div className="space-y-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Новая инвентаризация</CardTitle>
-                    <CardDescription>
-                        Введите название (например, &quot;Еженедельная проверка бара&quot;), отфильтруйте список при необходимости,
-                        и заполните фактическое количество для всех видимых позиций.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <Input
-                        placeholder="* Обязательный комментарий или название инвентаризации..."
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        className="max-w-lg"
-                    />
-                    <Input
-                        placeholder="Поиск для частичной инвентаризации..."
-                        value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
-                        className="max-w-lg"
-                    />
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Список ингредиентов</CardTitle>
-                     <CardDescription>
-                        Для сохранения необходимо заполнить количество для всех позиций в текущем списке.
-                     </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Название ингредиента</TableHead>
-                                    <TableHead className="w-[100px]">Ед. изм.</TableHead>
-                                    <TableHead className="w-[220px] text-right">Фактическое кол-во</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredIngredients.length > 0 ? (
-                                    filteredIngredients.map(ing => (
-                                        <TableRow key={ing.id}>
-                                            <TableCell className="font-medium">{ing.name}</TableCell>
-                                            <TableCell className="text-muted-foreground">{translateUnit(ing.unit)}</TableCell>
-                                            <TableCell className="text-right">
-                                                <Input
-                                                    {...getInputAttributes(ing.unit)}
-                                                    type="number"
-                                                    value={quantities[ing.id] || ''}
-                                                    onChange={(e) => handleQuantityChange(ing.id, e.target.value)}
-                                                    className="text-right"
-                                                    min="0"
-                                                />
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : (
-                                    <TableRow>
-                                        <TableCell colSpan={3} className="h-24 text-center">
-                                            Ингредиенты не найдены.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+        <Card>
+            <CardHeader>
+                <CardTitle>Задания на инвентаризацию</CardTitle>
+                <CardDescription>Выберите задание, чтобы начать подсчет остатков.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {tasks.length === 0 ? (
+                    <div className="h-40 flex flex-col items-center justify-center text-center text-muted-foreground">
+                        <p className="font-medium">Нет активных заданий</p>
+                        <p className="text-sm">Новые задания можно создать из раздела "Шаблоны".</p>
                     </div>
-                    <div className="mt-6 flex justify-end">
-                       <TooltipProvider>
-                         <Tooltip>
-                           <TooltipTrigger asChild>
-                             <div tabIndex={0}> 
-                                <Button onClick={handleSave} disabled={isSaving || !allVisibleItemsFilled || !comment.trim()}>
-                                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Сохранить инвентаризацию
+                ) : (
+                    <div className="space-y-4">
+                        {tasks.map((task) => (
+                            <div key={task.id} className="flex items-center justify-between rounded-lg border p-4">
+                                <div>
+                                    <p className="font-semibold">{task.templateName}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Создано: {task.createdByName} {task.createdAt ? format(new Date(task.createdAt.seconds * 1000), 'dd MMM yyyy HH:mm', { locale: ru }) : ''}
+                                    </p>
+                                </div>
+                                <Button asChild>
+                                    <Link href={`/inventory/conduct/${task.id}`}>
+                                        <FilePenLine className="mr-2 h-4 w-4" />
+                                        Начать подсчет
+                                    </Link>
                                 </Button>
-                              </div>
-                           </TooltipTrigger>
-                           {(!allVisibleItemsFilled || !comment.trim()) && (
-                             <TooltipContent>
-                               <p>Заполните комментарий и количество для всех видимых позиций.</p>
-                             </TooltipContent>
-                           )}
-                         </Tooltip>
-                       </TooltipProvider>
+                            </div>
+                        ))}
                     </div>
-                </CardContent>
-            </Card>
-        </div>
+                )}
+            </CardContent>
+        </Card>
     );
 }
