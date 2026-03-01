@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { getUsersAction, updateUserAction } from '@/app/settings/actions';
+import { updateUserAction } from '@/app/settings/actions';
 import type { UserProfileServer } from '@/app/settings/actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -18,11 +18,13 @@ import { Loader2, Plus, UserCog } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase/hooks';
+import { useCollection, useFirestore } from '@/firebase/hooks';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
 import { ScrollArea } from '../ui/scroll-area';
+import { useMemoFirebase } from '@/firebase/provider';
+import { collection, query, orderBy } from 'firebase/firestore';
 
 const newUserSchema = z.object({
     displayName: z.string().min(1, "Имя обязательно для заполнения"),
@@ -33,7 +35,7 @@ const newUserSchema = z.object({
 });
 
 
-function AddUserDialog({ onUserAdded }: { onUserAdded: () => void }) {
+function AddUserDialog() {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
@@ -74,7 +76,7 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: () => void }) {
                 });
                 
                 toast({ title: "Успех!", description: "Сотрудник успешно добавлен." });
-                onUserAdded();
+                // onUserAdded is not needed, useCollection will handle the update
                 setIsOpen(false);
                 form.reset();
 
@@ -192,7 +194,7 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: () => void }) {
     );
 }
 
-function EditUserDialog({ user, onUpdate }: { user: UserProfileServer, onUpdate: () => void }) {
+function EditUserDialog({ user }: { user: UserProfileServer }) {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
@@ -205,7 +207,7 @@ function EditUserDialog({ user, onUpdate }: { user: UserProfileServer, onUpdate:
             const result = await updateUserAction(user.id, { role, telegramId });
             if (result.success) {
                 toast({ title: "Успех", description: "Данные пользователя обновлены." });
-                onUpdate();
+                // onUpdate is not needed, useCollection will handle the update
                 setIsOpen(false);
             } else {
                 toast({ variant: "destructive", title: "Ошибка", description: result.message });
@@ -271,19 +273,14 @@ function EditUserDialog({ user, onUpdate }: { user: UserProfileServer, onUpdate:
 
 
 export function ManageEmployeesCard() {
-    const [users, setUsers] = useState<UserProfileServer[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const firestore = useFirestore();
 
-    const fetchUsers = async () => {
-        setIsLoading(true);
-        const userList = await getUsersAction();
-        setUsers(userList);
-        setIsLoading(false);
-    }
+    const usersQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'users'), orderBy('displayName', 'asc'));
+    }, [firestore]);
 
-    useEffect(() => {
-        fetchUsers();
-    }, []);
+    const { data: users, isLoading } = useCollection<UserProfileServer>(usersQuery);
 
     return (
         <Card className="lg:col-span-2">
@@ -294,7 +291,7 @@ export function ManageEmployeesCard() {
                         Настройте роли и данные сотрудников для доступа к системе.
                     </CardDescription>
                 </div>
-                <AddUserDialog onUserAdded={fetchUsers} />
+                <AddUserDialog />
             </CardHeader>
             <CardContent>
                 {isLoading ? (
@@ -314,14 +311,14 @@ export function ManageEmployeesCard() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {users.map(user => (
+                                {users?.map(user => (
                                     <TableRow key={user.id}>
                                         <TableCell>{user.displayName || '-'}</TableCell>
                                         <TableCell>{user.email}</TableCell>
                                         <TableCell>{user.role}</TableCell>
                                         <TableCell>{user.telegramId || '-'}</TableCell>
                                         <TableCell className="text-right">
-                                            <EditUserDialog user={user} onUpdate={fetchUsers} />
+                                            <EditUserDialog user={user} />
                                         </TableCell>
                                     </TableRow>
                                 ))}
