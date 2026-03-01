@@ -1,20 +1,37 @@
 'use client';
 
-import { useUser } from '@/firebase/hooks';
+import { useUser, useDoc, useFirestore } from '@/firebase/hooks';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Header } from '@/components/layout/header';
 import { Loader2 } from 'lucide-react';
+import { doc } from 'firebase/firestore';
+import { useMemoFirebase } from '@/firebase/provider';
+import { EmployeeLayout } from '../layout/employee-layout';
 
 const publicPaths = ['/login', '/register'];
 
+type UserProfile = {
+    role: 'admin' | 'employee';
+};
+
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-    const { user, loading } = useUser();
+    const { user, loading: userLoading } = useUser();
+    const firestore = useFirestore();
     const router = useRouter();
     const pathname = usePathname();
 
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !user?.uid) return null;
+        return doc(firestore, 'users', user.uid);
+    }, [firestore, user?.uid]);
+
+    const { data: userProfile, isLoading: profileLoading } = useDoc<UserProfile>(userProfileRef);
+
+    const isLoading = userLoading || (user && profileLoading);
+
     useEffect(() => {
-        if (loading) {
+        if (isLoading) {
             return; // Wait until loading is complete
         }
 
@@ -29,10 +46,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         if (user && isPublicPath) {
             router.push('/supplies');
         }
-    }, [user, loading, router, pathname]);
+    }, [user, isLoading, router, pathname]);
 
     // While loading, show a full-page loader
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="flex min-h-screen w-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin" />
@@ -54,16 +71,26 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
          if (publicPaths.includes(pathname)) {
             return <>{children}</>;
          }
+         
+         if (userProfile?.role === 'employee') {
+            return <EmployeeLayout>{children}</EmployeeLayout>;
+         }
 
-         return (
-            <div className="flex min-h-screen w-full flex-col bg-muted/40">
-              <Header />
-              <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
-                {children}
-              </main>
-            </div>
-        );
+         if (userProfile?.role === 'admin') {
+            return (
+                <div className="flex min-h-screen w-full flex-col bg-muted/40">
+                  <Header />
+                  <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
+                    {children}
+                  </main>
+                </div>
+            );
+         }
     }
 
-    return null;
+    return (
+        <div className="flex min-h-screen w-full items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+    );
 }

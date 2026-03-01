@@ -14,8 +14,11 @@ import {
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase/hooks';
+import { doc } from 'firebase/firestore';
 
-export const routes = [
+
+export const mainRoutes = [
   {
     href: '/supplies',
     label: 'Поставки',
@@ -58,12 +61,36 @@ export const routes = [
   },
 ];
 
+export const employeeRoutes = [
+   {
+    href: '/supplies',
+    label: 'Поставки',
+    icon: PackagePlus,
+  },
+  {
+    href: '/write-offs',
+    label: 'Списания',
+    icon: PackageMinus,
+  },
+  {
+    href: '/inventory',
+    label: 'Инвентаризация',
+    icon: ClipboardList,
+  },
+  {
+    href: '/settings',
+    label: 'Настройки',
+    icon: Settings,
+  },
+]
+
+
 export function MainNav({ className }: { className?: string }) {
   const pathname = usePathname();
 
   return (
     <nav className={cn('hidden items-center space-x-4 md:flex lg:space-x-6', className)}>
-      {routes.map((route) => (
+      {mainRoutes.map((route) => (
         <Link
           key={route.href}
           href={route.href}

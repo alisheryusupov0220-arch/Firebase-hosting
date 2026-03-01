@@ -1,3 +1,7 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase/hooks';
 import { getInventoryHistoryAction, type InventoryCountHistoryItem } from '../actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -5,6 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { translateUnit } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
+import { doc } from 'firebase/firestore';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,10 +25,40 @@ function groupCountsByDay(counts: InventoryCountHistoryItem[]): Record<string, I
     }, {} as Record<string, InventoryCountHistoryItem[]>);
 }
 
-export default async function InventoryHistoryPage() {
-    const history = await getInventoryHistoryAction();
-    const groupedHistory = groupCountsByDay(history);
+export default function InventoryHistoryPage() {
+    const { user } = useUser();
+    const firestore = useFirestore();
+    const [history, setHistory] = useState<InventoryCountHistoryItem[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !user?.uid) return null;
+        return doc(firestore, 'users', user.uid);
+    }, [firestore, user?.uid]);
+
+    const { data: userProfile } = useDoc(userProfileRef);
+
+    useEffect(() => {
+        async function loadHistory() {
+            setIsLoading(true);
+            const historyData = await getInventoryHistoryAction();
+            setHistory(historyData);
+            setIsLoading(false);
+        }
+        loadHistory();
+    }, []);
+
+    const displayedHistory = userProfile?.role === 'employee' ? history.slice(0, 1) : history;
+    const groupedHistory = groupCountsByDay(displayedHistory);
     const sortedDays = Object.keys(groupedHistory).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    
+    if (isLoading) {
+        return (
+             <div className="flex min-h-[400px] w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
 
     if (history.length === 0) {
         return (

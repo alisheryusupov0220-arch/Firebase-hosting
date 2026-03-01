@@ -16,10 +16,39 @@ import type { LocalIngredient } from '@/app/ingredients/actions';
 
 type AddSupplyDialogProps = {
   ingredients: LocalIngredient[] | null;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  isFab?: boolean;
 };
 
-export function AddSupplyDialog({ ingredients }: AddSupplyDialogProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function AddSupplyDialog({ ingredients, open, onOpenChange, isFab = false }: AddSupplyDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+
+  const isOpen = open ?? internalOpen;
+  const setIsOpen = onOpenChange ?? setInternalOpen;
+
+  const dialogContent = (
+    <DialogContent className="sm:max-w-[625px]">
+      <DialogHeader>
+        <DialogTitle>Новая поставка</DialogTitle>
+        <DialogDescription>
+          Выберите ингредиенты, укажите количество и сумму для регистрации новой поставки.
+        </DialogDescription>
+      </DialogHeader>
+      <CreateSupplyForm
+        ingredients={ingredients}
+        onFormSubmitted={() => setIsOpen(false)}
+      />
+    </DialogContent>
+  );
+
+  if (isFab) {
+    return (
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        {dialogContent}
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -29,18 +58,7 @@ export function AddSupplyDialog({ ingredients }: AddSupplyDialogProps) {
           Добавить поставку
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[625px]">
-        <DialogHeader>
-          <DialogTitle>Новая поставка</DialogTitle>
-          <DialogDescription>
-            Выберите ингредиенты, укажите количество и сумму для регистрации новой поставки.
-          </DialogDescription>
-        </DialogHeader>
-        <CreateSupplyForm
-          ingredients={ingredients}
-          onFormSubmitted={() => setIsOpen(false)}
-        />
-      </DialogContent>
+      {dialogContent}
     </Dialog>
   );
 }

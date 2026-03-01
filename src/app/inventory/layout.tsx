@@ -3,12 +3,9 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/layout/page-header';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase/hooks';
+import { doc } from 'firebase/firestore';
 
-const inventoryNavItems = [
-  { href: '/inventory', label: 'Задания' },
-  { href: '/inventory/history', label: 'История' },
-  { href: '/inventory/templates', label: 'Шаблоны' },
-];
 
 export default function InventoryLayout({
   children,
@@ -17,6 +14,23 @@ export default function InventoryLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!firestore || !user?.uid) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user?.uid]);
+  const { data: userProfile } = useDoc(userProfileRef);
+
+  const isAdmin = userProfile?.role === 'admin';
+
+  const inventoryNavItems = [
+    { href: '/inventory', label: 'Задания' },
+    { href: '/inventory/history', label: 'История' },
+    ...(isAdmin ? [{ href: '/inventory/templates', label: 'Шаблоны' }] : []),
+  ];
 
   const handleTabChange = (value: string) => {
     router.push(value);
@@ -35,6 +49,10 @@ export default function InventoryLayout({
   };
   
   const activeTab = getCurrentTab();
+
+  if (userProfile?.role === 'employee') {
+    return <div className="pb-24">{children}</div>;
+  }
 
   return (
     <div className="space-y-6">

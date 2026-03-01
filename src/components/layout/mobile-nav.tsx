@@ -5,7 +5,7 @@ import { Menu, Package2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { routes } from '@/components/layout/main-nav';
+import { mainRoutes } from '@/components/layout/main-nav';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -28,7 +28,7 @@ export function MobileNav() {
             <Package2 className="h-6 w-6" />
             <span className="sr-only">Dog&Dog Invent+</span>
           </Link>
-          {routes.map((route) => (
+          {mainRoutes.map((route) => (
             <Link
               key={route.href}
               href={route.href}

@@ -1,8 +1,33 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      // Check if the requesting user has the 'admin' role in their own user document.
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if true; // For registration
+      allow update: if isOwner(userId) || isAdmin(); // User can edit self, admin can edit anyone
+      allow delete: if isAdmin();
+    }
+
+    match /pendingSupplies/{supplyId} {
+      allow read: if request.auth != null;
+      allow create: if request.resource.data.requesterId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Allow authenticated users to read/write to their own data or if they are an admin
+    match /{path=**}/{document} {
+      allow read, write: if request.auth != null;
     }
   }
 }
