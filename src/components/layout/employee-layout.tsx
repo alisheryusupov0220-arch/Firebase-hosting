@@ -20,7 +20,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-background">
-            <main className="flex-1 p-4">
+            <main className="flex-1 p-4 pb-24">
                 {children}
             </main>
             <FabMenu ingredients={ingredients} />

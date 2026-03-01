@@ -23,7 +23,7 @@ export function FabMenu({ ingredients }: FabMenuProps) {
 
   return (
     <>
-      <div className="fixed bottom-20 right-1/2 z-30 translate-x-1/2">
+      <div className="fixed bottom-20 right-1/2 z-30 translate-x-1/2" style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

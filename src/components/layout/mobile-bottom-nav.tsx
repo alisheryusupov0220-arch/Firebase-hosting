@@ -9,7 +9,7 @@ export function MobileBottomNav() {
   const pathname = usePathname();
 
   return (
-    <div className="fixed bottom-0 left-0 z-20 w-full border-t bg-background">
+    <div className="fixed bottom-0 left-0 z-20 w-full border-t bg-background" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="grid h-16 grid-cols-4">
         {employeeRoutes.map((route) => {
           const isActive = pathname.startsWith(route.href);
