@@ -23,7 +23,18 @@ export default function InventoryLayout({
   };
 
   // Determine the active tab, even for nested routes
-  const activeTab = inventoryNavItems.find(item => pathname.startsWith(item.href))?.href || pathname;
+  const getCurrentTab = () => {
+    if (pathname.startsWith('/inventory/templates')) {
+        return '/inventory/templates';
+    }
+    if (pathname.startsWith('/inventory/history')) {
+        return '/inventory/history';
+    }
+    // This will be the default for /inventory and its sub-routes like /inventory/conduct/[id]
+    return '/inventory';
+  };
+  
+  const activeTab = getCurrentTab();
 
   return (
     <div className="space-y-6">
