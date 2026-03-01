@@ -15,6 +15,7 @@ import { getIngredientsForInventory, updateTemplateIngredientsAction, type Inven
 import type { LocalIngredient } from '@/app/ingredients/actions';
 
 export default function EditInventoryTemplatePage({ params }: { params: { templateId: string } }) {
+    const { templateId } = params;
     const firestore = useFirestore();
     const { toast } = useToast();
     const [template, setTemplate] = useState<InventoryTemplate | null>(null);
@@ -30,7 +31,7 @@ export default function EditInventoryTemplatePage({ params }: { params: { templa
             setIsLoading(true);
 
             try {
-                const templateRef = doc(firestore, 'inventory_templates', params.templateId);
+                const templateRef = doc(firestore, 'inventory_templates', templateId);
                 const templateSnap = await getDoc(templateRef);
 
                 if (!templateSnap.exists() || templateSnap.data().type !== 'partial') {
@@ -52,7 +53,7 @@ export default function EditInventoryTemplatePage({ params }: { params: { templa
         }
 
         fetchData();
-    }, [firestore, params.templateId, toast]);
+    }, [firestore, templateId, toast]);
 
     const handleSelect = (ingredientId: string, checked: boolean) => {
         setSelectedIngredients(prev => {
@@ -68,7 +69,7 @@ export default function EditInventoryTemplatePage({ params }: { params: { templa
 
     const handleSave = () => {
         startSavingTransition(async () => {
-            const result = await updateTemplateIngredientsAction(params.templateId, Array.from(selectedIngredients));
+            const result = await updateTemplateIngredientsAction(templateId, Array.from(selectedIngredients));
             if (result.success) {
                 toast({ title: 'Успех!', description: 'Шаблон обновлен.' });
             } else {

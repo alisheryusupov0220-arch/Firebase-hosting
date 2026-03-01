@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/hooks';
 import type { LocalIngredient } from '@/app/ingredients/actions';
-import { getTaskWithIngredients, saveInventoryCountAction } from '../actions';
+import { getTaskWithIngredients, saveInventoryCountAction } from '@/app/inventory/actions';
 import { Loader2 } from 'lucide-react';
 import { translateUnit } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation';
 export const dynamic = 'force-dynamic';
 
 export default function ConductInventoryPage({ params }: { params: { taskId: string } }) {
+    const { taskId } = params;
     const router = useRouter();
     const { toast } = useToast();
     const { user } = useUser();
@@ -31,7 +32,7 @@ export default function ConductInventoryPage({ params }: { params: { taskId: str
     useEffect(() => {
         async function loadTask() {
             setIsLoading(true);
-            const data = await getTaskWithIngredients(params.taskId);
+            const data = await getTaskWithIngredients(taskId);
             if (data) {
                 if (data.task.status === 'completed') {
                     toast({ variant: 'destructive', title: 'Ошибка', description: 'Это задание уже выполнено.' });
@@ -48,7 +49,7 @@ export default function ConductInventoryPage({ params }: { params: { taskId: str
             setIsLoading(false);
         }
         loadTask();
-    }, [params.taskId, router, toast]);
+    }, [taskId, router, toast]);
 
     const handleQuantityChange = (ingredientId: string, value: string) => {
         setQuantities(prev => ({ ...prev, [ingredientId]: value }));
@@ -120,7 +121,7 @@ export default function ConductInventoryPage({ params }: { params: { taskId: str
 
         setIsSaving(true);
         const result = await saveInventoryCountAction({
-            taskId: params.taskId,
+            taskId: taskId,
             comment,
             items: itemsToSave,
             userId: user.uid,
