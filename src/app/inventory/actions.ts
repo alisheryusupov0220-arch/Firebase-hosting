@@ -1,6 +1,6 @@
 'use server';
 
-import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, getDocs } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, getDocs, Timestamp } from 'firebase/firestore';
 import { getFirebaseApp } from '@/firebase/server';
 import { getLocalIngredients, type LocalIngredient } from '@/app/ingredients/actions';
 import { revalidatePath } from 'next/cache';
@@ -60,7 +60,21 @@ export async function getInventoryHistoryAction(): Promise<InventoryCountHistory
         const querySnapshot = await getDocs(countsQuery);
         const history: InventoryCountHistoryItem[] = [];
         querySnapshot.forEach((doc) => {
-            history.push({ id: doc.id, ...doc.data() } as InventoryCountHistoryItem);
+            const data = doc.data();
+            const createdAtTimestamp = data.createdAt as Timestamp;
+
+            const historyItem: InventoryCountHistoryItem = {
+                id: doc.id,
+                comment: data.comment,
+                items: data.items,
+                userId: data.userId,
+                userName: data.userName,
+                createdAt: {
+                    seconds: createdAtTimestamp.seconds,
+                    nanoseconds: createdAtTimestamp.nanoseconds,
+                },
+            };
+            history.push(historyItem);
         });
         return history;
     } catch (error) {
@@ -114,7 +128,23 @@ export async function getInventoryTemplatesAction(): Promise<InventoryTemplate[]
         const querySnapshot = await getDocs(templatesQuery);
         const templates: InventoryTemplate[] = [];
         querySnapshot.forEach((doc) => {
-            templates.push({ id: doc.id, ...doc.data() } as InventoryTemplate);
+            const data = doc.data();
+            const createdAtTimestamp = data.createdAt as Timestamp;
+
+            const templateItem: InventoryTemplate = {
+                id: doc.id,
+                name: data.name,
+                type: data.type,
+                description: data.description,
+                userId: data.userId,
+                userName: data.userName,
+                createdAt: {
+                    seconds: createdAtTimestamp.seconds,
+                    nanoseconds: createdAtTimestamp.nanoseconds,
+                },
+                ingredientIds: data.ingredientIds || [],
+            };
+            templates.push(templateItem);
         });
         return templates;
     } catch (error) {
