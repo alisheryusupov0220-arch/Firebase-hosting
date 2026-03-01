@@ -1,13 +1,14 @@
 'use client';
 
-import { useUser, useDoc, useFirestore } from '@/firebase/hooks';
+import { useUser, useDoc, useFirestore, useAuth } from '@/firebase/hooks';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Header } from '@/components/layout/header';
 import { Loader2 } from 'lucide-react';
-import { doc } from 'firebase/firestore';
+import { doc, getDocs, query, collection, where, limit } from 'firebase/firestore';
 import { useMemoFirebase } from '@/firebase/provider';
 import { EmployeeLayout } from '../layout/employee-layout';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 const publicPaths = ['/login', '/register'];
 
@@ -18,8 +19,65 @@ type UserProfile = {
 export function AuthGuard({ children }: { children: React.ReactNode }) {
     const { user, loading: userLoading } = useUser();
     const firestore = useFirestore();
+    const auth = useAuth();
     const router = useRouter();
     const pathname = usePathname();
+    const [isTelegramAuthAttempted, setIsTelegramAuthAttempted] = useState(false);
+
+    // New effect for Telegram auto-login
+    useEffect(() => {
+        if (user || !auth || !firestore || typeof window === 'undefined') {
+            if(user) {
+                setIsTelegramAuthAttempted(true);
+            }
+            return;
+        }
+
+        const tg = (window as any).Telegram?.WebApp;
+        if (tg && tg.initData) {
+            try {
+                tg.ready();
+                const tgUser = tg.initDataUnsafe?.user;
+
+                if (tgUser && tgUser.id) {
+                    const telegramId = String(tgUser.id);
+
+                    const loginWithTelegram = async () => {
+                        try {
+                            const usersRef = collection(firestore, 'users');
+                            const q = query(usersRef, where('telegramId', '==', telegramId), limit(1));
+                            const querySnapshot = await getDocs(q);
+
+                            if (querySnapshot.empty) {
+                                console.log(`No user found for Telegram ID: ${telegramId}`);
+                                setIsTelegramAuthAttempted(true);
+                                return;
+                            }
+
+                            const email = `telegram_${telegramId}@doganddog.invent`;
+                            const password = `tg_pass_${telegramId}_secret`;
+
+                            await signInWithEmailAndPassword(auth, email, password);
+                            // onAuthStateChanged in useUser will update the state
+                        } catch (error) {
+                            console.error("Telegram auto-login failed:", error);
+                            setIsTelegramAuthAttempted(true);
+                        }
+                    };
+
+                    loginWithTelegram();
+                } else {
+                    setIsTelegramAuthAttempted(true);
+                }
+            } catch (error) {
+                console.error("Error initializing Telegram WebApp:", error);
+                setIsTelegramAuthAttempted(true);
+            }
+        } else {
+            setIsTelegramAuthAttempted(true);
+        }
+    }, [auth, firestore, user]);
+
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !user?.uid) return null;
@@ -28,7 +86,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     const { data: userProfile, isLoading: profileLoading } = useDoc<UserProfile>(userProfileRef);
 
-    const isLoading = userLoading || (user && profileLoading);
+    const isLoading = userLoading || (user && profileLoading) || !isTelegramAuthAttempted;
 
     useEffect(() => {
         if (isLoading) {

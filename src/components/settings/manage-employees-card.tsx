@@ -49,10 +49,9 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: () => void }) {
                 return;
             }
             try {
-                // Generate dummy credentials since they are not provided,
-                // but required for Firebase Auth user creation on the client.
+                // Generate predictable credentials
                 const email = `telegram_${values.telegramId}@doganddog.invent`;
-                const password = Math.random().toString(36).slice(2) + 'aA1!';
+                const password = `tg_pass_${values.telegramId}_secret`;
 
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
