@@ -4,10 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
-import { useAuth, useFirestore } from '@/firebase/hooks';
-import { getUsersAction, updateUserAction, type UserProfileServer } from '@/app/settings/actions';
+import { provisionUserAction, getUsersAction, updateUserAction, type UserProfileServer } from '@/app/settings/actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -30,8 +27,6 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: () => void }) {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
-    const auth = useAuth();
-    const firestore = useFirestore();
 
     const form = useForm<z.infer<typeof newUserSchema>>({
         resolver: zodResolver(newUserSchema),
@@ -44,43 +39,15 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: () => void }) {
 
     const onSubmit = (values: z.infer<typeof newUserSchema>) => {
         startTransition(async () => {
-            if (!auth || !firestore) {
-                toast({ variant: "destructive", title: "Ошибка", description: "Сервисы Firebase не инициализированы." });
-                return;
-            }
-            try {
-                // Generate predictable credentials
-                const email = `telegram_${values.telegramId}@doganddog.invent`;
-                const password = `tg_pass_${values.telegramId}_secret`;
+            const result = await provisionUserAction(values);
 
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                const user = userCredential.user;
-
-                const userRef = doc(firestore, 'users', user.uid);
-                await setDoc(userRef, {
-                    displayName: values.displayName,
-                    email: email, // Store dummy email
-                    role: values.role,
-                    telegramId: values.telegramId,
-                });
-                
-                toast({ title: "Успех!", description: "Сотрудник добавлен. Сейчас страница перезагрузится." });
-
-                // The new user is now signed in. We sign them out to return control to the admin.
-                if (auth) {
-                    await signOut(auth);
-                }
-                
-                // Reload the page. The admin will be prompted to log in again, and will see the new user.
-                window.location.reload();
-
-
-            } catch (error: any) {
-                let errorMessage = error.message;
-                if (error.code === 'auth/email-already-in-use') {
-                    errorMessage = "Сотрудник с таким Telegram ID уже существует.";
-                }
-                toast({ variant: "destructive", title: "Ошибка", description: errorMessage });
+            if (result.success) {
+                toast({ title: "Успех!", description: result.message });
+                onUserAdded();
+                setIsOpen(false);
+                form.reset();
+            } else {
+                toast({ variant: "destructive", title: "Ошибка", description: result.message });
             }
         });
     };
