@@ -1,3 +1,4 @@
+'use server';
 
 import { format } from 'date-fns';
 
@@ -61,17 +62,27 @@ async function posterApiFetch(
 
     if (data && data.error && (data.error.message || data.error.code)) {
       const errorMessage = `Poster API error: ${data.error.message || 'Unknown error'} (code: ${data.error.code || 'N/A'})`;
+      // Log the detailed error and payload for debugging on the server.
+      console.error(`Poster API Error for method [${method}]. Payload: ${options.body || 'N/A'}`);
       throw new Error(errorMessage);
     }
     
     if (!response.ok) {
-        throw new Error(`Poster API request failed with status ${response.status}`);
+        const statusErrorMessage = `Poster API request failed with status ${response.status}`;
+        console.error(`${statusErrorMessage} for method [${method}]. Payload: ${options.body || 'N/A'}`);
+        throw new Error(statusErrorMessage);
     }
 
     return data.response === undefined ? data : data.response;
 
   } catch (error) {
+    // This catches fetch errors (e.g., network) or errors thrown above.
+    // The payload will have already been logged if the error originated from the response checks.
     const message = error instanceof Error ? error.message : String(error);
+    // Add a general log here in case of network-level failures before a response is received.
+    if (!message.startsWith('Poster API')) {
+         console.error(`Network or fetch error during posterApiFetch for [${method}].`);
+    }
     throw new Error(`[${method}] ${message}`);
   }
 }
