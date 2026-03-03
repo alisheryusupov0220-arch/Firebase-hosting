@@ -6,8 +6,9 @@ const API_URL = process.env.POSTER_API_URL;
 const API_KEY = process.env.POSTER_API_KEY;
 
 /**
- * A robust function to interact with the Poster API, modeled after the official documentation.
+ * A robust function to interact with the Poster API.
  * It handles GET and POST requests, authentication, and various error scenarios.
+ * For POST requests, it sends data as 'application/x-www-form-urlencoded'.
  * @param method The API method to call (e.g., 'storage.getStorages').
  * @param httpMethod The HTTP method to use ('GET' or 'POST').
  * @param payload The JSON payload for POST requests or query parameters for GET requests.
@@ -23,22 +24,22 @@ async function posterApiFetch(
     throw new Error('Poster API URL or Key is not configured in environment variables.');
   }
 
-  // Start with mandatory parameters
-  const params = new URLSearchParams({
+  // Start with mandatory parameters for the query string
+  const queryParams = new URLSearchParams({
     token: API_KEY,
     format: 'json',
   });
 
-  // For GET requests, append payload as query parameters
+  // For GET requests, append payload to query parameters
   if (httpMethod === 'GET') {
     for (const key in payload) {
       if (Object.prototype.hasOwnProperty.call(payload, key)) {
-        params.append(key, String(payload[key]));
+        queryParams.append(key, String(payload[key]));
       }
     }
   }
 
-  const url = `${API_URL}/${method}?${params.toString()}`;
+  const url = `${API_URL}/${method}?${queryParams.toString()}`;
 
   const options: RequestInit = {
     method: httpMethod,
@@ -47,10 +48,30 @@ async function posterApiFetch(
     cache: 'no-store',
   };
 
-  // For POST requests, the payload goes into the body
+  // For POST requests, the payload goes into the body as x-www-form-urlencoded
   if (httpMethod === 'POST' && Object.keys(payload).length > 0) {
-    options.headers = { 'Content-Type': 'application/json' };
-    options.body = JSON.stringify(payload);
+    const postBody = new URLSearchParams();
+     for (const key in payload) {
+        if (Object.prototype.hasOwnProperty.call(payload, key)) {
+            const value = payload[key];
+            if (Array.isArray(value)) {
+                // Handle arrays of objects for Poster's form-urlencoded format
+                value.forEach((item, index) => {
+                    if (typeof item === 'object' && item !== null) {
+                        for (const itemKey in item) {
+                            postBody.append(`${key}[${index}][${itemKey}]`, String(item[itemKey]));
+                        }
+                    } else {
+                         postBody.append(`${key}[${index}]`, String(item));
+                    }
+                });
+            } else {
+                postBody.append(key, String(value));
+            }
+        }
+    }
+    options.headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+    options.body = postBody;
   }
 
   try {
@@ -63,13 +84,13 @@ async function posterApiFetch(
     if (data && data.error && (data.error.message || data.error.code)) {
       const errorMessage = `Poster API error: ${data.error.message || 'Unknown error'} (code: ${data.error.code || 'N/A'})`;
       // Log the detailed error and payload for debugging on the server.
-      console.error(`Poster API Error for method [${method}]. Payload: ${options.body || 'N/A'}`);
+      console.error(`Poster API Error for method [${method}]. URL: ${url}. Sent Payload: ${options.body?.toString()}`);
       throw new Error(errorMessage);
     }
     
     if (!response.ok) {
         const statusErrorMessage = `Poster API request failed with status ${response.status}`;
-        console.error(`${statusErrorMessage} for method [${method}]. Payload: ${options.body || 'N/A'}`);
+        console.error(`${statusErrorMessage} for method [${method}]. URL: ${url}. Sent Payload: ${options.body?.toString()}`);
         throw new Error(statusErrorMessage);
     }
 
@@ -77,7 +98,6 @@ async function posterApiFetch(
 
   } catch (error) {
     // This catches fetch errors (e.g., network) or errors thrown above.
-    // The payload will have already been logged if the error originated from the response checks.
     const message = error instanceof Error ? error.message : String(error);
     // Add a general log here in case of network-level failures before a response is received.
     if (!message.startsWith('Poster API')) {
@@ -235,8 +255,8 @@ export async function getStorageBalance(storageId: string): Promise<StorageBalan
 // Create Supply types and function
 export type NewSupplyIngredient = {
     ingredient_id: number;
-    count: string;
-    price: string;
+    count: number;
+    price: number; // This is COST PER UNIT
     type: number;
 };
 
@@ -252,23 +272,22 @@ export type CreateSupplyData = {
  */
 export async function createSupply(data: CreateSupplyData) {
     const payload = {
-      supply: {
-        supplier_id: Number(data.supplier_id),
-        storage_id: Number(data.storage_id),
-        date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
-        comment: data.comment,
-      },
-      ingredient: data.ingredients.map(ing => ({
-        id: Number(ing.ingredient_id),
-        num: ing.count,
+      // Flat structure
+      supplier_id: Number(data.supplier_id),
+      storage_id: Number(data.storage_id),
+      date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
+      comment: data.comment,
+      // Array with correct name and keys
+      supply_ingredients: data.ingredients.map(ing => ({
+        ingredient_id: Number(ing.ingredient_id),
+        num: ing.count, // The key for quantity is 'num' in Poster
+        cost: ing.price, // The key for price is 'cost' in Poster
         type: Number(ing.type),
-        price: ing.price
       }))
     };
     
-    console.log("--- Отправка данных в Poster API ---");
-    console.log("Метод: storage.createSupply");
-    console.log("Payload:", JSON.stringify(payload, null, 2));
+    console.log("--- Отправка данных в Poster API (createSupply) ---");
+    console.log("Payload to be encoded:", JSON.stringify(payload, null, 2));
 
     const response = await posterApiFetch('storage.createSupply', 'POST', payload);
     // On success, Poster API returns the new supply_id

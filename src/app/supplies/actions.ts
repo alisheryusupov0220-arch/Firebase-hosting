@@ -5,17 +5,13 @@ import { createSupply, type CreateSupplyData, getStorages, getPosterSuppliers } 
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { getFirebaseApp } from '@/firebase/server';
 import { getLocalIngredients } from '@/app/ingredients/actions';
-import { translateUnit, parseFormattedNumber } from '@/lib/utils';
 
 const app = getFirebaseApp();
 const db = getFirestore(app);
 
 export async function approveSupplyOnPosterAction(pendingSupplyId: string): Promise<{ success: true, data: string } | { success: false, message: string }> {
     try {
-        const [pendingSupplySnap, localIngredients] = await Promise.all([
-            getDoc(doc(db, 'pendingSupplies', pendingSupplyId)),
-            getLocalIngredients()
-        ]);
+        const pendingSupplySnap = await getDoc(doc(db, 'pendingSupplies', pendingSupplyId));
 
         if (!pendingSupplySnap.exists()) {
             throw new Error('Заявка на поставку не найдена.');
@@ -23,17 +19,11 @@ export async function approveSupplyOnPosterAction(pendingSupplyId: string): Prom
 
         const pendingSupplyData = pendingSupplySnap.data();
         
-        const ingredientsUnitMap = new Map(localIngredients.map(ing => [ing.id, ing.unit]));
-
         const posterData: CreateSupplyData = {
-            supplier_id: pendingSupplyData.supplier_id,
-            storage_id: pendingSupplyData.storage_id,
+            supplier_id: Number(pendingSupplyData.supplier_id),
+            storage_id: Number(pendingSupplyData.storage_id),
             comment: pendingSupplyData.comment,
             ingredients: pendingSupplyData.ingredients.map((ing: any) => {
-                const unit = ingredientsUnitMap.get(String(ing.ingredient_id)) || 'kg';
-                const translatedUnit = translateUnit(unit);
-                const isUnitBased = translatedUnit === 'штук';
-                
                 const count = Number(ing.count);
                 const totalSum = Number(ing.price);
 
@@ -42,15 +32,11 @@ export async function approveSupplyOnPosterAction(pendingSupplyId: string): Prom
                 }
                 const pricePerUnit = totalSum / count;
                 
-                const formattedCount = isUnitBased 
-                    ? String(Math.round(Number(ing.count))) 
-                    : Number(ing.count).toFixed(3);
-
                 return {
-                    ingredient_id: ing.ingredient_id,
-                    count: formattedCount,
-                    price: pricePerUnit.toFixed(2),
-                    type: ing.type
+                    ingredient_id: Number(ing.ingredient_id),
+                    count: count, // Pass raw number
+                    price: pricePerUnit, // Pass raw number (cost per unit)
+                    type: Number(ing.type)
                 };
             }),
         };
