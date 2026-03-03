@@ -23,16 +23,18 @@ import type { LocalIngredient } from '@/app/ingredients/actions';
 import { SearchableSelect } from '../ui/searchable-select';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { formatNumberString, translateUnit } from '@/lib/utils';
+import { formatNumberString, parseFormattedNumber, translateUnit } from '@/lib/utils';
+import { type Storage, type PosterSupplier } from '@/lib/poster';
 
 const formSchema = z.object({
+  supplier_id: z.string().min(1, 'Нужно выбрать поставщика'),
+  storage_id: z.string().min(1, 'Нужно выбрать склад'),
   comment: z.string().optional(),
   ingredients: z.array(z.object({
     ingredient_id: z.string().min(1, 'Нужно выбрать ингредиент'),
-    count: z.string().min(1, 'Введите кол-во').pipe(z.coerce.number().positive('Кол-во > 0')),
+    count: z.string().min(1, 'Введите кол-во').refine(val => parseFormattedNumber(val) > 0, { message: 'Кол-во > 0'}),
     price: z.string().min(1, 'Введите цену')
-      .transform(val => val.replace(/\s/g, '')) // remove spaces
-      .pipe(z.coerce.number().min(0, 'Цена >= 0')),
+      .refine(val => parseFormattedNumber(val) >= 0, { message: 'Цена >= 0'}),
   })).min(1, 'Нужно добавить хотя бы один ингредиент'),
 });
 
@@ -40,13 +42,12 @@ type CreateSupplyFormValues = z.infer<typeof formSchema>;
 
 type CreateSupplyFormProps = {
   ingredients: LocalIngredient[] | null;
+  storages: Storage[];
+  suppliers: PosterSupplier[];
   onFormSubmitted: () => void;
 };
 
-const DEFAULT_SUPPLIER_ID = 1;
-
-
-export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyFormProps) {
+export function CreateSupplyForm({ ingredients, storages, suppliers, onFormSubmitted }: CreateSupplyFormProps) {
   const { toast } = useToast();
   const { user } = useUser();
   const firestore = useFirestore();
@@ -54,6 +55,8 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
   const form = useForm<CreateSupplyFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      supplier_id: '',
+      storage_id: '',
       comment: '',
       ingredients: [{ ingredient_id: '', count: '', price: '' }],
     },
@@ -65,6 +68,21 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
       label: ing.name
     }));
   }, [ingredients]);
+  
+  const supplierOptions = useMemo(() => {
+    return (suppliers || []).map(s => ({
+      value: String(s.supplier_id),
+      label: s.supplier_name
+    }));
+  }, [suppliers]);
+
+  const storageOptions = useMemo(() => {
+    return (storages || []).map(s => ({
+      value: String(s.storage_id),
+      label: s.storage_name
+    }));
+  }, [storages]);
+
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -85,13 +103,9 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
     
     const finalComment = `Сотрудник: ${user.email}. ${values.comment || ''}`.trim();
 
-    const firstIngredientId = values.ingredients[0]?.ingredient_id;
-    const firstIngredient = ingredients?.find(i => i.id === firstIngredientId);
-    const storageId = firstIngredient?.storage_id ? Number(firstIngredient.storage_id) : 1;
-
     const supplyRequestData = {
-      supplier_id: DEFAULT_SUPPLIER_ID,
-      storage_id: storageId,
+      supplier_id: Number(values.supplier_id),
+      storage_id: Number(values.storage_id),
       comment: finalComment,
       ingredients: values.ingredients.map(ing => {
         const fullIngredient = ingredients?.find(i => i.id === ing.ingredient_id);
@@ -99,8 +113,8 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
 
         return {
           ingredient_id: Number(ing.ingredient_id),
-          count: ing.count,
-          price: ing.price,
+          count: parseFormattedNumber(ing.count),
+          price: parseFormattedNumber(ing.price),
           type: posterType,
         };
       }),
@@ -140,6 +154,47 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="supplier_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Поставщик</FormLabel>
+                  <FormControl>
+                    <SearchableSelect
+                      options={supplierOptions}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Выберите поставщика"
+                      disabled={!suppliers || suppliers.length === 0}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="storage_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Склад</FormLabel>
+                  <FormControl>
+                    <SearchableSelect
+                      options={storageOptions}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Выберите склад"
+                      disabled={!storages || storages.length === 0}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+        </div>
+
         <div className="space-y-2">
             <div className="grid grid-cols-[1fr_auto_auto_auto] items-start gap-2 px-2">
                 <FormLabel>Ингредиент</FormLabel>
@@ -152,7 +207,7 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
                 const selectedIngredient = ingredients?.find(ing => ing.id === selectedIngredientId);
                 const unit = selectedIngredient ? translateUnit(selectedIngredient.unit) : '';
                 const isUnitBased = unit === 'штук';
-                const countPlaceholder = isUnitBased ? '1, 2, 3 шт' : '1.123 кг/л';
+                const countPlaceholder = isUnitBased ? '1, 2, 3...' : '1.123';
 
                 return (
                     <div key={field.id} className="grid grid-cols-[1fr_auto_auto_auto] items-start gap-2 p-2 border rounded-md">
@@ -179,7 +234,7 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
                             render={({ field }) => (
                                 <FormItem>
                                     <FormControl>
-                                        <Input {...field} type="text" inputMode="decimal" value={field.value || ''} placeholder={countPlaceholder} className="w-28 text-right" />
+                                        <Input {...field} type="text" inputMode="decimal" value={field.value || ''} placeholder={`${countPlaceholder} ${unit}`} className="w-28 text-right" />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -200,7 +255,7 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
                                                 const formatted = formatNumberString(e.target.value);
                                                 field.onChange(formatted);
                                             }}
-                                            placeholder="Общая сумма"
+                                            placeholder="Сумма"
                                             className="w-28 text-right"
                                          />
                                     </FormControl>

@@ -12,12 +12,15 @@ import { Plus, PackagePlus, PackageMinus } from 'lucide-react';
 import { AddSupplyDialog } from '../supplies/add-supply-dialog';
 import { AddWriteOffDialog } from '../write-offs/add-write-off-dialog';
 import type { LocalIngredient } from '@/app/ingredients/actions';
+import { type Storage, type PosterSupplier } from '@/lib/poster';
 
 type FabMenuProps = {
   ingredients: LocalIngredient[] | null;
+  storages: Storage[];
+  suppliers: PosterSupplier[];
 };
 
-export function FabMenu({ ingredients }: FabMenuProps) {
+export function FabMenu({ ingredients, storages, suppliers }: FabMenuProps) {
   const [supplyDialogOpen, setSupplyDialogOpen] = useState(false);
   const [writeOffDialogOpen, setWriteOffDialogOpen] = useState(false);
 
@@ -48,6 +51,8 @@ export function FabMenu({ ingredients }: FabMenuProps) {
 
       <AddSupplyDialog 
         ingredients={ingredients}
+        storages={storages}
+        suppliers={suppliers}
         open={supplyDialogOpen}
         onOpenChange={setSupplyDialogOpen}
         isFab

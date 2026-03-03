@@ -107,6 +107,8 @@ export function SuppliesPageClient({ initialSupplies }: SuppliesPageClientProps)
         <div className="space-y-8">
             <SuppliesPageHeader
                 ingredients={ingredients}
+                storages={storages}
+                suppliers={suppliers}
             />
 
             <PendingSuppliesCard 

@@ -13,15 +13,18 @@ import {
 import { PlusCircle } from 'lucide-react';
 import { CreateSupplyForm } from './create-supply-form';
 import type { LocalIngredient } from '@/app/ingredients/actions';
+import { type Storage, type PosterSupplier } from '@/lib/poster';
 
 type AddSupplyDialogProps = {
   ingredients: LocalIngredient[] | null;
+  storages: Storage[];
+  suppliers: PosterSupplier[];
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   isFab?: boolean;
 };
 
-export function AddSupplyDialog({ ingredients, open, onOpenChange, isFab = false }: AddSupplyDialogProps) {
+export function AddSupplyDialog({ ingredients, storages, suppliers, open, onOpenChange, isFab = false }: AddSupplyDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
 
   const isOpen = open ?? internalOpen;
@@ -37,6 +40,8 @@ export function AddSupplyDialog({ ingredients, open, onOpenChange, isFab = false
       </DialogHeader>
       <CreateSupplyForm
         ingredients={ingredients}
+        storages={storages}
+        suppliers={suppliers}
         onFormSubmitted={() => setIsOpen(false)}
       />
     </DialogContent>
