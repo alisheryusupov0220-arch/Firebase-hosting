@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createSupply, type CreateSupplyData, getStorages, getPosterSuppliers } from '@/lib/poster';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { getFirebaseApp } from '@/firebase/server';
-import { getLocalIngredients } from '@/app/ingredients/actions';
+import { translateUnit } from '@/lib/utils';
 
 const app = getFirebaseApp();
 const db = getFirestore(app);
@@ -24,18 +24,29 @@ export async function approveSupplyOnPosterAction(pendingSupplyId: string): Prom
             storage_id: Number(pendingSupplyData.storage_id),
             comment: pendingSupplyData.comment,
             ingredients: pendingSupplyData.ingredients.map((ing: any) => {
-                const count = Number(ing.count);
+                let count = Number(ing.count);
                 const totalSum = Number(ing.price);
 
                 if (count <= 0) {
                      throw new Error(`Количество для ингредиента с ID ${ing.ingredient_id} должно быть больше нуля.`);
                 }
-                const pricePerUnit = totalSum / count;
+
+                // Poster API requires strict number formatting.
+                // Weight/Volume needs 3 decimal places. Pieces must be integers.
+                const unit = ing.unit || '';
+                if (translateUnit(unit).toLowerCase() === 'штук') {
+                    count = Math.round(count);
+                } else {
+                    count = parseFloat(count.toFixed(3));
+                }
+                
+                // Cost per unit must have 4 decimal places.
+                const pricePerUnit = parseFloat((totalSum / count).toFixed(4));
                 
                 return {
                     ingredient_id: Number(ing.ingredient_id),
-                    count: count, // Pass raw number
-                    price: pricePerUnit, // Pass raw number (cost per unit)
+                    count: count,
+                    price: pricePerUnit, // This is cost per unit
                     type: Number(ing.type)
                 };
             }),

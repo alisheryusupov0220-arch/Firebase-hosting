@@ -324,9 +324,10 @@
               "ingredient_id": {"type": "number"},
               "count": {"type": "number"},
               "price": {"type": "number"},
-              "type": {"type": "number"}
+              "type": {"type": "number"},
+              "unit": {"type": "string"}
             },
-            "required": ["ingredient_id", "count", "price", "type"]
+            "required": ["ingredient_id", "count", "price", "type", "unit"]
           }
         },
         "requesterId": {"type": "string"},

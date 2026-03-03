@@ -110,12 +110,14 @@ export function CreateSupplyForm({ ingredients, storages, suppliers, onFormSubmi
       ingredients: values.ingredients.map(ing => {
         const fullIngredient = ingredients?.find(i => i.id === ing.ingredient_id);
         const posterType = fullIngredient?.type === 'product' ? 3 : 1;
+        const unit = fullIngredient?.unit || '';
 
         return {
           ingredient_id: Number(ing.ingredient_id),
           count: parseFormattedNumber(ing.count),
           price: parseFormattedNumber(ing.price),
           type: posterType,
+          unit: unit,
         };
       }),
       requesterId: user.uid,
