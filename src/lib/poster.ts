@@ -128,6 +128,7 @@ export type Ingredient = {
     ingredient_id: string;
     ingredient_name: string;
     ingredient_unit: string;
+    storage_id?: string;
 };
 
 export async function getStorages(): Promise<Storage[]> {
@@ -179,6 +180,7 @@ export type Product = {
     type: string;
     unit?: string;
     ingredient_id?: string;
+    storage_id?: string;
 };
 
 export async function getProducts(options?: { with_composition: number }): Promise<Product[]> {
@@ -251,19 +253,23 @@ export type CreateSupplyData = {
 export async function createSupply(data: CreateSupplyData) {
     const payload = {
       supply: {
-        supplier_id: data.supplier_id,
-        storage_id: data.storage_id,
+        supplier_id: Number(data.supplier_id),
+        storage_id: Number(data.storage_id),
         date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
         comment: data.comment,
       },
       ingredient: data.ingredients.map(ing => ({
-        id: ing.ingredient_id,
+        id: Number(ing.ingredient_id),
         num: ing.count,
-        type: ing.type,
+        type: Number(ing.type),
         price: ing.price
       }))
     };
     
+    console.log("--- Отправка данных в Poster API ---");
+    console.log("Метод: storage.createSupply");
+    console.log("Payload:", JSON.stringify(payload, null, 2));
+
     const response = await posterApiFetch('storage.createSupply', 'POST', payload);
     // On success, Poster API returns the new supply_id
     return response;
@@ -296,7 +302,7 @@ export async function createWriteOff(data: CreateWriteOffData) {
       ingredient: data.ingredients.map(ing => ({
         id: ing.id,
         type: ing.type, 
-        weight: ing.weight.toFixed(3),
+        weight: ing.weight,
       }))
     };
 
