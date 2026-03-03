@@ -5,7 +5,7 @@ import { createSupply, type CreateSupplyData, getStorages, getPosterSuppliers } 
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { getFirebaseApp } from '@/firebase/server';
 import { getLocalIngredients } from '@/app/ingredients/actions';
-import { translateUnit } from '@/lib/utils';
+import { translateUnit, parseFormattedNumber } from '@/lib/utils';
 
 const app = getFirebaseApp();
 const db = getFirestore(app);
@@ -34,7 +34,14 @@ export async function approveSupplyOnPosterAction(pendingSupplyId: string): Prom
                 const translatedUnit = translateUnit(unit);
                 const isUnitBased = translatedUnit === 'штук';
                 
-                // Poster API requires specific formatting: 3 decimal places for weights, 0 for units.
+                const count = Number(ing.count);
+                const totalSum = Number(ing.price);
+
+                if (count <= 0) {
+                     throw new Error(`Количество для ингредиента с ID ${ing.ingredient_id} должно быть больше нуля.`);
+                }
+                const pricePerUnit = totalSum / count;
+                
                 const formattedCount = isUnitBased 
                     ? String(Math.round(Number(ing.count))) 
                     : Number(ing.count).toFixed(3);
@@ -42,7 +49,7 @@ export async function approveSupplyOnPosterAction(pendingSupplyId: string): Prom
                 return {
                     ingredient_id: ing.ingredient_id,
                     count: formattedCount,
-                    price: Number(ing.price).toFixed(2), // Price must have 2 decimal places
+                    price: pricePerUnit.toFixed(2),
                     type: ing.type
                 };
             }),

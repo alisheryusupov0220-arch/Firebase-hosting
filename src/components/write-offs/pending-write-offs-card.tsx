@@ -18,7 +18,8 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion"
+} from "@/components/ui/accordion";
+import { translateUnit } from '@/lib/utils';
 
 type PendingWriteOffsCardProps = {
     storages: Storage[];
@@ -58,17 +59,15 @@ export function PendingWriteOffsCard({ storages, ingredients }: PendingWriteOffs
         const posterWriteOffId = result.data;
         const pendingWriteOffRef = doc(firestore, 'pendingWriteOffs', id);
 
-        try {
-            await updateDoc(pendingWriteOffRef, {
-                status: 'approved',
-                approvedBy: user.email,
-                approvedAt: serverTimestamp(),
-                posterWriteOffId: posterWriteOffId,
-            });
-            toast({ title: 'Успех!', description: 'Списание одобрено и отправлено в Poster.' });
-        } catch (e: any) {
+        await updateDoc(pendingWriteOffRef, {
+            status: 'approved',
+            approvedBy: user.email,
+            approvedAt: serverTimestamp(),
+            posterWriteOffId: posterWriteOffId,
+        }).catch((e: any) => {
             toast({ variant: 'destructive', title: 'Ошибка Firestore!', description: `Не удалось обновить статус заявки: ${e.message}` });
-        }
+        });
+        toast({ title: 'Успех!', description: 'Списание одобрено и отправлено в Poster.' });
     };
 
     const handleReject = async (id: string) => {
@@ -78,16 +77,14 @@ export function PendingWriteOffsCard({ storages, ingredients }: PendingWriteOffs
         }
         const pendingWriteOffRef = doc(firestore, 'pendingWriteOffs', id);
 
-        try {
-            await updateDoc(pendingWriteOffRef, {
-                status: 'rejected',
-                rejectedBy: user.email,
-                rejectedAt: serverTimestamp(),
-            });
-            toast({ title: 'Успех!', description: 'Заявка на списание отклонена.' });
-        } catch (e: any) {
+        await updateDoc(pendingWriteOffRef, {
+            status: 'rejected',
+            rejectedBy: user.email,
+            rejectedAt: serverTimestamp(),
+        }).catch((e: any) => {
             toast({ variant: 'destructive', title: 'Ошибка!', description: `Ошибка отклонения списания: ${e.message}` });
-        }
+        });
+        toast({ title: 'Успех!', description: 'Заявка на списание отклонена.' });
     };
     
     if (isLoading) {
@@ -135,15 +132,18 @@ export function PendingWriteOffsCard({ storages, ingredients }: PendingWriteOffs
                     {pendingWriteOffs.map((wo: any) => (
                         <AccordionItem value={wo.id} key={wo.id} className="border rounded-md px-4">
                             <AccordionTrigger>
-                               <div className="flex justify-between w-full pr-4">
-                                 <span>{wo.comment.split('.')[0]}</span>
-                                 <span className="text-muted-foreground">
-                                    {wo.createdAt ? format(wo.createdAt.toDate(), 'dd.MM.yyyy') : '-'}
-                                 </span>
+                               <div className="flex justify-between w-full pr-4 text-sm">
+                                    <div className="flex flex-col text-left">
+                                        <span className="font-semibold">{wo.comment.split('.')[0]}</span>
+                                        <span className="text-xs text-muted-foreground">{wo.requesterName}</span>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="text-xs text-muted-foreground">{wo.createdAt ? format(wo.createdAt.toDate(), 'dd.MM.yy HH:mm') : '-'}</span>
+                                    </div>
                                </div>
                             </AccordionTrigger>
                             <AccordionContent>
-                                <div className="space-y-4">
+                                <div className="space-y-4 pt-2">
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
@@ -152,17 +152,23 @@ export function PendingWriteOffsCard({ storages, ingredients }: PendingWriteOffs
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {wo.ingredients.map((ing: any) => (
-                                                <TableRow key={ing.ingredient_id}>
-                                                    <TableCell>{dataMap.ingredients.get(String(ing.ingredient_id)) || ing.ingredient_id}</TableCell>
-                                                    <TableCell className="text-right">{ing.quantity}</TableCell>
-                                                </TableRow>
-                                            ))}
+                                            {wo.ingredients.map((ing: any) => {
+                                                 const ingredientDetails = ingredients.find(i => i.id === String(ing.ingredient_id));
+                                                 return (
+                                                    <TableRow key={ing.ingredient_id}>
+                                                        <TableCell>{dataMap.ingredients.get(String(ing.ingredient_id)) || `Ингредиент #${ing.ingredient_id}`}</TableCell>
+                                                        <TableCell className="text-right">{ing.quantity} {ingredientDetails ? translateUnit(ingredientDetails.unit) : ''}</TableCell>
+                                                    </TableRow>
+                                                )
+                                            })}
                                         </TableBody>
                                     </Table>
+                                     <div className="text-sm text-muted-foreground">
+                                        <span className="font-medium">Комментарий:</span> {wo.comment}
+                                    </div>
                                     <div className="flex justify-end gap-2">
                                         <Button size="sm" onClick={() => handleApprove(wo.id)}>Одобрить</Button>
-                                        <Button size="sm" variant="outline" onClick={() => handleReject(wo.id)}>Отклонить</Button>
+                                        <Button size="sm" variant="destructive" onClick={() => handleReject(wo.id)}>Отклонить</Button>
                                     </div>
                                 </div>
                             </AccordionContent>

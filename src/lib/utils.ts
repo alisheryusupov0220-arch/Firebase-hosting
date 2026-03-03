@@ -29,9 +29,23 @@ export function translateUnit(unit: string | null | undefined): string {
 }
 
 export function formatNumberString(value: string): string {
-  const rawValue = value.replace(/[^0-9]/g, '');
-  if (rawValue === '') return '';
-  return rawValue.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  if (!value) return '';
+
+  let cleanValue = value.replace(/[^0-9.]/g, '');
+  const parts = cleanValue.split('.');
+  
+  if (parts.length > 2) {
+    cleanValue = `${parts[0]}.${parts.slice(1).join('')}`;
+  }
+  const [integerPart, decimalPart] = cleanValue.split('.');
+
+  const formattedIntegerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
+  if (decimalPart !== undefined) {
+    return `${formattedIntegerPart}.${decimalPart}`;
+  }
+
+  return formattedIntegerPart;
 }
 
 export function parseFormattedNumber(value: string): number {

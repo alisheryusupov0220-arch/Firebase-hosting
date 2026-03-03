@@ -131,10 +131,9 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
             {fields.map((field, index) => {
                 const selectedIngredientId = watchedIngredients[index]?.ingredient_id;
                 const selectedIngredient = ingredients?.find(ing => ing.id === selectedIngredientId);
-                const unit = selectedIngredient ? translateUnit(selectedIngredient.unit) : 'кг/л/шт';
+                const unit = selectedIngredient ? translateUnit(selectedIngredient.unit) : '';
                 const isUnitBased = unit === 'штук';
-                const countPlaceholder = isUnitBased ? 'шт' : 'кг/л';
-                const countStep = isUnitBased ? '1' : '0.001';
+                const countPlaceholder = isUnitBased ? '1, 2, 3 шт' : '1.123 кг/л';
 
                 return (
                     <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-2 p-2 border rounded-md">
@@ -161,7 +160,7 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
                             render={({ field }) => (
                                 <FormItem>
                                     <FormControl>
-                                        <Input {...field} value={field.value || ''} type="number" step={countStep} placeholder={countPlaceholder} className="w-28 text-right" />
+                                        <Input {...field} value={field.value || ''} type="text" inputMode="decimal" placeholder={countPlaceholder} className="w-28 text-right" />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
