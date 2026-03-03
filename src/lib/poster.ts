@@ -251,15 +251,15 @@ export type CreateSupplyData = {
 export async function createSupply(data: CreateSupplyData) {
     const payload = {
       supply: {
-        supplier_id: String(data.supplier_id),
-        storage_id: String(data.storage_id),
+        supplier_id: data.supplier_id,
+        storage_id: data.storage_id,
         date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
         comment: data.comment,
       },
       ingredient: data.ingredients.map(ing => ({
-        id: String(ing.ingredient_id),
+        id: ing.ingredient_id,
         num: ing.count,
-        type: String(ing.type),
+        type: ing.type,
         price: ing.price
       }))
     };
@@ -289,13 +289,13 @@ export type CreateWriteOffData = {
 export async function createWriteOff(data: CreateWriteOffData) {
     const payload = {
       write_off: {
-        storage_id: String(data.storage_id),
+        storage_id: data.storage_id,
         reason: data.reason,
         date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
       },
       ingredient: data.ingredients.map(ing => ({
-        id: String(ing.id),
-        type: String(ing.type), 
+        id: ing.id,
+        type: ing.type, 
         weight: ing.weight.toFixed(3),
       }))
     };
