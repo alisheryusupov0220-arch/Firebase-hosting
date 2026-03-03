@@ -323,9 +323,10 @@
             "properties": {
               "ingredient_id": {"type": "number"},
               "count": {"type": "number"},
-              "price": {"type": "number"}
+              "price": {"type": "number"},
+              "type": {"type": "number"}
             },
-            "required": ["ingredient_id", "count", "price"]
+            "required": ["ingredient_id", "count", "price", "type"]
           }
         },
         "requesterId": {"type": "string"},

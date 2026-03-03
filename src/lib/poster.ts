@@ -224,6 +224,7 @@ export type NewSupplyIngredient = {
     ingredient_id: number;
     count: number;
     price: number;
+    type: number;
 };
 
 export type CreateSupplyData = {
@@ -247,7 +248,7 @@ export async function createSupply(data: CreateSupplyData) {
       ingredient: data.ingredients.map(ing => ({
         id: String(ing.ingredient_id),
         num: ing.count.toFixed(2),
-        type: '4', 
+        type: String(ing.type),
         price: ing.price.toFixed(2)
       }))
     };

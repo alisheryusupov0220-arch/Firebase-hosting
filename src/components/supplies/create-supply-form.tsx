@@ -93,11 +93,17 @@ export function CreateSupplyForm({ ingredients, onFormSubmitted }: CreateSupplyF
       supplier_id: DEFAULT_SUPPLIER_ID,
       storage_id: storageId,
       comment: finalComment,
-      ingredients: values.ingredients.map(ing => ({
-        ingredient_id: Number(ing.ingredient_id),
-        count: ing.count,
-        price: ing.price,
-      })),
+      ingredients: values.ingredients.map(ing => {
+        const fullIngredient = ingredients?.find(i => i.id === ing.ingredient_id);
+        const posterType = fullIngredient?.type === 'product' ? 3 : 1;
+
+        return {
+          ingredient_id: Number(ing.ingredient_id),
+          count: ing.count,
+          price: ing.price,
+          type: posterType,
+        };
+      }),
       requesterId: user.uid,
       requesterName: user.email || 'Пользователь без email',
       status: 'pending',
