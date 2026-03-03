@@ -4,28 +4,48 @@ import { revalidatePath } from 'next/cache';
 import { createSupply, type CreateSupplyData, getStorages, getPosterSuppliers } from '@/lib/poster';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { getFirebaseApp } from '@/firebase/server';
+import { getLocalIngredients } from '@/app/ingredients/actions';
+import { translateUnit } from '@/lib/utils';
 
 const app = getFirebaseApp();
 const db = getFirestore(app);
 
 export async function approveSupplyOnPosterAction(pendingSupplyId: string): Promise<{ success: true, data: string } | { success: false, message: string }> {
-    // This action only gets the pending supply data to send to Poster.
-    const pendingSupplyRef = doc(db, 'pendingSupplies', pendingSupplyId);
-    
     try {
-        const pendingSupplySnap = await getDoc(pendingSupplyRef);
+        const [pendingSupplySnap, localIngredients] = await Promise.all([
+            getDoc(doc(db, 'pendingSupplies', pendingSupplyId)),
+            getLocalIngredients()
+        ]);
 
         if (!pendingSupplySnap.exists()) {
             throw new Error('Заявка на поставку не найдена.');
         }
 
         const pendingSupplyData = pendingSupplySnap.data();
+        
+        const ingredientsUnitMap = new Map(localIngredients.map(ing => [ing.id, ing.unit]));
 
         const posterData: CreateSupplyData = {
             supplier_id: pendingSupplyData.supplier_id,
             storage_id: pendingSupplyData.storage_id,
             comment: pendingSupplyData.comment,
-            ingredients: pendingSupplyData.ingredients,
+            ingredients: pendingSupplyData.ingredients.map((ing: any) => {
+                const unit = ingredientsUnitMap.get(String(ing.ingredient_id)) || 'kg';
+                const translatedUnit = translateUnit(unit);
+                const isUnitBased = translatedUnit === 'штук';
+                
+                // Poster API requires specific formatting: 3 decimal places for weights, 0 for units.
+                const formattedCount = isUnitBased 
+                    ? String(Math.round(Number(ing.count))) 
+                    : Number(ing.count).toFixed(3);
+
+                return {
+                    ingredient_id: ing.ingredient_id,
+                    count: formattedCount,
+                    price: Number(ing.price).toFixed(2), // Price must have 2 decimal places
+                    type: ing.type
+                };
+            }),
         };
 
         const newSupplyId = await createSupply(posterData);
@@ -33,7 +53,6 @@ export async function approveSupplyOnPosterAction(pendingSupplyId: string): Prom
             throw new Error('API Poster не вернул ID поставки.');
         }
         
-        // Revalidate paths that show Poster data
         revalidatePath('/supplies');
         revalidatePath('/menu-analytics');
 

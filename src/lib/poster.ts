@@ -222,8 +222,8 @@ export async function getStorageBalance(storageId: string): Promise<StorageBalan
 // Create Supply types and function
 export type NewSupplyIngredient = {
     ingredient_id: number;
-    count: number;
-    price: number;
+    count: string;
+    price: string;
     type: number;
 };
 
@@ -247,9 +247,9 @@ export async function createSupply(data: CreateSupplyData) {
       },
       ingredient: data.ingredients.map(ing => ({
         id: String(ing.ingredient_id),
-        num: ing.count.toFixed(2),
+        num: ing.count,
         type: String(ing.type),
-        price: ing.price.toFixed(2)
+        price: ing.price
       }))
     };
     
