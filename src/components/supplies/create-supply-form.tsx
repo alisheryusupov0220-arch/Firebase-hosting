@@ -17,7 +17,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Trash } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useMemo } from 'react';
-import { useUser } from '@/firebase/hooks';
+import { useUser, useFirestore } from '@/firebase/hooks';
+import { writeBatch, doc, serverTimestamp } from 'firebase/firestore';
 import type { LocalIngredient } from '@/app/ingredients/actions';
 import { SearchableSelect } from '../ui/searchable-select';
 import { formatNumberString, parseFormattedNumber, translateUnit } from '@/lib/utils';
@@ -48,6 +49,7 @@ type CreateSupplyFormProps = {
 export function CreateSupplyForm({ ingredients, storages, suppliers, onFormSubmitted }: CreateSupplyFormProps) {
   const { toast } = useToast();
   const { user } = useUser();
+  const firestore = useFirestore();
 
   const form = useForm<CreateSupplyFormValues>({
     resolver: zodResolver(formSchema),
@@ -89,7 +91,7 @@ export function CreateSupplyForm({ ingredients, storages, suppliers, onFormSubmi
   const watchedIngredients = form.watch('ingredients');
 
   async function onSubmit(values: CreateSupplyFormValues) {
-    if (!user) {
+    if (!user || !firestore) {
         toast({
             variant: 'destructive',
             title: 'Ошибка!',
@@ -122,12 +124,40 @@ export function CreateSupplyForm({ ingredients, storages, suppliers, onFormSubmi
     const result = await createDirectSupplyAction(supplyData);
 
     if (result.success) {
-        toast({
-            title: 'Успех!',
-            description: 'Поставка успешно создана в Poster.',
-        });
-        onFormSubmitted();
-        form.reset();
+        const newSupplyId = result.data;
+
+        try {
+            const batch = writeBatch(firestore);
+            const approvalTimestamp = serverTimestamp();
+
+            supplyData.ingredients.forEach((ingredient) => {
+                const priceHistoryRef = doc(firestore, `ingredients/${ingredient.ingredient_id}/price_history`, String(newSupplyId));
+                
+                const pricePerUnit = ingredient.count > 0 ? ingredient.price / ingredient.count : 0;
+                
+                batch.set(priceHistoryRef, {
+                    price: pricePerUnit,
+                    date: approvalTimestamp,
+                    supplierId: String(supplyData.supplier_id)
+                });
+            });
+            
+            await batch.commit();
+
+            toast({
+                title: 'Успех!',
+                description: 'Поставка успешно создана в Poster.',
+            });
+            onFormSubmitted();
+            form.reset();
+        } catch (firestoreError: any) {
+            console.error('Firestore write failed after Poster success:', firestoreError);
+            toast({
+                variant: 'destructive',
+                title: 'Ошибка сохранения истории цен',
+                description: `Поставка была создана в Poster, но не удалось сохранить данные в нашей системе. Ошибка: ${firestoreError.message}`,
+            });
+        }
     } else {
         toast({
             variant: 'destructive',

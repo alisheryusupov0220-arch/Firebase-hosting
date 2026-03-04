@@ -2,8 +2,6 @@
 
 import { revalidatePath } from 'next/cache';
 import { createSupply, type CreateSupplyData, getStorages, getPosterSuppliers } from '@/lib/poster';
-import { getFirestore, doc, writeBatch } from 'firebase/firestore';
-import { getFirebaseApp } from '@/firebase/server';
 
 export async function createDirectSupplyAction(
     data: CreateSupplyData,
@@ -15,25 +13,7 @@ export async function createDirectSupplyAction(
             throw new Error('API Poster не вернул ID поставки.');
         }
 
-        // 2. Save price history to Firestore
-        const db = getFirestore(getFirebaseApp());
-        const batch = writeBatch(db);
-        const approvalTimestamp = new Date();
-
-        data.ingredients.forEach((ingredient) => {
-            const priceHistoryRef = doc(db, `ingredients/${ingredient.ingredient_id}/price_history`, String(newSupplyId));
-            
-            // `ingredient.price` is the TOTAL sum for the line item. We need price per unit for history.
-            const pricePerUnit = ingredient.count > 0 ? ingredient.price / ingredient.count : 0;
-            
-            batch.set(priceHistoryRef, {
-                price: pricePerUnit,
-                date: approvalTimestamp,
-                supplierId: String(data.supplier_id)
-            });
-        });
-        
-        await batch.commit();
+        // Firestore write operations are now handled on the client side.
 
         revalidatePath('/supplies');
         revalidatePath('/menu-analytics');
