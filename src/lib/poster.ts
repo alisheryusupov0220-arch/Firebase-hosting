@@ -52,20 +52,28 @@ async function posterApiFetch(
   // For POST requests, the payload goes into the body as x-www-form-urlencoded
   if (httpMethod === 'POST' && Object.keys(payload).length > 0) {
     const postBody = new URLSearchParams();
-     for (const key in payload) {
+
+    for (const key in payload) {
         if (Object.prototype.hasOwnProperty.call(payload, key)) {
             const value = payload[key];
             if (Array.isArray(value)) {
-                // Handle arrays of objects for Poster's form-urlencoded format
+                // Handles `ingredient` array
                 value.forEach((item, index) => {
                     if (typeof item === 'object' && item !== null) {
                         for (const itemKey in item) {
-                            postBody.append(`${key}[${index}][${itemKey}]`, String(item[itemKey]));
+                            if (Object.prototype.hasOwnProperty.call(item, itemKey)) {
+                                postBody.append(`${key}[${index}][${itemKey}]`, String(item[itemKey]));
+                            }
                         }
-                    } else {
-                         postBody.append(`${key}[${index}]`, String(item));
                     }
                 });
+            } else if (typeof value === 'object' && value !== null) {
+                // Handles nested objects like `supply` or `write_off`
+                for (const subKey in value) {
+                    if (Object.prototype.hasOwnProperty.call(value, subKey)) {
+                         postBody.append(`${key}[${subKey}]`, String(value[subKey]));
+                    }
+                }
             } else {
                 postBody.append(key, String(value));
             }
@@ -274,32 +282,33 @@ export type CreateSupplyData = {
  */
 export async function createSupply(data: CreateSupplyData) {
     const payload = {
-      supplier_id: Number(data.supplier_id),
-      storage_id: Number(data.storage_id),
-      date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
-      comment: data.comment,
-      supply_ingredients: data.ingredients.map(ing => {
+      supply: {
+        supplier_id: String(data.supplier_id),
+        storage_id: String(data.storage_id),
+        date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
+        supply_comment: data.comment || '',
+      },
+      ingredient: data.ingredients.map(ing => {
         let formattedCount;
         if (ing.unit && translateUnit(ing.unit).toLowerCase() === 'штук') {
-            formattedCount = Math.round(ing.count);
+            formattedCount = Math.round(ing.count).toString();
         } else {
             formattedCount = ing.count.toFixed(3);
         }
 
         return {
-            ingredient_id: Number(ing.ingredient_id),
+            id: String(ing.ingredient_id),
             num: formattedCount,
-            cost: ing.price.toFixed(4),
-            type: Number(ing.type),
+            type: String(ing.type || 4),
+            sum: ing.price.toFixed(2),
         };
       })
     };
-    
-    console.log("--- Отправка данных в Poster API (createSupply) ---");
-    console.log("Payload to be encoded:", JSON.stringify(payload, null, 2));
+
+    console.log("--- Отправка данных в Poster API (согласно документации) ---");
+    console.log("Payload:", JSON.stringify(payload, null, 2));
 
     const response = await posterApiFetch('storage.createSupply', 'POST', payload);
-    // On success, Poster API returns the new supply_id
     return response;
 }
 
