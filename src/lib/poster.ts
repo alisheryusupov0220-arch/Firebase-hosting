@@ -284,17 +284,20 @@ export type CreateSupplyData = {
  */
 export async function createSupply(data: CreateSupplyData) {
     const payload = {
-      // 1. All general supply data must be inside the `supply` object
+      // All general supply data must be inside the `supply` object
       supply: {
         supplier_id: String(data.supplier_id),
         storage_id: String(data.storage_id),
         date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
         supply_comment: data.comment || '',
       },
-      // 2. The array must be strictly named `ingredient`
+      // The array must be named strictly `ingredient`
       ingredient: data.ingredients.map(ing => {
-        const totalSumInCents = Math.round(ing.price * 100);
-        
+        // Calculate price PER UNIT, then convert to cents
+        const pricePerUnit = ing.count > 0 ? ing.price / ing.count : 0;
+        const pricePerUnitInCents = Math.round(pricePerUnit * 100);
+
+        // Format count based on unit
         let formattedCount;
         if (ing.unit && translateUnit(ing.unit).toLowerCase() === 'штук') {
             formattedCount = Math.round(ing.count).toString();
@@ -303,10 +306,10 @@ export async function createSupply(data: CreateSupplyData) {
         }
 
         return {
-            id: String(ing.ingredient_id),
-            num: formattedCount, // Correctly formatted count
+            id: String(ing.ingredient_id), // Correct field name `id`
+            num: formattedCount,           // Correct field name `num` with correct formatting
             type: String(ing.type || 4),
-            sum: String(totalSumInCents), // Total sum for the line item in cents
+            sum: String(pricePerUnitInCents), // Correct field name `sum` with value as price PER UNIT in cents
         };
       })
     };
