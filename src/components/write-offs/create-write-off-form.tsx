@@ -17,13 +17,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Trash } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useUser, useFirestore } from '@/firebase/hooks';
+import { useUser } from '@/firebase/hooks';
 import type { LocalIngredient } from '@/app/ingredients/actions';
 import { SearchableSelect } from '../ui/searchable-select';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 import { translateUnit } from '@/lib/utils';
+import { createDirectWriteOffAction } from '@/app/write-offs/actions';
+import type { CreateWriteOffData } from '@/lib/poster';
 
 const formSchema = z.object({
   comment: z.string().optional(),
@@ -43,7 +42,6 @@ type CreateWriteOffFormProps = {
 export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWriteOffFormProps) {
   const { toast } = useToast();
   const { user } = useUser();
-  const firestore = useFirestore();
 
   const form = useForm<CreateWriteOffFormValues>({
     resolver: zodResolver(formSchema),
@@ -68,7 +66,7 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
   const watchedIngredients = form.watch('ingredients');
 
   async function onSubmit(values: CreateWriteOffFormValues) {
-    if (!user || !firestore) {
+    if (!user) {
         toast({ variant: 'destructive', title: 'Ошибка!', description: 'Вы должны быть авторизованы.' });
         return;
     }
@@ -79,44 +77,32 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
     const firstIngredient = ingredients?.find(i => i.id === firstIngredientId);
     const storageId = firstIngredient?.storage_id ? Number(firstIngredient.storage_id) : 1;
 
-    const writeOffRequestData = {
+    const writeOffData: CreateWriteOffData = {
       storage_id: storageId,
-      comment: finalComment,
+      reason: finalComment,
       ingredients: values.ingredients.map(ing => ({
-        ingredient_id: Number(ing.ingredient_id),
-        quantity: ing.quantity,
+        id: Number(ing.ingredient_id),
+        type: 4, // type 4 is ingredient from local base
+        weight: ing.quantity,
       })),
-      requesterId: user.uid,
-      requesterName: user.email || 'Пользователь без email',
-      status: 'pending',
-      createdAt: serverTimestamp(),
     };
 
-    const pendingWriteOffsCollection = collection(firestore, 'pendingWriteOffs');
-
-    addDoc(pendingWriteOffsCollection, writeOffRequestData)
-      .then(() => {
-          toast({
-              title: 'Успех!',
-              description: 'Заявка на списание отправлена на утверждение.',
-          });
-          onFormSubmitted();
-          form.reset();
-      })
-      .catch((error) => {
-          console.error("Error creating write-off request:", error);
-          const permissionError = new FirestorePermissionError({
-              path: pendingWriteOffsCollection.path,
-              operation: 'create',
-              requestResourceData: writeOffRequestData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-          toast({
-              variant: 'destructive',
-              title: 'Ошибка создания заявки',
-              description: 'Недостаточно прав для выполнения операции. Убедитесь, что у вас есть права на создание заявок.'
-          });
-      });
+    const result = await createDirectWriteOffAction(writeOffData);
+    
+    if (result.success) {
+        toast({
+            title: 'Успех!',
+            description: 'Списание успешно создано в Poster.',
+        });
+        onFormSubmitted();
+        form.reset();
+    } else {
+        toast({
+            variant: 'destructive',
+            title: 'Ошибка создания списания',
+            description: result.message
+        });
+    }
   }
 
   return (
@@ -198,7 +184,7 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
         />
         
         <Button type="submit" disabled={form.formState.isSubmitting || !ingredients}>
-          {form.formState.isSubmitting ? 'Отправка...' : 'Отправить на утверждение'}
+          {form.formState.isSubmitting ? 'Создание...' : 'Создать списание'}
         </Button>
       </form>
     </Form>

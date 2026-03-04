@@ -17,14 +17,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Trash } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useMemo } from 'react';
-import { useUser, useFirestore } from '@/firebase/hooks';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { useUser } from '@/firebase/hooks';
 import type { LocalIngredient } from '@/app/ingredients/actions';
 import { SearchableSelect } from '../ui/searchable-select';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 import { formatNumberString, parseFormattedNumber, translateUnit } from '@/lib/utils';
-import { type Storage, type PosterSupplier } from '@/lib/poster';
+import { type Storage, type PosterSupplier, type CreateSupplyData } from '@/lib/poster';
+import { createDirectSupplyAction } from '@/app/supplies/actions';
 
 const formSchema = z.object({
   supplier_id: z.string().min(1, 'Нужно выбрать поставщика'),
@@ -50,7 +48,6 @@ type CreateSupplyFormProps = {
 export function CreateSupplyForm({ ingredients, storages, suppliers, onFormSubmitted }: CreateSupplyFormProps) {
   const { toast } = useToast();
   const { user } = useUser();
-  const firestore = useFirestore();
 
   const form = useForm<CreateSupplyFormValues>({
     resolver: zodResolver(formSchema),
@@ -92,7 +89,7 @@ export function CreateSupplyForm({ ingredients, storages, suppliers, onFormSubmi
   const watchedIngredients = form.watch('ingredients');
 
   async function onSubmit(values: CreateSupplyFormValues) {
-    if (!user || !firestore) {
+    if (!user) {
         toast({
             variant: 'destructive',
             title: 'Ошибка!',
@@ -103,7 +100,7 @@ export function CreateSupplyForm({ ingredients, storages, suppliers, onFormSubmi
     
     const finalComment = `Сотрудник: ${user.email}. ${values.comment || ''}`.trim();
 
-    const supplyRequestData = {
+    const supplyData: CreateSupplyData = {
       supplier_id: Number(values.supplier_id),
       storage_id: Number(values.storage_id),
       comment: finalComment,
@@ -115,42 +112,29 @@ export function CreateSupplyForm({ ingredients, storages, suppliers, onFormSubmi
         return {
           ingredient_id: Number(ing.ingredient_id),
           count: parseFormattedNumber(ing.count),
-          price: parseFormattedNumber(ing.price),
+          price: parseFormattedNumber(ing.price), // This is the total sum for the line item
           type: posterType,
           unit: unit,
         };
       }),
-      requesterId: user.uid,
-      requesterName: user.email || 'Пользователь без email',
-      status: 'pending',
-      createdAt: serverTimestamp(),
     };
 
-    const pendingSuppliesCollection = collection(firestore, 'pendingSupplies');
+    const result = await createDirectSupplyAction(supplyData);
 
-    addDoc(pendingSuppliesCollection, supplyRequestData)
-        .then(() => {
-            toast({
-                title: 'Успех!',
-                description: 'Заявка на поставку отправлена на утверждение.',
-            });
-            onFormSubmitted();
-            form.reset();
-        })
-        .catch((error) => {
-            console.error("Error creating supply request:", error);
-            const permissionError = new FirestorePermissionError({
-                path: pendingSuppliesCollection.path,
-                operation: 'create',
-                requestResourceData: supplyRequestData,
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            toast({
-                variant: 'destructive',
-                title: 'Ошибка создания заявки',
-                description: 'Недостаточно прав для выполнения операции. Убедитесь, что у вас есть права на создание заявок.'
-            });
+    if (result.success) {
+        toast({
+            title: 'Успех!',
+            description: 'Поставка успешно создана в Poster.',
         });
+        onFormSubmitted();
+        form.reset();
+    } else {
+        toast({
+            variant: 'destructive',
+            title: 'Ошибка создания поставки',
+            description: result.message
+        });
+    }
   }
 
   return (
@@ -297,7 +281,7 @@ export function CreateSupplyForm({ ingredients, storages, suppliers, onFormSubmi
         />
         
         <Button type="submit" disabled={form.formState.isSubmitting || !ingredients}>
-          {form.formState.isSubmitting ? 'Отправка...' : 'Отправить на утверждение'}
+          {form.formState.isSubmitting ? 'Создание...' : 'Создать поставку'}
         </Button>
       </form>
     </Form>

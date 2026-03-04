@@ -306,68 +306,6 @@
         }
       },
       "required": ["templateId", "templateName", "status", "createdAt", "createdBy"]
-    },
-    "PendingSupply": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "PendingSupply",
-      "description": "A supply request waiting for approval.",
-      "type": "object",
-      "properties": {
-        "supplier_id": {"type": "number"},
-        "storage_id": {"type": "number"},
-        "comment": {"type": "string"},
-        "ingredients": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "ingredient_id": {"type": "number"},
-              "count": {"type": "number"},
-              "price": {"type": "number"},
-              "type": {"type": "number"},
-              "unit": {"type": "string"}
-            },
-            "required": ["ingredient_id", "count", "price", "type", "unit"]
-          }
-        },
-        "requesterId": {"type": "string"},
-        "requesterName": {"type": "string"},
-        "status": {"type": "string", "enum": ["pending", "approved", "rejected"]},
-        "createdAt": {"type": "string", "format": "date-time"},
-        "approvedBy": {"type": "string"},
-        "approvedAt": {"type": "string", "format": "date-time"},
-        "posterSupplyId": {"type": "string"}
-      },
-      "required": ["supplier_id", "storage_id", "ingredients", "requesterId", "status", "createdAt"]
-    },
-    "PendingWriteOff": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "PendingWriteOff",
-      "description": "A write-off request waiting for approval.",
-      "type": "object",
-      "properties": {
-        "storage_id": {"type": "number"},
-        "comment": {"type": "string"},
-        "ingredients": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "ingredient_id": {"type": "number"},
-              "quantity": {"type": "number"}
-            },
-            "required": ["ingredient_id", "quantity"]
-          }
-        },
-        "requesterId": {"type": "string"},
-        "requesterName": {"type": "string"},
-        "status": {"type": "string", "enum": ["pending", "approved", "rejected"]},
-        "createdAt": {"type": "string", "format": "date-time"},
-        "approvedBy": {"type": "string"},
-        "approvedAt": {"type": "string", "format": "date-time"},
-        "posterWriteOffId": {"type": "string"}
-      },
-      "required": ["storage_id", "ingredients", "requesterId", "status", "createdAt"]
     }
   },
   "auth": {
@@ -386,22 +324,6 @@
             "$ref": "#/entities/UserProfile"
           },
           "description": "Collection for storing user profiles."
-        }
-      },
-      {
-        "path": "/pendingSupplies/{supplyId}",
-        "definition": {
-          "entityName": "PendingSupply",
-          "schema": { "$ref": "#/entities/PendingSupply" },
-          "description": "Stores supply requests awaiting approval. Regular users can create their own, admins can manage all."
-        }
-      },
-      {
-        "path": "/pendingWriteOffs/{writeOffId}",
-        "definition": {
-          "entityName": "PendingWriteOff",
-          "schema": { "$ref": "#/entities/PendingWriteOff" },
-          "description": "Stores write-off requests awaiting approval. Regular users can create their own, admins can manage all."
         }
       },
       {

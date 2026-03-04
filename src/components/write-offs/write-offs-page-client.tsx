@@ -14,16 +14,13 @@ import { WriteOffsPageHeader } from '@/components/write-offs/write-offs-page-hea
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { type LocalIngredient } from '@/app/ingredients/actions';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCollection, useFirestore, useUser, useDoc } from '@/firebase/hooks';
+import { useCollection, useFirestore } from '@/firebase/hooks';
 import { useMemoFirebase } from '@/firebase/provider';
-import { collection, query, orderBy, doc } from 'firebase/firestore';
-import type { Waste, Storage } from '@/lib/poster';
-import { PendingWriteOffsCard } from './pending-write-offs-card';
-import { fetchStoragesAction } from '@/app/write-offs/actions';
+import { collection, query, orderBy } from 'firebase/firestore';
+import type { Waste } from '@/lib/poster';
 
 type WriteOffsPageClientProps = {
     initialWastes: Waste[];
-    comments: Record<string, string>;
 };
 
 const PageSkeleton = () => (
@@ -50,18 +47,10 @@ const PageSkeleton = () => (
 );
 
 
-export function WriteOffsPageClient({ initialWastes, comments }: WriteOffsPageClientProps) {
-    const [storages, setStorages] = useState<Storage[]>([]);
+export function WriteOffsPageClient({ initialWastes }: WriteOffsPageClientProps) {
     const [loading, setLoading] = useState(true);
 
-    const { user } = useUser();
     const firestore = useFirestore();
-
-    const userProfileRef = useMemoFirebase(() => {
-        if (!firestore || !user?.uid) return null;
-        return doc(firestore, 'users', user.uid);
-    }, [firestore, user?.uid]);
-    const { data: userProfile } = useDoc(userProfileRef);
 
     const ingredientsQuery = useMemoFirebase(() => 
         firestore 
@@ -70,15 +59,6 @@ export function WriteOffsPageClient({ initialWastes, comments }: WriteOffsPageCl
     , [firestore]);
 
     const { data: ingredients, isLoading: ingredientsLoading } = useCollection<LocalIngredient>(ingredientsQuery);
-
-    useEffect(() => {
-        const fetchDropdownData = async () => {
-            const storagesData = await fetchStoragesAction();
-            setStorages(storagesData);
-        };
-        fetchDropdownData();
-    }, []);
-
 
     useEffect(() => {
         if (!ingredientsLoading) {
@@ -95,13 +75,6 @@ export function WriteOffsPageClient({ initialWastes, comments }: WriteOffsPageCl
             <WriteOffsPageHeader
                 ingredients={ingredients}
             />
-
-            {userProfile?.role === 'admin' && (
-                <PendingWriteOffsCard 
-                    storages={storages}
-                    ingredients={ingredients || []}
-                />
-            )}
         
             <Card>
                 <CardHeader>
@@ -120,19 +93,14 @@ export function WriteOffsPageClient({ initialWastes, comments }: WriteOffsPageCl
                         </TableHeader>
                         <TableBody>
                             {initialWastes.length > 0 ? (
-                                initialWastes.map((waste) => {
-                                    const firestoreComment = comments[waste.waste_id];
-                                    const displayReason = firestoreComment || waste.reason_name;
-                                    
-                                    return (
-                                        <TableRow key={waste.waste_id}>
-                                            <TableCell className="font-medium">{waste.waste_id}</TableCell>
-                                            <TableCell>{waste.date ? format(new Date(waste.date.replace(' ', 'T')), 'dd.MM.yyyy HH:mm') : '-'}</TableCell>
-                                            <TableCell>{displayReason || '-'}</TableCell>
-                                            <TableCell className="text-right">{new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(waste.total_sum) / 100)}</TableCell>
-                                        </TableRow>
-                                    );
-                                })
+                                initialWastes.map((waste) => (
+                                    <TableRow key={waste.waste_id}>
+                                        <TableCell className="font-medium">{waste.waste_id}</TableCell>
+                                        <TableCell>{waste.date ? format(new Date(waste.date.replace(' ', 'T')), 'dd.MM.yyyy HH:mm') : '-'}</TableCell>
+                                        <TableCell>{waste.reason_name || '-'}</TableCell>
+                                        <TableCell className="text-right">{new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(waste.total_sum) / 100)}</TableCell>
+                                    </TableRow>
+                                ))
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={4} className="h-24 text-center">

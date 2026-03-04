@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { SuppliesPageHeader } from "@/components/supplies/supplies-page-header";
-import { PendingSuppliesCard } from "@/components/supplies/pending-supplies-card";
 import { type LocalIngredient } from "@/app/ingredients/actions";
 import { fetchStoragesAction, fetchSuppliersAction } from '@/app/supplies/actions';
 import type { Supply, Storage, PosterSupplier } from '@/lib/poster';
@@ -109,12 +108,6 @@ export function SuppliesPageClient({ initialSupplies }: SuppliesPageClientProps)
                 ingredients={ingredients}
                 storages={storages}
                 suppliers={suppliers}
-            />
-
-            <PendingSuppliesCard 
-                storages={storages}
-                suppliers={suppliers}
-                ingredients={ingredients || []}
             />
         
             <Card>
