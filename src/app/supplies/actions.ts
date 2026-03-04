@@ -30,13 +30,13 @@ export async function approveSupplyOnPosterAction(pendingSupplyId: string): Prom
                      throw new Error(`Количество для ингредиента с ID ${ing.ingredient_id} должно быть больше нуля.`);
                 }
                 
-                // Poster API ожидает цену за единицу в копейках/центах.
-                const pricePerUnitInCents = (totalSum / count) * 100;
+                // Poster API ожидает ОБЩУЮ СУММУ за позицию в копейках/центах.
+                const totalSumInCents = totalSum * 100;
                 
                 return {
                     ingredient_id: Number(ing.ingredient_id),
                     count: count,
-                    price: pricePerUnitInCents, // Это цена за единицу В КОПЕЙКАХ
+                    price: totalSumInCents, // Это ОБЩАЯ СУММА в копейках
                     type: Number(ing.type),
                     unit: ing.unit,
                 };
