@@ -1,6 +1,7 @@
 'use server';
 
 import { format } from 'date-fns';
+import { translateUnit } from './utils';
 
 const API_URL = process.env.POSTER_API_URL;
 const API_KEY = process.env.POSTER_API_KEY;
@@ -258,6 +259,7 @@ export type NewSupplyIngredient = {
     count: number;
     price: number; // This is COST PER UNIT
     type: number;
+    unit?: string;
 };
 
 export type CreateSupplyData = {
@@ -272,18 +274,25 @@ export type CreateSupplyData = {
  */
 export async function createSupply(data: CreateSupplyData) {
     const payload = {
-      // Flat structure
       supplier_id: Number(data.supplier_id),
       storage_id: Number(data.storage_id),
       date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
       comment: data.comment,
-      // Array with correct name and keys
-      supply_ingredients: data.ingredients.map(ing => ({
-        ingredient_id: Number(ing.ingredient_id),
-        num: ing.count, // The key for quantity is 'num' in Poster
-        cost: ing.price, // The key for price is 'cost' in Poster
-        type: Number(ing.type),
-      }))
+      supply_ingredients: data.ingredients.map(ing => {
+        let formattedCount;
+        if (ing.unit && translateUnit(ing.unit).toLowerCase() === 'штук') {
+            formattedCount = Math.round(ing.count);
+        } else {
+            formattedCount = ing.count.toFixed(3);
+        }
+
+        return {
+            ingredient_id: Number(ing.ingredient_id),
+            num: formattedCount,
+            cost: ing.price.toFixed(4),
+            type: Number(ing.type),
+        };
+      })
     };
     
     console.log("--- Отправка данных в Poster API (createSupply) ---");

@@ -24,30 +24,21 @@ export async function approveSupplyOnPosterAction(pendingSupplyId: string): Prom
             storage_id: Number(pendingSupplyData.storage_id),
             comment: pendingSupplyData.comment,
             ingredients: pendingSupplyData.ingredients.map((ing: any) => {
-                let count = Number(ing.count);
+                const count = Number(ing.count);
                 const totalSum = Number(ing.price);
 
                 if (count <= 0) {
                      throw new Error(`Количество для ингредиента с ID ${ing.ingredient_id} должно быть больше нуля.`);
                 }
-
-                // Poster API requires strict number formatting.
-                // Weight/Volume needs 3 decimal places. Pieces must be integers.
-                const unit = ing.unit || '';
-                if (translateUnit(unit).toLowerCase() === 'штук') {
-                    count = Math.round(count);
-                } else {
-                    count = parseFloat(count.toFixed(3));
-                }
                 
-                // Cost per unit must have 4 decimal places.
-                const pricePerUnit = parseFloat((totalSum / count).toFixed(4));
+                const pricePerUnit = totalSum / count;
                 
                 return {
                     ingredient_id: Number(ing.ingredient_id),
                     count: count,
                     price: pricePerUnit, // This is cost per unit
-                    type: Number(ing.type)
+                    type: Number(ing.type),
+                    unit: ing.unit || '', // Pass unit for formatting
                 };
             }),
         };
