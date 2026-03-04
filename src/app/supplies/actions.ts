@@ -18,25 +18,16 @@ export async function approveSupplyOnPosterAction(pendingSupplyId: string): Prom
 
         const pendingSupplyData = pendingSupplySnap.data();
         
+        // Pass clean data to createSupply. All formatting is handled there.
         const posterData: CreateSupplyData = {
             supplier_id: Number(pendingSupplyData.supplier_id),
             storage_id: Number(pendingSupplyData.storage_id),
             comment: pendingSupplyData.comment,
             ingredients: pendingSupplyData.ingredients.map((ing: any) => {
-                const count = Number(ing.count);
-                const totalSum = Number(ing.price);
-
-                if (count <= 0) {
-                     throw new Error(`Количество для ингредиента с ID ${ing.ingredient_id} должно быть больше нуля.`);
-                }
-                
-                // Poster API ожидает ОБЩУЮ СУММУ за позицию в копейках/центах.
-                const totalSumInCents = totalSum * 100;
-                
                 return {
                     ingredient_id: Number(ing.ingredient_id),
-                    count: count,
-                    price: totalSumInCents, // Это ОБЩАЯ СУММА в копейках
+                    count: Number(ing.count),
+                    price: Number(ing.price), // This is the total sum for the line item
                     type: Number(ing.type),
                     unit: ing.unit,
                 };

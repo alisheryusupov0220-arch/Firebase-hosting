@@ -57,7 +57,7 @@ async function posterApiFetch(
         if (Object.prototype.hasOwnProperty.call(payload, key)) {
             const value = payload[key];
             if (Array.isArray(value)) {
-                // Handles `ingredient` array
+                // Handles arrays like `ingredient`
                 value.forEach((item, index) => {
                     if (typeof item === 'object' && item !== null) {
                         for (const itemKey in item) {
@@ -68,7 +68,7 @@ async function posterApiFetch(
                     }
                 });
             } else if (typeof value === 'object' && value !== null) {
-                // Handles nested objects like `supply` or `write_off`
+                // Handles nested objects like `supply`
                 for (const subKey in value) {
                     if (Object.prototype.hasOwnProperty.call(value, subKey)) {
                          postBody.append(`${key}[${subKey}]`, String(value[subKey]));
@@ -265,9 +265,9 @@ export async function getStorageBalance(storageId: string): Promise<StorageBalan
 export type NewSupplyIngredient = {
     ingredient_id: number;
     count: number;
-    price: number; // This is now price per unit IN CENTS
+    price: number; // This is the TOTAL SUM for the line item
     type: number;
-    unit?: string;
+    unit: string;
 };
 
 export type CreateSupplyData = {
@@ -299,16 +299,20 @@ export async function createSupply(data: CreateSupplyData) {
             formattedCount = ing.count.toFixed(3);
         }
 
+        // `ing.price` is the TOTAL sum for the line item, as collected from the form.
+        // We need to convert it to cents and round it for the `sum` field.
+        const sumInCents = Math.round(ing.price * 100);
+
         return {
-            id: String(ing.ingredient_id), // The key is `id`
+            id: String(ing.ingredient_id),
             num: formattedCount,
             type: String(ing.type || 4),
-            sum: Math.round(ing.price).toString(),    // The key is `sum`, and it expects price in cents/kopeks as a whole number.
+            sum: sumInCents.toString(),    // Poster expects the TOTAL sum for the position in cents.
         };
       })
     };
 
-    console.log("--- Отправка данных в Poster API (согласно документации) ---");
+    console.log("--- Отправка данных в Poster API (createSupply) ---");
     console.log("Payload:", JSON.stringify(payload, null, 2));
 
     const response = await posterApiFetch('storage.createSupply', 'POST', payload);
