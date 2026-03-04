@@ -1,3 +1,4 @@
+
 'use server';
 
 import { format } from 'date-fns';
@@ -292,6 +293,8 @@ export async function createSupply(data: CreateSupplyData) {
       },
       // 2. The array must be strictly named `ingredient`
       ingredient: data.ingredients.map(ing => {
+        const totalSumInCents = Math.round(ing.price * 100);
+        
         let formattedCount;
         if (ing.unit && translateUnit(ing.unit).toLowerCase() === 'штук') {
             formattedCount = Math.round(ing.count).toString();
@@ -299,21 +302,17 @@ export async function createSupply(data: CreateSupplyData) {
             formattedCount = ing.count.toFixed(3);
         }
 
-        // `ing.price` is the TOTAL sum for the line item, as collected from the form.
-        // We need to convert it to cents and round it for the `sum` field.
-        const sumInCents = Math.round(ing.price * 100);
-
         return {
             id: String(ing.ingredient_id),
-            num: formattedCount,
+            num: formattedCount, // Correctly formatted count
             type: String(ing.type || 4),
-            sum: sumInCents.toString(),    // Poster expects the TOTAL sum for the position in cents.
+            sum: String(totalSumInCents), // Total sum for the line item in cents
         };
       })
     };
 
     console.log("--- Отправка данных в Poster API (createSupply) ---");
-    console.log("Payload:", JSON.stringify(payload, null, 2));
+    console.log("Payload to be encoded:", JSON.stringify(payload, null, 2));
 
     const response = await posterApiFetch('storage.createSupply', 'POST', payload);
     return response;
