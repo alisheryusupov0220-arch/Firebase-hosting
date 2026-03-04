@@ -18,11 +18,11 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // --- TEMPORARY DEBUGGING RULE ---
+    // Anyone can read, create, update, or delete pending supplies.
+    // This is insecure and MUST be reverted after debugging.
     match /pendingSupplies/{supplyId} {
-      allow read: if request.auth != null;
-      allow create: if request.resource.data.requesterId == request.auth.uid;
-      allow update: if request.auth != null; // TEMPORARY DEBUGGING RULE
-      allow delete: if isAdmin();
+      allow read, write: if true;
     }
     
     match /pendingWriteOffs/{writeOffId} {
