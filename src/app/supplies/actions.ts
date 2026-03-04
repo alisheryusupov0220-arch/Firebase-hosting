@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache';
 import { createSupply, type CreateSupplyData, getStorages, getPosterSuppliers } from '@/lib/poster';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { getFirebaseApp } from '@/firebase/server';
-import { translateUnit } from '@/lib/utils';
 
 const app = getFirebaseApp();
 const db = getFirestore(app);
@@ -31,14 +30,15 @@ export async function approveSupplyOnPosterAction(pendingSupplyId: string): Prom
                      throw new Error(`Количество для ингредиента с ID ${ing.ingredient_id} должно быть больше нуля.`);
                 }
                 
-                const pricePerUnit = totalSum / count;
+                // Poster API ожидает цену за единицу в копейках/центах.
+                const pricePerUnitInCents = (totalSum / count) * 100;
                 
                 return {
                     ingredient_id: Number(ing.ingredient_id),
                     count: count,
-                    price: pricePerUnit, // This is cost per unit
+                    price: pricePerUnitInCents, // Это цена за единицу В КОПЕЙКАХ
                     type: Number(ing.type),
-                    unit: ing.unit || '', // Pass unit for formatting
+                    unit: ing.unit,
                 };
             }),
         };

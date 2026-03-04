@@ -265,7 +265,7 @@ export async function getStorageBalance(storageId: string): Promise<StorageBalan
 export type NewSupplyIngredient = {
     ingredient_id: number;
     count: number;
-    price: number; // This is COST PER UNIT
+    price: number; // This is now price per unit IN CENTS
     type: number;
     unit?: string;
 };
@@ -279,15 +279,18 @@ export type CreateSupplyData = {
 
 /**
  * Creates a new supply in Poster.
+ * This now uses the correct nested structure and field names as required by Poster API v1.
  */
 export async function createSupply(data: CreateSupplyData) {
     const payload = {
+      // 1. All general supply data must be inside the `supply` object
       supply: {
         supplier_id: String(data.supplier_id),
         storage_id: String(data.storage_id),
         date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
         supply_comment: data.comment || '',
       },
+      // 2. The array must be strictly named `ingredient`
       ingredient: data.ingredients.map(ing => {
         let formattedCount;
         if (ing.unit && translateUnit(ing.unit).toLowerCase() === 'штук') {
@@ -297,10 +300,10 @@ export async function createSupply(data: CreateSupplyData) {
         }
 
         return {
-            id: String(ing.ingredient_id),
+            id: String(ing.ingredient_id), // The key is `id`
             num: formattedCount,
             type: String(ing.type || 4),
-            sum: ing.price.toFixed(2),
+            sum: Math.round(ing.price).toString(),    // The key is `sum`, and it expects price in cents/kopeks as a whole number.
         };
       })
     };
