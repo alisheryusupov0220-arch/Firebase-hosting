@@ -2,17 +2,19 @@
 
 import { useUser, useDoc, useFirestore } from '@/firebase/hooks';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Header } from '@/components/layout/header';
 import { Loader2 } from 'lucide-react';
 import { doc } from 'firebase/firestore';
 import { useMemoFirebase } from '@/firebase/provider';
 import { EmployeeLayout } from '../layout/employee-layout';
+import { UserRole } from '@/lib/types/erp';
 
 const publicPaths = ['/login', '/register'];
 
 type UserProfile = {
-    role: 'admin' | 'employee';
+    role: UserRole;
+    locationIds?: string[];
 };
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -72,11 +74,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             return <>{children}</>;
          }
          
-         if (userProfile?.role === 'employee') {
-            return <EmployeeLayout>{children}</EmployeeLayout>;
-         }
+         const role = userProfile?.role;
 
-         if (userProfile?.role === 'admin') {
+         // Roles that use the standard Admin Layout with Header
+         if (role === 'SUPER_ADMIN' || role === 'MANAGER') {
             return (
                 <div className="flex min-h-screen w-full flex-col bg-muted/40">
                   <Header />
@@ -85,6 +86,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
                   </main>
                 </div>
             );
+         }
+
+         // Roles that use the simplified Employee Layout (staff or kitchen)
+         if (role === 'STAFF_POINT' || role === 'KITCHEN' || !role) {
+            return <EmployeeLayout>{children}</EmployeeLayout>;
          }
     }
 

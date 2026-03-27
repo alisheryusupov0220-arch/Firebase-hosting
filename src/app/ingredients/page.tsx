@@ -1,109 +1,138 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useEffect, useState, useTransition } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { RefreshCw, TrendingDown, TrendingUp, AlertTriangle } from 'lucide-react';
+import { getItemsWithLiveStockAction } from '@/app/actions/flow-sprint1';
+import { ERPItem } from '@/lib/types/erp';
 import { useToast } from '@/hooks/use-toast';
-import { syncIngredientsAction } from './actions';
-import { useCollection } from '@/firebase/hooks';
-import { collection, query, orderBy } from 'firebase/firestore';
-import { useFirestore, useMemoFirebase } from '@/firebase/provider';
-import { RefreshCw } from 'lucide-react';
-import { translateUnit } from '@/lib/utils';
 
-export const dynamic = 'force-dynamic';
+interface EnrichedItem extends ERPItem {
+    liveStock: number;
+    posterUnit: string;
+}
 
-export default function IngredientsPage() {
+export default function IngredientsWithStockPage() {
     const { toast } = useToast();
-    const [isSyncing, startSyncTransition] = useTransition();
+    const [isPending, startTransition] = useTransition();
+    const [items, setItems] = useState<EnrichedItem[]>([]);
     
-    const firestore = useFirestore();
+    // Default Storage Id (should be from settings in future)
+    const activeStorageId = '1'; 
 
-    const ingredientsQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return query(collection(firestore, 'ingredients_master'), orderBy('name', 'asc'));
-    }, [firestore]);
-
-    const { data: ingredients, isLoading, error } = useCollection(ingredientsQuery);
-
-    const handleSync = () => {
-        startSyncTransition(async () => {
-            const result = await syncIngredientsAction();
+    const fetchData = () => {
+        startTransition(async () => {
+            const result = await getItemsWithLiveStockAction(activeStorageId);
             if (result.success) {
-                toast({
-                    title: 'Синхронизация завершена',
-                    description: `Загружено и обновлено ${result.count} позиций.`,
-                });
+                setItems(result.items as EnrichedItem[]);
             } else {
                 toast({
-                    variant: 'destructive',
-                    title: 'Ошибка синхронизации',
+                    title: "Sync Error",
                     description: result.message,
+                    variant: "destructive"
                 });
             }
         });
     };
 
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const getStockStatus = (item: EnrichedItem) => {
+        if (!item.minStock) return 'normal';
+        if (item.liveStock <= item.minStock) return 'low';
+        return 'normal';
+    };
+
     return (
         <div className="space-y-6">
-            <div className="flex items-start justify-between">
+            <div className="flex justify-between items-start">
                 <PageHeader 
-                    title="Справочник ингредиентов" 
-                    description="Локальная база ингредиентов, синхронизированная с Poster."
+                    title="Товары и Остатки" 
+                    description="Синхронизация Min/Max лимитов с реальными остатками Poster."
                 />
-                <Button onClick={handleSync} disabled={isSyncing}>
-                    <RefreshCw className={`mr-2 h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                    {isSyncing ? 'Синхронизация...' : 'Синхронизировать с Poster'}
+                <Button onClick={fetchData} disabled={isPending} variant="outline">
+                    <RefreshCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
+                    Обновить данные
                 </Button>
             </div>
-            
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card className="bg-blue-50/50 border-blue-100">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-xs font-medium text-blue-600 uppercase">Всего позиций</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{items.length}</div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-red-50/50 border-red-100 text-red-700">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-xs font-medium uppercase">Ниже Min</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">
+                            {items.filter(i => (i.minStock || 0) >= i.liveStock).length}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
             <Card>
-                <CardHeader>
-                    <CardTitle>Ингредиенты</CardTitle>
-                    <CardDescription>
-                        Список всех ингредиентов и полуфабрикатов, используемых в поставках и списаниях.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
+                <CardContent className="p-0">
                     <Table>
                         <TableHeader>
-                            <TableRow>
-                                <TableHead>Название</TableHead>
-                                <TableHead>Ед. изм.</TableHead>
-                                <TableHead>Тип</TableHead>
-                                <TableHead className="text-right">ID в Poster</TableHead>
+                            <TableRow className="bg-muted/50">
+                                <TableHead className="w-[300px]">Название (FLOW)</TableHead>
+                                <TableHead>Poster Stock</TableHead>
+                                <TableHead>Min Лимит</TableHead>
+                                <TableHead>Max Лимит</TableHead>
+                                <TableHead>Статус</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {isLoading && (
+                            {isPending && items.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="h-24 text-center">
-                                        Загрузка...
+                                    <TableCell colSpan={5} className="h-32 text-center text-muted-foreground italic">
+                                        Синхронизация с Poster API...
                                     </TableCell>
                                 </TableRow>
                             )}
-                            {error && (
-                                <TableRow>
-                                    <TableCell colSpan={4} className="h-24 text-center text-destructive">
-                                        Ошибка загрузки: {error.message}
+                            {items.map((item) => (
+                                <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
+                                    <TableCell>
+                                        <div className="flex flex-col">
+                                            <span className="font-medium">{item.name}</span>
+                                            <span className="text-[10px] text-muted-foreground font-mono">ID: {item.posterId}</span>
+                                        </div>
                                     </TableCell>
-                                </TableRow>
-                            )}
-                            {!isLoading && !error && ingredients?.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={4} className="h-24 text-center">
-                                        Ингредиенты не найдены. Попробуйте синхронизировать данные.
+                                    <TableCell className="font-mono font-bold">
+                                        {item.liveStock} <span className="text-xs font-normal text-muted-foreground">{item.posterUnit}</span>
                                     </TableCell>
-                                </TableRow>
-                            )}
-                            {ingredients?.map((ing) => (
-                                <TableRow key={ing.id}>
-                                    <TableCell className="font-medium">{ing.name}</TableCell>
-                                    <TableCell>{translateUnit(ing.unit)}</TableCell>
-                                    <TableCell className="text-muted-foreground">{ing.type}</TableCell>
-                                    <TableCell className="text-right text-muted-foreground">{ing.id}</TableCell>
+                                    <TableCell className="text-muted-foreground italic">
+                                        {item.minStock || '—'}
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground italic">
+                                        {item.maxStock || '—'}
+                                    </TableCell>
+                                    <TableCell>
+                                        {item.liveStock <= (item.minStock || 0) ? (
+                                            <Badge variant="destructive" className="flex items-center gap-1 w-fit">
+                                                <TrendingDown className="h-3 w-3" />
+                                                Критично
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 border-none flex items-center gap-1 w-fit">
+                                                <TrendingUp className="h-3 w-3" />
+                                                В норме
+                                            </Badge>
+                                        )}
+                                    </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>

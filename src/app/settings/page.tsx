@@ -8,6 +8,12 @@ import { useUser, useDoc, useFirestore } from "@/firebase/hooks";
 import { doc } from "firebase/firestore";
 import { ManageEmployeesCard } from "@/components/settings/manage-employees-card";
 import { useMemoFirebase } from "@/firebase/provider";
+import { ERPInitCard } from "@/components/settings/erp-init-card";
+import { UserRole } from "@/lib/types/erp";
+
+type UserProfile = {
+  role: UserRole | string;
+};
 
 export default function SettingsPage() {
   const { user } = useUser();
@@ -16,11 +22,13 @@ export default function SettingsPage() {
     if (!firestore || !user?.uid) return null;
     return doc(firestore, 'users', user.uid);
   }, [firestore, user?.uid]);
-  const { data: userProfile } = useDoc(userProfileRef);
+  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
+
+  const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'SUPER_ADMIN';
 
   return (
     <div className="space-y-8 pb-24">
-      {userProfile?.role === 'admin' && (
+      {isAdmin && (
         <PageHeader
           title="Настройки"
           description="Управляйте настройками вашего аккаунта и приложения."
@@ -28,7 +36,7 @@ export default function SettingsPage() {
       )}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {userProfile?.role === 'admin' && <ProfileCard />}
+        {isAdmin && <ProfileCard />}
         <Card>
           <CardHeader>
             <CardTitle>Тема</CardTitle>
@@ -40,7 +48,8 @@ export default function SettingsPage() {
             <ThemeToggle />
           </CardContent>
         </Card>
-        {userProfile?.role === 'admin' && <ManageEmployeesCard />}
+        {isAdmin && <ManageEmployeesCard />}
+        {isAdmin && <ERPInitCard />}
       </div>
     </div>
   );
