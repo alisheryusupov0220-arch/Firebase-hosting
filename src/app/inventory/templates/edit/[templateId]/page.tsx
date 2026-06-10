@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getIngredientsForInventory, updateTemplateIngredientsAction, type InventoryTemplate } from '@/app/inventory/actions';
+import { useFirebase } from '@/firebase/provider';
 import type { LocalIngredient } from '@/app/ingredients/actions';
 
 export default function EditInventoryTemplatePage() {
@@ -20,6 +21,7 @@ export default function EditInventoryTemplatePage() {
     const templateId = params.templateId as string;
     const firestore = useFirestore();
     const { toast } = useToast();
+    const { orgId } = useFirebase();
     const [template, setTemplate] = useState<InventoryTemplate | null>(null);
     const [allIngredients, setAllIngredients] = useState<LocalIngredient[]>([]);
     const [selectedIngredients, setSelectedIngredients] = useState<Set<string>>(new Set());
@@ -29,11 +31,11 @@ export default function EditInventoryTemplatePage() {
 
     useEffect(() => {
         async function fetchData() {
-            if (!firestore || !templateId) return;
+            if (!firestore || !templateId || !orgId) return;
             setIsLoading(true);
 
             try {
-                const templateRef = doc(firestore, 'inventory_templates', templateId);
+                const templateRef = doc(firestore, 'organizations', orgId, 'inventory_templates', templateId);
                 const templateSnap = await getDoc(templateRef);
 
                 if (!templateSnap.exists() || templateSnap.data().type !== 'partial') {
@@ -44,7 +46,7 @@ export default function EditInventoryTemplatePage() {
                 setTemplate(templateData);
                 setSelectedIngredients(new Set(templateData.ingredientIds || []));
 
-                const ingredientsData = await getIngredientsForInventory();
+                const ingredientsData = await getIngredientsForInventory(orgId);
                 setAllIngredients(ingredientsData);
             } catch (error) {
                 console.error("Failed to fetch template data:", error);
@@ -71,8 +73,8 @@ export default function EditInventoryTemplatePage() {
 
     const handleSave = () => {
         startSavingTransition(async () => {
-            if (!templateId) return;
-            const result = await updateTemplateIngredientsAction(templateId, Array.from(selectedIngredients));
+            if (!templateId || !orgId) return;
+            const result = await updateTemplateIngredientsAction(templateId, Array.from(selectedIngredients), orgId);
             if (result.success) {
                 toast({ title: 'Успех!', description: 'Шаблон обновлен.' });
                 router.push('/inventory/templates');

@@ -1,9 +1,9 @@
 import { PageHeader } from '@/components/layout/page-header';
 import { AddWriteOffDialog } from '@/components/write-offs/add-write-off-dialog';
-import type { LocalIngredient } from '@/app/ingredients/actions';
+import { type ERPItem } from '@/lib/types/erp';
 
 type WriteOffsPageHeaderProps = {
-  ingredients: LocalIngredient[] | null;
+  ingredients: ERPItem[] | null;
 };
 
 export function WriteOffsPageHeader({ ingredients }: WriteOffsPageHeaderProps) {

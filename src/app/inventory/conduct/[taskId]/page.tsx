@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/hooks';
+import { useFirebase } from '@/firebase/provider';
 import type { LocalIngredient } from '@/app/ingredients/actions';
 import { getTaskWithIngredients, saveInventoryCountAction } from '@/app/inventory/actions';
 import { Loader2 } from 'lucide-react';
@@ -22,6 +23,7 @@ export default function ConductInventoryPage() {
     const router = useRouter();
     const { toast } = useToast();
     const { user } = useUser();
+    const { orgId } = useFirebase();
     const [taskIngredients, setTaskIngredients] = useState<LocalIngredient[]>([]);
     const [templateName, setTemplateName] = useState('');
     const [quantities, setQuantities] = useState<Record<string, string>>({});
@@ -32,9 +34,9 @@ export default function ConductInventoryPage() {
 
     useEffect(() => {
         async function loadTask() {
-            if (!taskId) return;
+            if (!taskId || !orgId) return;
             setIsLoading(true);
-            const data = await getTaskWithIngredients(taskId);
+            const data = await getTaskWithIngredients(taskId, orgId);
             if (data) {
                 if (data.task.status === 'completed') {
                     toast({ variant: 'destructive', title: 'Ошибка', description: 'Это задание уже выполнено.' });
@@ -129,6 +131,7 @@ export default function ConductInventoryPage() {
             items: itemsToSave,
             userId: user.uid,
             userName: user.email || 'Unknown User',
+            orgId: orgId || '',
         });
         setIsSaving(false);
 

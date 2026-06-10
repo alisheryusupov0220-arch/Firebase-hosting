@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useCollection, useFirestore, useUser } from '@/firebase/hooks';
+import { useCollection, useFirestore, useUser, useFirebase } from '@/firebase/hooks';
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -30,12 +30,13 @@ type PendingWriteOffsCardProps = {
 export function PendingWriteOffsCard({ storages, ingredients }: PendingWriteOffsCardProps) {
     const { toast } = useToast();
     const { user } = useUser();
+    const { orgId } = useFirebase();
     const firestore = useFirestore();
     
     const pendingWriteOffsQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return query(collection(firestore, 'pendingWriteOffs'), where('status', '==', 'pending'));
-    }, [firestore]);
+        if (!firestore || !orgId) return null;
+        return query(collection(firestore, 'organizations', orgId, 'pendingWriteOffs'), where('status', '==', 'pending'));
+    }, [firestore, orgId]);
 
     const { data: pendingWriteOffs, isLoading, error } = useCollection(pendingWriteOffsQuery);
     
@@ -45,19 +46,19 @@ export function PendingWriteOffsCard({ storages, ingredients }: PendingWriteOffs
     }), [storages, ingredients]);
 
     const handleApprove = async (id: string) => {
-        if (!user || !user.email || !firestore) {
-             toast({ variant: 'destructive', title: 'Ошибка!', description: 'Вы не авторизованы.' });
+        if (!user || !user.email || !firestore || !orgId) {
+             toast({ variant: 'destructive', title: 'Ошибка!', description: 'Вы не авторизованы или организация не определена.' });
             return;
         }
 
-        const result = await approveWriteOffOnPosterAction(id);
+        const result = await approveWriteOffOnPosterAction(orgId, id);
         if (!result.success) {
             toast({ variant: 'destructive', title: 'Ошибка Poster!', description: result.message });
             return;
         }
         
         const posterWriteOffId = result.data;
-        const pendingWriteOffRef = doc(firestore, 'pendingWriteOffs', id);
+        const pendingWriteOffRef = doc(firestore, 'organizations', orgId, 'pendingWriteOffs', id);
 
         await updateDoc(pendingWriteOffRef, {
             status: 'approved',
@@ -71,11 +72,11 @@ export function PendingWriteOffsCard({ storages, ingredients }: PendingWriteOffs
     };
 
     const handleReject = async (id: string) => {
-        if (!user || !user.email || !firestore) {
-            toast({ variant: 'destructive', title: 'Ошибка!', description: 'Вы не авторизованы.' });
+        if (!user || !user.email || !firestore || !orgId) {
+            toast({ variant: 'destructive', title: 'Ошибка!', description: 'Вы не авторизованы или организация не определена.' });
             return;
         }
-        const pendingWriteOffRef = doc(firestore, 'pendingWriteOffs', id);
+        const pendingWriteOffRef = doc(firestore, 'organizations', orgId, 'pendingWriteOffs', id);
 
         await updateDoc(pendingWriteOffRef, {
             status: 'rejected',

@@ -23,23 +23,28 @@ import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
 import { ScrollArea } from '../ui/scroll-area';
-import { useMemoFirebase } from '@/firebase/provider';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { useMemoFirebase, useFirebase } from '@/firebase/provider';
+import { collection, query, orderBy, where } from 'firebase/firestore';
+
+type LocationDoc = {
+    id: string;
+    name: string;
+    posterStorageId: string;
+};
 
 const newUserSchema = z.object({
     displayName: z.string().min(1, "Имя обязательно для заполнения"),
-    telegramId: z.string().min(1, "Telegram ID обязателен для заполнения"),
+    telegramId: z.string().optional(),
     email: z.string().email("Неверный формат email"),
-    password: z.string().min(6, "Пароль должен быть не менее 6 символов"),
     role: z.enum(['admin', 'employee']).default('employee'),
+    locationId: z.string().optional(),
 });
 
 
-function AddUserDialog() {
+function AddUserDialog({ locations }: { locations: LocationDoc[] }) {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
-    const firestore = useFirestore();
 
     const form = useForm<z.infer<typeof newUserSchema>>({
         resolver: zodResolver(newUserSchema),
@@ -47,51 +52,53 @@ function AddUserDialog() {
             displayName: '',
             telegramId: '',
             email: '',
-            password: '',
             role: 'employee',
+            locationId: '',
         },
     });
 
     const onSubmit = (values: z.infer<typeof newUserSchema>) => {
         startTransition(async () => {
-            if (!firestore) {
-                toast({ variant: "destructive", title: "Ошибка", description: "Firestore не инициализирован." });
+            const auth = getAuth();
+            const currentUser = auth.currentUser;
+            if (!currentUser) {
+                toast({ variant: "destructive", title: "Ошибка", description: "Вы не авторизованы." });
                 return;
             }
 
-            // Using a temporary, secondary Firebase App instance for user creation
-            // to avoid logging out the current admin user.
-            const tempAppName = `user-creation-${Date.now()}`;
-            const tempApp = initializeApp(firebaseConfig, tempAppName);
-            const tempAuth = getAuth(tempApp);
-
             try {
-                const userCredential = await createUserWithEmailAndPassword(tempAuth, values.email, values.password);
-                const user = userCredential.user;
-
-                const userRef = doc(firestore, 'users', user.uid);
-                await setDoc(userRef, {
-                    displayName: values.displayName,
-                    telegramId: values.telegramId,
-                    email: values.email,
-                    role: values.role,
+                const token = await currentUser.getIdToken();
+                const response = await fetch('/api/admin/invite-user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        email: values.email,
+                        role: values.role === 'admin' ? 'brand_admin' : 'employee',
+                        displayName: values.displayName,
+                        telegramId: values.telegramId || null,
+                        locationId: values.locationId || null,
+                        locationIds: values.locationId ? [values.locationId] : null,
+                    })
                 });
-                
-                toast({ title: "Успех!", description: "Сотрудник успешно добавлен." });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Ошибка при отправке приглашения.');
+                }
+
+                toast({ 
+                    title: "Успех!", 
+                    description: `Сотрудник добавлен. Пароль для входа: ${data.password}`,
+                    duration: 10000,
+                });
                 setIsOpen(false);
                 form.reset();
 
             } catch (error: any) {
-                let errorMessage = "Произошла неизвестная ошибка.";
-                if (error.code === 'auth/email-already-in-use') {
-                    errorMessage = "Этот email уже используется.";
-                } else if (error.message) {
-                    errorMessage = error.message;
-                }
-                toast({ variant: "destructive", title: "Ошибка создания сотрудника", description: errorMessage });
-            } finally {
-                // Clean up the temporary app instance
-                await deleteApp(tempApp);
+                toast({ variant: "destructive", title: "Ошибка создания сотрудника", description: error.message || "Ошибка сервера" });
             }
         });
     };
@@ -125,7 +132,7 @@ function AddUserDialog() {
                             name="telegramId"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Telegram ID</FormLabel>
+                                    <FormLabel>Telegram ID (необязательно)</FormLabel>
                                     <FormControl>
                                         <Input placeholder="123456789" {...field} />
                                     </FormControl>
@@ -141,19 +148,6 @@ function AddUserDialog() {
                                     <FormLabel>Email</FormLabel>
                                     <FormControl>
                                         <Input type="email" placeholder="user@example.com" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                         <FormField
-                            control={form.control}
-                            name="password"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Пароль</FormLabel>
-                                    <FormControl>
-                                        <Input type="password" placeholder="******" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -180,6 +174,35 @@ function AddUserDialog() {
                                 </FormItem>
                             )}
                         />
+                        <FormField
+                            control={form.control}
+                            name="locationId"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Локация (Филиал)</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Выберите локацию" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {locations.map((loc) => (
+                                                <SelectItem key={loc.id} value={loc.id}>
+                                                    {loc.name}
+                                                </SelectItem>
+                                            ))}
+                                            {locations.length === 0 && (
+                                                <SelectItem value="none" disabled>
+                                                    Локации не найдены
+                                                </SelectItem>
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                         <DialogFooter className="pt-4">
                             <DialogClose asChild>
                                 <Button type="button" variant="outline">Отмена</Button>
@@ -196,17 +219,23 @@ function AddUserDialog() {
     );
 }
 
-function EditUserDialog({ user }: { user: UserProfileServer }) {
+function EditUserDialog({ user, locations }: { user: UserProfileServer, locations: LocationDoc[] }) {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
     
     const [role, setRole] = useState(user.role || 'employee');
     const [telegramId, setTelegramId] = useState(user.telegramId || '');
+    const [locationId, setLocationId] = useState(user.locationId || '');
 
     const handleSave = () => {
         startTransition(async () => {
-            const result = await updateUserAction(user.id, { role, telegramId });
+            const result = await updateUserAction(user.id, { 
+                role, 
+                telegramId,
+                locationId: locationId || null,
+                locationIds: locationId ? [locationId] : null
+            });
             if (result.success) {
                 toast({ title: "Успех", description: "Данные пользователя обновлены." });
                 setIsOpen(false);
@@ -243,8 +272,10 @@ function EditUserDialog({ user }: { user: UserProfileServer }) {
                                 <SelectValue placeholder="Выберите роль" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="admin">Администратор</SelectItem>
+                                <SelectItem value="brand_admin">Администратор бренда</SelectItem>
                                 <SelectItem value="employee">Сотрудник</SelectItem>
+                                <SelectItem value="cashier">Кассир</SelectItem>
+                                <SelectItem value="outlet_admin">Администратор локации</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -256,6 +287,26 @@ function EditUserDialog({ user }: { user: UserProfileServer }) {
                             onChange={(e) => setTelegramId(e.target.value)}
                             placeholder="Введите Telegram ID"
                         />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="location">Локация</Label>
+                        <Select value={locationId} onValueChange={setLocationId}>
+                            <SelectTrigger id="location">
+                                <SelectValue placeholder="Выберите локацию" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {locations.map((loc) => (
+                                    <SelectItem key={loc.id} value={loc.id}>
+                                        {loc.name}
+                                    </SelectItem>
+                                ))}
+                                {locations.length === 0 && (
+                                    <SelectItem value="none" disabled>
+                                        Локации не созданы
+                                    </SelectItem>
+                                )}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
                 <DialogFooter>
@@ -275,13 +326,28 @@ function EditUserDialog({ user }: { user: UserProfileServer }) {
 
 export function ManageEmployeesCard() {
     const firestore = useFirestore();
+    const { orgId, role } = useFirebase();
 
-    // Use a real-time hook to listen for changes in the users collection.
-    // This is the definitive fix.
+    // 1. Fetch locations
+    const locationsQuery = useMemoFirebase(() => {
+        if (!firestore || !orgId) return null;
+        return query(collection(firestore, `organizations/${orgId}/locations`), orderBy('name', 'asc'));
+    }, [firestore, orgId]);
+
+    const { data: locations = [] } = useCollection<LocationDoc>(locationsQuery);
+
+    // 2. Fetch users (filter by brand orgId if not super_admin)
     const usersQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(collection(firestore, 'users'), orderBy('displayName', 'asc'));
-    }, [firestore]);
+        if (role === 'super_admin') {
+            return query(collection(firestore, 'users'), orderBy('displayName', 'asc'));
+        }
+        return query(
+            collection(firestore, 'users'),
+            where('orgId', '==', orgId || ''),
+            orderBy('displayName', 'asc')
+        );
+    }, [firestore, orgId, role]);
 
     const { data: users, isLoading } = useCollection<UserProfileServer>(usersQuery);
 
@@ -294,7 +360,7 @@ export function ManageEmployeesCard() {
                         Настройте роли и данные сотрудников для доступа к системе.
                     </CardDescription>
                 </div>
-                <AddUserDialog />
+                <AddUserDialog locations={locations || []} />
             </CardHeader>
             <CardContent>
                 <ScrollArea className="h-72">
@@ -318,10 +384,10 @@ export function ManageEmployeesCard() {
                                     <TableRow key={user.id}>
                                         <TableCell>{user.displayName || '-'}</TableCell>
                                         <TableCell>{user.email}</TableCell>
-                                        <TableCell>{user.role}</TableCell>
+                                        <TableCell className="capitalize text-xs font-semibold">{user.role?.replace('_', ' ') || '-'}</TableCell>
                                         <TableCell>{user.telegramId || '-'}</TableCell>
                                         <TableCell className="text-right">
-                                            <EditUserDialog user={user} />
+                                            <EditUserDialog user={user} locations={locations || []} />
                                         </TableCell>
                                     </TableRow>
                                 ))}

@@ -1,15 +1,41 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getPendingInventoryTasksAction, type InventoryTask } from './actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { FilePenLine } from 'lucide-react';
+import { FilePenLine, Loader2 } from 'lucide-react';
+import { useFirebase } from '@/firebase/provider';
 
-export const dynamic = 'force-dynamic';
+export default function InventoryTasksPage() {
+    const { orgId } = useFirebase();
+    const [tasks, setTasks] = useState<InventoryTask[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-export default async function InventoryTasksPage() {
-    const tasks = await getPendingInventoryTasksAction();
+    useEffect(() => {
+        if (!orgId) {
+            setIsLoading(false);
+            return;
+        }
+        async function loadTasks() {
+            setIsLoading(true);
+            const data = await getPendingInventoryTasksAction(orgId || undefined);
+            setTasks(data);
+            setIsLoading(false);
+        }
+        loadTasks();
+    }, [orgId]);
+
+    if (isLoading) {
+        return (
+             <div className="flex min-h-[400px] w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
 
     return (
         <Card>

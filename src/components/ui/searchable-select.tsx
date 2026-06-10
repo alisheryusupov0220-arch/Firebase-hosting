@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Check } from 'lucide-react';
 
@@ -74,7 +73,7 @@ export function SearchableSelect({
       />
       {isOpen && (
         <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-md shadow-lg">
-          <ScrollArea className="h-auto max-h-60" style={{ touchAction: 'auto' }}>
+          <div className="max-h-60 overflow-y-auto" style={{ touchAction: 'pan-y' }}>
             <div className="p-1">
               {filteredOptions.length > 0 ? (
                 filteredOptions.map((option) => (
@@ -95,7 +94,7 @@ export function SearchableSelect({
                 </div>
               )}
             </div>
-          </ScrollArea>
+          </div>
         </div>
       )}
     </div>

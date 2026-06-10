@@ -11,11 +11,11 @@ import {
 import { Plus, PackagePlus, PackageMinus } from 'lucide-react';
 import { AddSupplyDialog } from '../supplies/add-supply-dialog';
 import { AddWriteOffDialog } from '../write-offs/add-write-off-dialog';
-import type { LocalIngredient } from '@/app/ingredients/actions';
+import { type ERPItem } from '@/lib/types/erp';
 import { type Storage, type PosterSupplier } from '@/lib/poster';
 
 type FabMenuProps = {
-  ingredients: LocalIngredient[] | null;
+  ingredients: ERPItem[] | null;
   storages: Storage[];
   suppliers: PosterSupplier[];
 };

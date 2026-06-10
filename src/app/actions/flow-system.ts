@@ -1,7 +1,7 @@
 'use server';
 
-import { getFirebaseApp } from '@/firebase/server';
-import { getFirestore, collection, doc, setDoc, updateDoc, serverTimestamp, increment } from 'firebase/firestore';
+import { adminDb } from '@/firebase/server';
+import { FieldValue } from 'firebase-admin/firestore';
 import { SystemLog, SyncQueueItem } from '@/lib/types/erp';
 
 /**
@@ -9,17 +9,16 @@ import { SystemLog, SyncQueueItem } from '@/lib/types/erp';
  */
 export async function logSystemEventAction(data: Omit<SystemLog, 'id' | 'timestamp'>) {
     try {
-        const db = getFirestore(getFirebaseApp());
-        const logsCol = collection(db, 'system_logs');
-        const logId = doc(logsCol).id;
+        const logRef = adminDb.collection('system_logs').doc();
+        const logId = logRef.id;
         
-        await setDoc(doc(logsCol, logId), {
+        await logRef.set({
             id: logId,
             ...data,
-            timestamp: serverTimestamp()
+            timestamp: FieldValue.serverTimestamp()
         });
     } catch (e) {
-        console.error('CRITICAL: Logging failed!', e);
+        console.error('CRITICAL: Logging failed (Admin)!', e);
     }
 }
 
@@ -28,9 +27,8 @@ export async function logSystemEventAction(data: Omit<SystemLog, 'id' | 'timesta
  */
 export async function enqueueSyncTaskAction(action: string, payload: any) {
     try {
-        const db = getFirestore(getFirebaseApp());
-        const queueCol = collection(db, 'sync_queue');
-        const taskId = doc(queueCol).id;
+        const queueRef = adminDb.collection('sync_queue').doc();
+        const taskId = queueRef.id;
         
         const task: SyncQueueItem = {
             id: taskId,
@@ -38,12 +36,13 @@ export async function enqueueSyncTaskAction(action: string, payload: any) {
             action,
             payload,
             retryCount: 0,
-            timestamp: serverTimestamp()
+            timestamp: FieldValue.serverTimestamp()
         };
         
-        await setDoc(doc(queueCol, taskId), task);
+        await queueRef.set(task);
         return { success: true, taskId };
     } catch (error) {
+        console.error('Queue failed (Admin):', error);
         return { success: false, message: error instanceof Error ? error.message : 'Queue failed' };
     }
 }
@@ -52,21 +51,27 @@ export async function enqueueSyncTaskAction(action: string, payload: any) {
  * Mark Task as Completed
  */
 export async function completeSyncTaskAction(taskId: string) {
-    const db = getFirestore(getFirebaseApp());
-    await updateDoc(doc(db, 'sync_queue', taskId), {
-        status: 'COMPLETED',
-        processedAt: serverTimestamp()
-    });
+    try {
+        await adminDb.collection('sync_queue').doc(taskId).update({
+            status: 'COMPLETED',
+            processedAt: FieldValue.serverTimestamp()
+        });
+    } catch (e) {
+        console.error('Failed to complete sync task (Admin):', e);
+    }
 }
 
 /**
  * Mark Task as Failed (with Retry logic)
  */
 export async function failSyncTaskAction(taskId: string, error: string) {
-    const db = getFirestore(getFirebaseApp());
-    await updateDoc(doc(db, 'sync_queue', taskId), {
-        status: 'FAILED',
-        lastError: error,
-        retryCount: increment(1)
-    });
+    try {
+        await adminDb.collection('sync_queue').doc(taskId).update({
+            status: 'FAILED',
+            lastError: error,
+            retryCount: FieldValue.increment(1)
+        });
+    } catch (e) {
+        console.error('Failed to fail sync task (Admin):', e);
+    }
 }

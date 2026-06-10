@@ -17,8 +17,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Trash } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/firebase/hooks';
-import type { LocalIngredient } from '@/app/ingredients/actions';
+import { useUser, useFirebase } from '@/firebase/hooks';
+import { type ERPItem } from '@/lib/types/erp';
 import { SearchableSelect } from '../ui/searchable-select';
 import { translateUnit } from '@/lib/utils';
 import { createDirectWriteOffAction } from '@/app/write-offs/actions';
@@ -35,19 +35,20 @@ const formSchema = z.object({
 type CreateWriteOffFormValues = z.infer<typeof formSchema>;
 
 type CreateWriteOffFormProps = {
-  ingredients: LocalIngredient[] | null;
+  ingredients: ERPItem[] | null;
   onFormSubmitted: () => void;
 };
 
 export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWriteOffFormProps) {
   const { toast } = useToast();
   const { user } = useUser();
+  const { orgId } = useFirebase();
 
   const form = useForm<CreateWriteOffFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       comment: '',
-      ingredients: [{ ingredient_id: '', quantity: '' }],
+      ingredients: [{ ingredient_id: '', quantity: '' as unknown as number }],
     },
   });
 
@@ -73,21 +74,35 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
 
     const finalComment = `Сотрудник: ${user.email}. ${values.comment || ''}`.trim();
 
+    // We must format the date according to Poster API expectations (Y-m-d H:i:s)
+    const formattedDate = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const posterDate = `${formattedDate.getFullYear()}-${pad(formattedDate.getMonth() + 1)}-${pad(formattedDate.getDate())} ${pad(formattedDate.getHours())}:${pad(formattedDate.getMinutes())}:${pad(formattedDate.getSeconds())}`;
+
     const firstIngredientId = values.ingredients[0]?.ingredient_id;
     const firstIngredient = ingredients?.find(i => i.id === firstIngredientId);
-    const storageId = firstIngredient?.storage_id ? Number(firstIngredient.storage_id) : 1;
+    const storageId = 1; // Default to storage ID 1 since erp_items don't hold storage_id
 
     const writeOffData: CreateWriteOffData = {
-      storage_id: storageId,
-      reason: finalComment,
-      ingredients: values.ingredients.map(ing => ({
-        id: Number(ing.ingredient_id),
-        type: 4, // type 4 is ingredient from local base
-        weight: ing.quantity,
-      })),
+      write_off: {
+          date: posterDate,
+          storage_id: String(storageId),
+          reason: finalComment || 'Списание FLOW'
+      },
+      ingredient: values.ingredients.map(ing => {
+          const matchedIng = ingredients?.find(i => i.id === ing.ingredient_id);
+          // type 4 = ingredient, type 3 = semi-finished
+          const posterType = (matchedIng?.type === 'PRODUCT' || matchedIng?.type === 'SEMI_FINISHED') ? '3' : '4';
+          const posterId = matchedIng?.posterId || matchedIng?.id || ing.ingredient_id;
+          return {
+              id: String(posterId),
+              type: posterType,
+              weight: String(ing.quantity)
+          };
+      })
     };
 
-    const result = await createDirectWriteOffAction(writeOffData);
+    const result = await createDirectWriteOffAction(writeOffData, orgId || undefined);
     
     if (result.success) {
         toast({
@@ -117,7 +132,7 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
             {fields.map((field, index) => {
                 const selectedIngredientId = watchedIngredients[index]?.ingredient_id;
                 const selectedIngredient = ingredients?.find(ing => ing.id === selectedIngredientId);
-                const unit = selectedIngredient ? translateUnit(selectedIngredient.unit) : '';
+                const unit = selectedIngredient ? translateUnit(selectedIngredient.baseUnit) : '';
                 const isUnitBased = unit === 'штук';
                 const countPlaceholder = isUnitBased ? '1, 2, 3 шт' : '1.123 кг/л';
 
@@ -163,7 +178,7 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
                 variant="outline"
                 size="sm"
                 className="mt-2"
-                onClick={() => append({ ingredient_id: '', quantity: '' })}
+                onClick={() => append({ ingredient_id: '', quantity: '' as unknown as number })}
             >
                 Добавить ингредиент
             </Button>

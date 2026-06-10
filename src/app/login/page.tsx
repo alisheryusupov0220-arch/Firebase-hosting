@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { useAuth } from '@/firebase/hooks';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,12 +24,66 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Sync custom claims on login
+      const idToken = await user.getIdToken();
+      const res = await fetch('/api/auth/sync-claims', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error('Ошибка синхронизации прав.');
+      }
+
+      // Force refresh token to apply custom claims
+      await user.getIdToken(true);
+
       router.push('/supplies');
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Ошибка входа',
+        description: error.message,
+      });
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      const userCredential = await signInWithPopup(auth, provider);
+      const user = userCredential.user;
+
+      const idToken = await user.getIdToken();
+      const res = await fetch('/api/auth/sync-claims', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error('Ошибка синхронизации прав.');
+      }
+
+      await user.getIdToken(true);
+
+      toast({
+        title: 'Успешный вход!',
+        description: 'Вы вошли через Google.',
+      });
+      router.push('/supplies');
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Ошибка Google-входа',
         description: error.message,
       });
       setLoading(false);
@@ -79,6 +133,20 @@ export default function LoginPage() {
               Войти
             </Button>
           </form>
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Или</span>
+            </div>
+          </div>
+
+          <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignIn} disabled={loading}>
+            Войти через Google
+          </Button>
+
           <div className="mt-4 text-center text-sm">
             Еще нет аккаунта?{' '}
             <Link href="/register" className="underline">

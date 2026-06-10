@@ -1,7 +1,6 @@
 'use server';
 
-import { getFirebaseApp } from '@/firebase/server';
-import { getFirestore, doc, setDoc, collection, getDocs } from 'firebase/firestore';
+import { adminDb } from '@/firebase/server';
 import { UserRole, Location } from '@/lib/types/erp';
 
 /**
@@ -10,11 +9,8 @@ import { UserRole, Location } from '@/lib/types/erp';
  */
 export async function initializeERPStructureAction(userId: string, userEmail: string) {
     try {
-        const db = getFirestore(getFirebaseApp());
-
         // 1. Create a default location if no locations exist
-        const locationsCol = collection(db, 'locations');
-        const locationsSnap = await getDocs(locationsCol);
+        const locationsSnap = await adminDb.collection('locations').get();
         
         let defaultLocationId = 'main-warehouse';
         if (locationsSnap.empty) {
@@ -23,14 +19,13 @@ export async function initializeERPStructureAction(userId: string, userEmail: st
                 name: 'Основной склад',
                 type: 'WAREHOUSE'
             };
-            await setDoc(doc(db, 'locations', defaultLocationId), defaultLocation);
+            await adminDb.collection('locations').doc(defaultLocationId).set(defaultLocation);
         } else {
             defaultLocationId = locationsSnap.docs[0].id;
         }
 
         // 2. Set the current user as SUPER_ADMIN if they don't have a role
-        const userRef = doc(db, 'users', userId);
-        await setDoc(userRef, {
+        await adminDb.collection('users').doc(userId).set({
             uid: userId,
             email: userEmail,
             role: 'SUPER_ADMIN' as UserRole,
@@ -40,7 +35,7 @@ export async function initializeERPStructureAction(userId: string, userEmail: st
 
         return { success: true, message: 'ERP структура успешно инициализирована.' };
     } catch (error) {
-        console.error('Failed to initialize ERP structure:', error);
+        console.error('Failed to initialize ERP structure (Admin):', error);
         const message = error instanceof Error ? error.message : 'Неизвестная ошибка инициализации.';
         return { success: false, message: `Ошибка инициализации: ${message}` };
     }

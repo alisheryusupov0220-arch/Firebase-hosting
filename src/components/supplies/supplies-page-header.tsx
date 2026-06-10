@@ -1,11 +1,11 @@
 'use client';
 import { PageHeader } from '@/components/layout/page-header';
 import { AddSupplyDialog } from '@/components/supplies/add-supply-dialog';
-import type { LocalIngredient } from '@/app/ingredients/actions';
+import { type ERPItem } from '@/lib/types/erp';
 import { type Storage, type PosterSupplier } from '@/lib/poster';
 
 type SuppliesPageHeaderProps = {
-  ingredients: LocalIngredient[] | null;
+  ingredients: ERPItem[] | null;
   storages: Storage[];
   suppliers: PosterSupplier[];
 };

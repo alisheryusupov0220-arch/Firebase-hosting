@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/hooks';
+import { useFirebase } from '@/firebase/provider';
 import { saveInventoryTemplateAction, getInventoryTemplatesAction, type InventoryTemplate, startInventoryTaskAction } from '../actions';
 import { Edit, Loader2, Plus } from 'lucide-react';
 import { format } from 'date-fns';
@@ -19,6 +20,7 @@ import { useRouter } from 'next/navigation';
 export default function InventoryTemplatesPage() {
     const { toast } = useToast();
     const { user } = useUser();
+    const { orgId } = useFirebase();
     const router = useRouter();
     const [isSaving, startSavingTransition] = useTransition();
     const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
@@ -31,15 +33,20 @@ export default function InventoryTemplatesPage() {
     const [type, setType] = useState<'full' | 'partial'>('full');
 
     const fetchTemplates = async () => {
+        if (!orgId) return;
         setIsLoading(true);
-        const templatesData = await getInventoryTemplatesAction();
+        const templatesData = await getInventoryTemplatesAction(orgId);
         setTemplates(templatesData);
         setIsLoading(false);
     }
 
     useEffect(() => {
-        fetchTemplates();
-    }, []);
+        if (orgId) {
+            fetchTemplates();
+        } else {
+            setIsLoading(false);
+        }
+    }, [orgId]);
 
     const handleSaveTemplate = () => {
         if (!name.trim()) {
@@ -58,7 +65,7 @@ export default function InventoryTemplatesPage() {
                 type,
                 userId: user.uid,
                 userName: user.email || 'Unknown User',
-            });
+            }, orgId || undefined);
 
             if (result.success) {
                 toast({ title: 'Успех!', description: result.message });
@@ -83,6 +90,7 @@ export default function InventoryTemplatesPage() {
                 templateId: template.id,
                 userId: user.uid,
                 userName: user.email || 'Unknown User',
+                orgId: orgId || ''
             });
             setStartingTaskId(null);
             if (result.success) {

@@ -12,15 +12,16 @@ import {
 import { format } from 'date-fns';
 import { WriteOffsPageHeader } from '@/components/write-offs/write-offs-page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { type LocalIngredient } from '@/app/ingredients/actions';
+import { type ERPItem } from '@/lib/types/erp';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useFirestore } from '@/firebase/hooks';
-import { useMemoFirebase } from '@/firebase/provider';
+import { useMemoFirebase, useFirebase } from '@/firebase/provider';
 import { collection, query, orderBy } from 'firebase/firestore';
-import type { Waste } from '@/lib/poster';
+import { getWastes, type Waste } from '@/lib/poster';
+import { AlertCircle } from 'lucide-react';
 
 type WriteOffsPageClientProps = {
-    initialWastes: Waste[];
+    initialWastes?: Waste[];
 };
 
 const PageSkeleton = () => (
@@ -47,26 +48,53 @@ const PageSkeleton = () => (
 );
 
 
-export function WriteOffsPageClient({ initialWastes }: WriteOffsPageClientProps) {
+export function WriteOffsPageClient({ initialWastes = [] }: WriteOffsPageClientProps) {
+    const { orgId } = useFirebase();
+    const [wastes, setWastes] = useState<Waste[]>(initialWastes);
+    const [wastesError, setWastesError] = useState<string | null>(null);
+    const [wastesLoading, setWastesLoading] = useState(true);
     const [loading, setLoading] = useState(true);
 
     const firestore = useFirestore();
 
     const ingredientsQuery = useMemoFirebase(() => 
-        firestore 
-            ? query(collection(firestore, 'ingredients_master'), orderBy('name', 'asc'))
+        (firestore && orgId)
+            ? query(collection(firestore, 'organizations', orgId, 'erp_items'), orderBy('name', 'asc'))
             : null
-    , [firestore]);
+    , [firestore, orgId]);
 
-    const { data: ingredients, isLoading: ingredientsLoading } = useCollection<LocalIngredient>(ingredientsQuery);
+    const { data: ingredients, isLoading: ingredientsLoading } = useCollection<ERPItem>(ingredientsQuery);
 
     useEffect(() => {
         if (!ingredientsLoading) {
             setLoading(false);
         }
     }, [ingredientsLoading]);
+
+    useEffect(() => {
+        if (!orgId) {
+            setWastesLoading(false);
+            return;
+        }
+
+        const fetchWastes = async () => {
+            setWastesLoading(true);
+            setWastesError(null);
+            try {
+                const data = await getWastes(orgId);
+                setWastes(data);
+            } catch (e) {
+                const message = e instanceof Error ? e.message : 'Не удалось загрузить списания.';
+                setWastesError(message);
+            } finally {
+                setWastesLoading(false);
+            }
+        };
+
+        fetchWastes();
+    }, [orgId]);
     
-    if (loading) {
+    if (loading || wastesLoading) {
         return <PageSkeleton />;
     }
 
@@ -82,34 +110,44 @@ export function WriteOffsPageClient({ initialWastes }: WriteOffsPageClientProps)
                     <CardDescription>Список недавних списаний, полученных из Poster.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-[100px]">ID</TableHead>
-                                <TableHead>Дата</TableHead>
-                                <TableHead>Причина</TableHead>
-                                <TableHead className="text-right">Сумма</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {initialWastes.length > 0 ? (
-                                initialWastes.map((waste) => (
-                                    <TableRow key={waste.waste_id}>
-                                        <TableCell className="font-medium">{waste.waste_id}</TableCell>
-                                        <TableCell>{waste.date ? format(new Date(waste.date.replace(' ', 'T')), 'dd.MM.yyyy HH:mm') : '-'}</TableCell>
-                                        <TableCell>{waste.reason_name || '-'}</TableCell>
-                                        <TableCell className="text-right">{new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(waste.total_sum) / 100)}</TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
+                    {wastesError ? (
+                        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                            <div>
+                                <p className="font-medium">Не удалось загрузить списания</p>
+                                <p className="text-xs mt-1 text-amber-700">{wastesError}</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={4} className="h-24 text-center">
-                                        Списаний не найдено.
-                                    </TableCell>
+                                    <TableHead className="w-[100px]">ID</TableHead>
+                                    <TableHead>Дата</TableHead>
+                                    <TableHead>Причина</TableHead>
+                                    <TableHead className="text-right">Сумма</TableHead>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {wastes.length > 0 ? (
+                                    wastes.map((waste) => (
+                                        <TableRow key={waste.waste_id}>
+                                            <TableCell className="font-medium">{waste.waste_id}</TableCell>
+                                            <TableCell>{waste.date ? format(new Date(waste.date.replace(' ', 'T')), 'dd.MM.yyyy HH:mm') : '-'}</TableCell>
+                                            <TableCell>{waste.reason_name || '-'}</TableCell>
+                                            <TableCell className="text-right">{new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(waste.total_sum) / 100)}</TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="h-24 text-center">
+                                            Списаний не найдено.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    )}
                 </CardContent>
             </Card>
         </div>

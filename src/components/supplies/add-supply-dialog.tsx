@@ -12,11 +12,11 @@ import {
 } from '@/components/ui/dialog';
 import { PlusCircle } from 'lucide-react';
 import { CreateSupplyForm } from './create-supply-form';
-import type { LocalIngredient } from '@/app/ingredients/actions';
+import { type ERPItem } from '@/lib/types/erp';
 import { type Storage, type PosterSupplier } from '@/lib/poster';
 
 type AddSupplyDialogProps = {
-  ingredients: LocalIngredient[] | null;
+  ingredients: ERPItem[] | null;
   storages: Storage[];
   suppliers: PosterSupplier[];
   open?: boolean;
@@ -41,7 +41,7 @@ export function AddSupplyDialog({ ingredients, storages, suppliers, open, onOpen
       <CreateSupplyForm
         ingredients={ingredients}
         storages={storages}
-        suppliers={suppliers}
+        suppliers={suppliers as any}
         onFormSubmitted={() => setIsOpen(false)}
       />
     </DialogContent>

@@ -1,14 +1,12 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getFirebaseApp } from '@/firebase/server';
-import { getFirestore, collection, writeBatch, doc, getDocs, query, orderBy } from 'firebase/firestore';
+import { adminDb } from '@/firebase/server';
 import { getIngredients, getProducts } from '@/lib/poster';
 
 export async function syncIngredientsAction() {
     try {
-        const db = getFirestore(getFirebaseApp());
-        const batch = writeBatch(db);
+        const batch = adminDb.batch();
 
         // Fetch all data from Poster
         const [ingredients, products] = await Promise.all([
@@ -16,7 +14,7 @@ export async function syncIngredientsAction() {
             getProducts() // Fetch without composition
         ]);
         
-        const ingredientsMasterCollection = collection(db, 'ingredients_master');
+        const ingredientsMasterCollection = adminDb.collection('ingredients_master');
         const nameSet = new Set<string>();
 
         // Process ingredients from menu.getIngredients
@@ -27,7 +25,7 @@ export async function syncIngredientsAction() {
             const docId = String(ing.ingredient_id);
             if (!docId || docId === 'undefined' || docId === 'null') return;
 
-            const docRef = doc(ingredientsMasterCollection, docId);
+            const docRef = ingredientsMasterCollection.doc(docId);
             batch.set(docRef, {
                 id: docId,
                 name: name,
@@ -50,7 +48,7 @@ export async function syncIngredientsAction() {
             if (!docId || docId === 'undefined' || docId === 'null') return;
 
             // These products act like ingredients. Use their own product_id as the key.
-            const docRef = doc(ingredientsMasterCollection, docId);
+            const docRef = ingredientsMasterCollection.doc(docId);
             batch.set(docRef, {
                 id: docId,
                 name: name,
@@ -70,7 +68,7 @@ export async function syncIngredientsAction() {
 
         return { success: true, count: nameSet.size };
     } catch (error) {
-        console.error('Failed to sync ingredients:', error);
+        console.error('Failed to sync ingredients (Admin):', error);
         const message = error instanceof Error ? error.message : 'Произошла неизвестная ошибка.';
         return { success: false, message: `Ошибка синхронизации: ${message}` };
     }
@@ -86,18 +84,25 @@ export type LocalIngredient = {
 };
 
 
-export async function getLocalIngredients(): Promise<LocalIngredient[]> {
+export async function getLocalIngredients(orgId?: string): Promise<LocalIngredient[]> {
     try {
-        const db = getFirestore(getFirebaseApp());
-        const ingredientsQuery = query(collection(db, 'ingredients_master'), orderBy('name', 'asc'));
-        const querySnapshot = await getDocs(ingredientsQuery);
+        const targetOrgId = orgId || 'org_84a3zjo2'; // fallback default
+        const querySnapshot = await adminDb.collection(`organizations/${targetOrgId}/erp_items`).orderBy('name', 'asc').get();
         const ingredients: LocalIngredient[] = [];
         querySnapshot.forEach((doc) => {
-            ingredients.push(doc.data() as LocalIngredient);
+            const data = doc.data();
+            ingredients.push({
+                id: doc.id,
+                name: data.name || '',
+                unit: data.baseUnit || '',
+                type: data.type === 'SEMI_FINISHED' || data.type === 'PRODUCT' ? 'product' : 'ingredient',
+                poster_ingredient_id: data.posterId || null,
+                storage_id: null
+            });
         });
         return ingredients;
     } catch (error) {
-        console.error('Failed to get local ingredients:', error);
+        console.error('Failed to get local ingredients (Admin):', error);
         return [];
     }
 }

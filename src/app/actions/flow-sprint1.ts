@@ -1,20 +1,22 @@
 'use server';
 
-import { getFirebaseApp } from '@/firebase/server';
-import { getFirestore, collection, getDocs } from 'firebase/firestore';
+import { adminDb } from '@/firebase/server';
 import { ERPItem } from '@/lib/types/erp';
 import { getStorageFullBalance } from '@/lib/poster';
+import { revalidatePath } from 'next/cache';
 
 /**
- * Fetches Local ERP Items and enriches them with Live Poster Stock.
+ * Fetches Local ERP Items and enriches them with Live Poster Stock using ADMIN privileges.
  */
 export async function getItemsWithLiveStockAction(storageId: string) {
     try {
-        const db = getFirestore(getFirebaseApp());
+        console.log(`[Admin Sync] Fetching ERP Items and Stock for Storage: ${storageId}`);
         
-        // 1. Get Local ERP Items
-        const erpItemsSnap = await getDocs(collection(db, 'erp_items'));
-        const erpItems = erpItemsSnap.docs.map(doc => ({ ...doc.data() } as ERPItem));
+        // 1. Get Local ERP Items (Admin bypasses Rules)
+        const erpItemsSnap = await adminDb.collection('erp_items').get();
+        const erpItems = erpItemsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ERPItem));
+
+        console.log(`[Admin Sync] Found ${erpItems.length} items in local database.`);
 
         // 2. Get Live Balance from Poster for the Storage
         const posterBalances = await getStorageFullBalance(storageId);
@@ -31,7 +33,25 @@ export async function getItemsWithLiveStockAction(storageId: string) {
 
         return { success: true, items: enrichedItems };
     } catch (error) {
-        console.error('Sprint 1 Sync Failed:', error);
+        console.error('Sprint 1 Admin Sync Failed:', error);
         return { success: false, items: [], message: error instanceof Error ? error.message : 'Unknown error' };
+    }
+}
+
+/**
+ * Updates a local ERP item with manual overrides (Admin).
+ */
+export async function updateERPItemAction(itemId: string, data: Partial<ERPItem>) {
+    try {
+        await adminDb.collection('erp_items').doc(itemId).set({
+            ...data,
+            updatedAt: new Date()
+        }, { merge: true });
+
+        revalidatePath('/ingredients');
+        return { success: true };
+    } catch (error) {
+        console.error('Failed to update ERP Item (Admin):', error);
+        return { success: false, message: error instanceof Error ? error.message : 'Unknown error' };
     }
 }

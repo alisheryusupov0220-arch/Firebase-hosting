@@ -1,13 +1,14 @@
 'use server';
 
-import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, getDocs, Timestamp, doc, getDoc, updateDoc, writeBatch, where } from 'firebase/firestore';
-import { getFirebaseApp } from '@/firebase/server';
+import { adminDb } from '@/firebase/server';
 import { getLocalIngredients, type LocalIngredient } from '@/app/ingredients/actions';
 import { revalidatePath } from 'next/cache';
+import { FieldValue } from 'firebase-admin/firestore';
+import { orgCol } from '@/lib/db-paths';
 
 // This action fetches all ingredients from our local master list.
-export async function getIngredientsForInventory(): Promise<LocalIngredient[]> {
-    return getLocalIngredients();
+export async function getIngredientsForInventory(orgId: string): Promise<LocalIngredient[]> {
+    return getLocalIngredients(orgId);
 }
 
 export type InventoryItemData = {
@@ -25,28 +26,28 @@ export type SaveInventoryPayload = {
 };
 
 // This server action saves the inventory count and completes the task.
-export async function saveInventoryCountAction(payload: SaveInventoryPayload & { taskId: string }) {
+export async function saveInventoryCountAction(payload: SaveInventoryPayload & { taskId: string; orgId: string }) {
     if (!payload.items || payload.items.length === 0) {
         return { success: false, message: 'Нет данных для сохранения.' };
     }
 
     try {
-        const db = getFirestore(getFirebaseApp());
-        const batch = writeBatch(db);
+        const batch = adminDb.batch();
+        const orgId = payload.orgId || 'org_84a3zjo2';
 
         // 1. Save the new inventory count report
-        const inventoryCountsCollection = collection(db, 'inventory_counts');
-        const newCountRef = doc(inventoryCountsCollection);
+        const newCountRef = adminDb.collection(orgCol(orgId).inventoryCounts).doc();
         batch.set(newCountRef, {
             comment: payload.comment,
             items: payload.items,
             userId: payload.userId,
             userName: payload.userName,
-            createdAt: serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
+            orgId
         });
 
         // 2. Mark the task as completed
-        const taskRef = doc(db, 'inventory_tasks', payload.taskId);
+        const taskRef = adminDb.collection(orgCol(orgId).inventoryTasks).doc(payload.taskId);
         batch.update(taskRef, { status: 'completed' });
 
         await batch.commit();
@@ -56,7 +57,7 @@ export async function saveInventoryCountAction(payload: SaveInventoryPayload & {
 
         return { success: true, message: 'Инвентаризация успешно сохранена.' };
     } catch (error) {
-        console.error('Failed to save inventory count:', error);
+        console.error('Failed to save inventory count (Admin):', error);
         const message = error instanceof Error ? error.message : 'Произошла неизвестная ошибка.';
         return { success: false, message: `Ошибка сохранения: ${message}` };
     }
@@ -68,15 +69,14 @@ export type InventoryCountHistoryItem = SaveInventoryPayload & {
     createdAt: { seconds: number, nanoseconds: number };
 };
 
-export async function getInventoryHistoryAction(): Promise<InventoryCountHistoryItem[]> {
+export async function getInventoryHistoryAction(orgId?: string): Promise<InventoryCountHistoryItem[]> {
     try {
-        const db = getFirestore(getFirebaseApp());
-        const countsQuery = query(collection(db, 'inventory_counts'), orderBy('createdAt', 'desc'));
-        const querySnapshot = await getDocs(countsQuery);
+        const targetOrgId = orgId || 'org_84a3zjo2';
+        const querySnapshot = await adminDb.collection(orgCol(targetOrgId).inventoryCounts).orderBy('createdAt', 'desc').get();
         const history: InventoryCountHistoryItem[] = [];
         querySnapshot.forEach((doc) => {
             const data = doc.data();
-            const createdAtTimestamp = data.createdAt as Timestamp;
+            const createdAtTimestamp = data.createdAt;
 
             if (createdAtTimestamp) {
                 const historyItem: InventoryCountHistoryItem = {
@@ -95,7 +95,7 @@ export async function getInventoryHistoryAction(): Promise<InventoryCountHistory
         });
         return history;
     } catch (error) {
-        console.error('Failed to get inventory history:', error);
+        console.error('Failed to get inventory history (Admin):', error);
         return [];
     }
 }
@@ -111,21 +111,20 @@ export type InventoryTemplateData = {
     userName: string;
 };
 
-export async function saveInventoryTemplateAction(payload: InventoryTemplateData) {
+export async function saveInventoryTemplateAction(payload: InventoryTemplateData, orgId?: string) {
     try {
-        const db = getFirestore(getFirebaseApp());
-        const templatesCollection = collection(db, 'inventory_templates');
-
-        await addDoc(templatesCollection, {
+        const targetOrgId = orgId || 'org_84a3zjo2';
+        await adminDb.collection(orgCol(targetOrgId).inventoryTemplates).add({
             ...payload,
-            createdAt: serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
             ingredientIds: payload.type === 'full' ? [] : [], 
+            orgId: targetOrgId
         });
 
         revalidatePath('/inventory/templates');
         return { success: true, message: 'Шаблон успешно сохранен.' };
     } catch (error) {
-        console.error('Failed to save inventory template:', error);
+        console.error('Failed to save inventory template (Admin):', error);
         const message = error instanceof Error ? error.message : 'Произошла неизвестная ошибка.';
         return { success: false, message: `Ошибка сохранения: ${message}` };
     }
@@ -137,15 +136,14 @@ export type InventoryTemplate = InventoryTemplateData & {
     ingredientIds: string[];
 };
 
-export async function getInventoryTemplatesAction(): Promise<InventoryTemplate[]> {
+export async function getInventoryTemplatesAction(orgId?: string): Promise<InventoryTemplate[]> {
     try {
-        const db = getFirestore(getFirebaseApp());
-        const templatesQuery = query(collection(db, 'inventory_templates'), orderBy('createdAt', 'desc'));
-        const querySnapshot = await getDocs(templatesQuery);
+        const targetOrgId = orgId || 'org_84a3zjo2';
+        const querySnapshot = await adminDb.collection(orgCol(targetOrgId).inventoryTemplates).orderBy('createdAt', 'desc').get();
         const templates: InventoryTemplate[] = [];
         querySnapshot.forEach((doc) => {
             const data = doc.data();
-            const createdAtTimestamp = data.createdAt as Timestamp;
+            const createdAtTimestamp = data.createdAt;
             
             if (createdAtTimestamp) {
                 const templateItem: InventoryTemplate = {
@@ -166,27 +164,26 @@ export async function getInventoryTemplatesAction(): Promise<InventoryTemplate[]
         });
         return templates;
     } catch (error) {
-        console.error('Failed to get inventory templates:', error);
+        console.error('Failed to get inventory templates (Admin):', error);
         return [];
     }
 }
 
 // New action to update ingredients in a template
-export async function updateTemplateIngredientsAction(templateId: string, ingredientIds: string[]) {
+export async function updateTemplateIngredientsAction(templateId: string, ingredientIds: string[], orgId?: string) {
     if (!templateId) {
         return { success: false, message: 'Не указан ID шаблона.' };
     }
     try {
-        const db = getFirestore(getFirebaseApp());
-        const templateRef = doc(db, 'inventory_templates', templateId);
-        await updateDoc(templateRef, { ingredientIds });
+        const targetOrgId = orgId || 'org_84a3zjo2';
+        await adminDb.collection(orgCol(targetOrgId).inventoryTemplates).doc(templateId).update({ ingredientIds });
         
         revalidatePath(`/inventory/templates/edit/${templateId}`);
         revalidatePath('/inventory/templates');
 
         return { success: true, message: 'Список ингредиентов в шаблоне обновлен.' };
     } catch (error) {
-        console.error('Failed to update template ingredients:', error);
+        console.error('Failed to update template ingredients (Admin):', error);
         const message = error instanceof Error ? error.message : 'Произошла неизвестная ошибка.';
         return { success: false, message: `Ошибка обновления: ${message}` };
     }
@@ -207,21 +204,18 @@ export type InventoryTask = {
 };
 
 // New action to start an inventory task from a template
-export async function startInventoryTaskAction({ templateId, userId, userName }: { templateId: string; userId: string; userName: string; }) {
+export async function startInventoryTaskAction({ templateId, userId, userName, orgId }: { templateId: string; userId: string; userName: string; orgId: string }) {
     try {
-        const db = getFirestore(getFirebaseApp());
-        
-        const templateRef = doc(db, 'inventory_templates', templateId);
-        const templateSnap = await getDoc(templateRef);
+        const templateSnap = await adminDb.collection(orgCol(orgId).inventoryTemplates).doc(templateId).get();
 
-        if (!templateSnap.exists()) {
+        if (!templateSnap.exists) {
             return { success: false, message: 'Шаблон не найден.' };
         }
-        const template = templateSnap.data();
+        const template = templateSnap.data()!;
 
         let ingredientIds: string[] = [];
         if (template.type === 'full') {
-            const allIngredients = await getLocalIngredients();
+            const allIngredients = await getLocalIngredients(orgId);
             ingredientIds = allIngredients.map(ing => ing.id);
         } else {
             ingredientIds = template.ingredientIds || [];
@@ -230,37 +224,36 @@ export async function startInventoryTaskAction({ templateId, userId, userName }:
             }
         }
 
-        const tasksCollection = collection(db, 'inventory_tasks');
-        await addDoc(tasksCollection, {
+        await adminDb.collection(orgCol(orgId).inventoryTasks).add({
             templateId: templateId,
             templateName: template.name,
             status: 'pending',
-            createdAt: serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
             createdBy: userId,
             createdByName: userName,
-            ingredientIds: ingredientIds
+            ingredientIds: ingredientIds,
+            orgId
         });
 
         revalidatePath('/inventory');
 
         return { success: true, message: `Задание "${template.name}" создано.` };
     } catch (error) {
-        console.error('Failed to start inventory task:', error);
+        console.error('Failed to start inventory task (Admin):', error);
         const message = error instanceof Error ? error.message : 'Произошла неизвестная ошибка.';
         return { success: false, message: `Ошибка запуска: ${message}` };
     }
 }
 
 // Get all pending tasks
-export async function getPendingInventoryTasksAction(): Promise<InventoryTask[]> {
+export async function getPendingInventoryTasksAction(orgId?: string): Promise<InventoryTask[]> {
     try {
-        const db = getFirestore(getFirebaseApp());
-        const tasksQuery = query(collection(db, 'inventory_tasks'), where('status', '==', 'pending'));
-        const querySnapshot = await getDocs(tasksQuery);
+        const targetOrgId = orgId || 'org_84a3zjo2';
+        const querySnapshot = await adminDb.collection(orgCol(targetOrgId).inventoryTasks).where('status', '==', 'pending').get();
         const tasks: InventoryTask[] = [];
         querySnapshot.forEach((doc) => {
              const data = doc.data();
-             const createdAtTimestamp = data.createdAt as Timestamp;
+             const createdAtTimestamp = data.createdAt;
              if (createdAtTimestamp) {
                  tasks.push({
                     id: doc.id,
@@ -275,22 +268,20 @@ export async function getPendingInventoryTasksAction(): Promise<InventoryTask[]>
         tasks.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
         return tasks;
     } catch (error) {
-        console.error('Failed to get pending tasks:', error);
+        console.error('Failed to get pending tasks (Admin):', error);
         return [];
     }
 }
 
 // Get the specific ingredients for a single task
-export async function getTaskWithIngredients(taskId: string): Promise<{ task: InventoryTask, ingredients: LocalIngredient[] } | null> {
+export async function getTaskWithIngredients(taskId: string, orgId: string): Promise<{ task: InventoryTask, ingredients: LocalIngredient[] } | null> {
     try {
-        const db = getFirestore(getFirebaseApp());
-        const taskRef = doc(db, 'inventory_tasks', taskId);
-        const taskSnap = await getDoc(taskRef);
+        const taskSnap = await adminDb.collection(orgCol(orgId).inventoryTasks).doc(taskId).get();
 
-        if (!taskSnap.exists()) return null;
+        if (!taskSnap.exists) return null;
         
-        const taskData = taskSnap.data();
-        const createdAtTimestamp = taskData.createdAt as Timestamp;
+        const taskData = taskSnap.data()!;
+        const createdAtTimestamp = taskData.createdAt;
         const task = { 
             id: taskSnap.id, 
             ...taskData,
@@ -304,7 +295,7 @@ export async function getTaskWithIngredients(taskId: string): Promise<{ task: In
              return { task, ingredients: [] };
         }
 
-        const allIngredients = await getLocalIngredients();
+        const allIngredients = await getLocalIngredients(orgId);
         const allIngredientsMap = new Map(allIngredients.map(ing => [ing.id, ing]));
         
         const taskIngredients = task.ingredientIds
@@ -314,7 +305,7 @@ export async function getTaskWithIngredients(taskId: string): Promise<{ task: In
         return { task, ingredients: taskIngredients };
 
     } catch (error) {
-        console.error('Failed to get task with ingredients:', error);
+        console.error('Failed to get task with ingredients (Admin):', error);
         return null;
     }
 }

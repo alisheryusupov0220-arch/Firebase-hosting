@@ -11,7 +11,7 @@ import { ru } from 'date-fns/locale';
 import { translateUnit } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 import { doc } from 'firebase/firestore';
-import { useMemoFirebase } from '@/firebase/provider';
+import { useMemoFirebase, useFirebase } from '@/firebase/provider';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +28,7 @@ function groupCountsByDay(counts: InventoryCountHistoryItem[]): Record<string, I
 
 export default function InventoryHistoryPage() {
     const { user } = useUser();
+    const { orgId } = useFirebase();
     const firestore = useFirestore();
     const [history, setHistory] = useState<InventoryCountHistoryItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -40,14 +41,18 @@ export default function InventoryHistoryPage() {
     const { data: userProfile } = useDoc(userProfileRef);
 
     useEffect(() => {
+        if (!orgId) {
+            setIsLoading(false);
+            return;
+        }
         async function loadHistory() {
             setIsLoading(true);
-            const historyData = await getInventoryHistoryAction();
+            const historyData = await getInventoryHistoryAction(orgId || undefined);
             setHistory(historyData);
             setIsLoading(false);
         }
         loadHistory();
-    }, []);
+    }, [orgId]);
 
     const displayedHistory = userProfile?.role === 'employee' ? history.slice(0, 1) : history;
     const groupedHistory = groupCountsByDay(displayedHistory);

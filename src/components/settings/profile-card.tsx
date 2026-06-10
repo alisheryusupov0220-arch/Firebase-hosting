@@ -1,6 +1,6 @@
 'use client';
 import { useUser, useFirestore, useDoc } from '@/firebase/hooks';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -8,13 +8,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '../ui/skeleton';
 import { useMemoFirebase } from '@/firebase/provider';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { errorEmitter } from '@/firebase/error-emitter';
+import { updateUserAction } from '@/app/settings/actions';
 
 type UserProfile = {
     displayName: string;
     email: string;
-    role: 'admin' | 'employee';
+    role: 'admin' | 'employee' | 'brand_admin' | 'super_admin';
 };
 
 export function ProfileCard() {
@@ -30,27 +29,38 @@ export function ProfileCard() {
     const { data: userProfile, isLoading: profileLoading } = useDoc<UserProfile>(userProfileRef);
 
     const handleRoleChange = async (newRole: 'admin' | 'employee') => {
-        if (!firestore || !user?.uid) return;
-        
-        const userDocRef = doc(firestore, 'users', user.uid);
+        if (!user?.uid) return;
         
         try {
-            await updateDoc(userDocRef, { role: newRole });
+            const dbRole = newRole === 'admin' ? 'brand_admin' : 'employee';
+            const res = await updateUserAction(user.uid, { role: dbRole });
+            
+            if (!res.success) {
+                throw new Error(res.message);
+            }
+            
+            // Sync claims so the user gets updated client-side permissions immediately
+            const idToken = await user.getIdToken();
+            const syncRes = await fetch('/api/auth/sync-claims', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${idToken}`,
+                },
+            });
+            if (syncRes.ok) {
+                await user.getIdToken(true); // Force refresh token
+            }
+
             toast({
                 title: 'Успех!',
-                description: `Ваша роль обновлена на "${newRole}".`,
+                description: `Ваша роль обновлена на "${newRole === 'admin' ? 'Администратор' : 'Сотрудник'}".`,
             });
-        } catch (error) {
-             const permissionError = new FirestorePermissionError({
-                path: userDocRef.path,
-                operation: 'update',
-                requestResourceData: { role: newRole },
-            });
-            errorEmitter.emit('permission-error', permissionError);
+        } catch (error: any) {
+            console.error('Failed to update role:', error);
             toast({
                 variant: 'destructive',
                 title: 'Ошибка обновления роли',
-                description: 'Недостаточно прав для выполнения операции. Попробуйте обновить страницу.',
+                description: error.message || 'Не удалось обновить роль. Попробуйте обновить страницу.',
             });
         }
     };
@@ -78,6 +88,8 @@ export function ProfileCard() {
         );
     }
     
+    const mappedRole = userProfile?.role === 'brand_admin' || userProfile?.role === 'super_admin' ? 'admin' : (userProfile?.role || 'employee');
+
     return (
         <Card>
             <CardHeader>
@@ -95,7 +107,7 @@ export function ProfileCard() {
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="role">Роль</Label>
-                    <Select value={userProfile?.role} onValueChange={handleRoleChange}>
+                    <Select value={mappedRole} onValueChange={handleRoleChange}>
                         <SelectTrigger id="role" className="w-full">
                             <SelectValue placeholder="Выберите роль..." />
                         </SelectTrigger>

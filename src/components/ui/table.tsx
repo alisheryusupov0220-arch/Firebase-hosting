@@ -36,6 +36,51 @@ const TableBody = React.forwardRef<
 ))
 TableBody.displayName = "TableBody"
 
+/**
+ * TableBodyWithKeys – a reusable wrapper that renders items as <TableRow> children
+ * with guaranteed unique keys, eliminating the React "Each child in a list should
+ * have a unique key" console warning.
+ *
+ * Usage:
+ *   <TableBodyWithKeys
+ *     items={myArray}
+ *     getKey={(item) => item.id}
+ *     renderRow={(item) => (
+ *       <TableRow>
+ *         <TableCell>{item.name}</TableCell>
+ *       </TableRow>
+ *     )}
+ *     emptyRow={<TableRow><TableCell colSpan={3}>Нет данных</TableCell></TableRow>}
+ *   />
+ */
+interface TableBodyWithKeysProps<T> {
+  items: T[];
+  getKey: (item: T, index: number) => string | number;
+  renderRow: (item: T, index: number) => React.ReactElement;
+  emptyRow?: React.ReactElement;
+  className?: string;
+}
+
+function TableBodyWithKeys<T>({
+  items,
+  getKey,
+  renderRow,
+  emptyRow,
+  className,
+}: TableBodyWithKeysProps<T>) {
+  return (
+    <TableBody className={className}>
+      {items.length > 0
+        ? items.map((item, index) =>
+            React.cloneElement(renderRow(item, index), {
+              key: getKey(item, index),
+            })
+          )
+        : emptyRow ?? null}
+    </TableBody>
+  );
+}
+
 const TableFooter = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
@@ -109,9 +154,11 @@ export {
   Table,
   TableHeader,
   TableBody,
+  TableBodyWithKeys,
   TableFooter,
   TableHead,
   TableRow,
   TableCell,
   TableCaption,
 }
+

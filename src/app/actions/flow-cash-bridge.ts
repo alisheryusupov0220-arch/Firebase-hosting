@@ -1,9 +1,9 @@
 'use server';
 
-import { getFirebaseApp } from '@/firebase/server';
-import { getFirestore, collection, doc, setDoc, updateDoc, getDocs, query, where, serverTimestamp, increment } from 'firebase/firestore';
+import { adminDb } from '@/firebase/server';
 import { AccountsPayable, AccountingStatus, OrderRequest } from '@/lib/types/erp';
 import { revalidatePath } from 'next/cache';
+import { FieldValue } from 'firebase-admin/firestore';
 
 /**
  * Stage: Final Bridge. 
@@ -12,25 +12,24 @@ import { revalidatePath } from 'next/cache';
  */
 export async function createAccountsPayableAction(order: OrderRequest, totalAmount: number) {
     try {
-        const db = getFirestore(getFirebaseApp());
-        const apCol = collection(db, 'accounts_payable');
         const apId = order.id; // Linking 1:1 with OrderId for simplicity
 
         const apRecord: AccountsPayable = {
             id: apId,
-            supplierId: order.supplierId,
+            supplierId: order.supplierId || '',
             totalAmount: totalAmount,
             paidAmount: 0,
             remainingAmount: totalAmount,
             status: 'WAITING_INVOICE',
             orderId: order.id,
-            createdAt: serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
         };
 
-        await setDoc(doc(apCol, apId), apRecord);
+        await adminDb.collection('accounts_payable').doc(apId).set(apRecord);
         revalidatePath('/orders');
         return { success: true };
     } catch (error) {
+        console.error('AP creation failed (Admin):', error);
         return { success: false, message: error instanceof Error ? error.message : 'AP creation failed' };
     }
 }
@@ -41,20 +40,19 @@ export async function createAccountsPayableAction(order: OrderRequest, totalAmou
  */
 export async function reconcilePaymentFromCashAction(apId: string, paymentAmount: number, paymentRef: string) {
     try {
-        const db = getFirestore(getFirebaseApp());
-        const apRef = doc(db, 'accounts_payable', apId);
+        const apRef = adminDb.collection('accounts_payable').doc(apId);
+        const apSnap = await apRef.get();
         
-        const apSnap = await getDocs(query(collection(db, 'accounts_payable'), where('id', '==', apId)));
-        if (apSnap.empty) throw new Error('AccountsPayable record not found');
+        if (!apSnap.exists) throw new Error('AccountsPayable record not found');
         
-        const apData = apSnap.docs[0].data() as AccountsPayable;
+        const apData = apSnap.data() as AccountsPayable;
         const newPaidAmount = apData.paidAmount + paymentAmount;
         const newRemaining = apData.totalAmount - newPaidAmount;
         
         let status: AccountingStatus = 'PARTIAL_PAID';
         if (newRemaining <= 0) status = 'PAID';
 
-        await updateDoc(apRef, {
+        await apRef.update({
             paidAmount: newPaidAmount,
             remainingAmount: newRemaining,
             status: status,
@@ -62,13 +60,14 @@ export async function reconcilePaymentFromCashAction(apId: string, paymentAmount
         });
 
         // Also update the main order status if needed
-        await updateDoc(doc(db, 'order_requests', apId), {
+        await adminDb.collection('order_requests').doc(apId).update({
             accountingStatus: status
         });
 
         revalidatePath('/orders');
         return { success: true };
     } catch (error) {
+        console.error('Reconciliation failed (Admin):', error);
         return { success: false, message: error instanceof Error ? error.message : 'Reconciliation failed' };
     }
 }
@@ -79,14 +78,11 @@ export async function reconcilePaymentFromCashAction(apId: string, paymentAmount
  */
 export async function getCostSummaryForPnLAction(startDate: Date, endDate: Date) {
     try {
-        const db = getFirestore(getFirebaseApp());
-        const apQuery = query(
-            collection(db, 'accounts_payable'),
-            where('createdAt', '>=', startDate),
-            where('createdAt', '<=', endDate)
-        );
+        const snap = await adminDb.collection('accounts_payable')
+            .where('createdAt', '>=', startDate)
+            .where('createdAt', '<=', endDate)
+            .get();
 
-        const snap = await getDocs(apQuery);
         let totalCost = 0;
         
         snap.forEach(doc => {
@@ -95,6 +91,7 @@ export async function getCostSummaryForPnLAction(startDate: Date, endDate: Date)
 
         return { success: true, totalCost };
     } catch (error) {
+        console.error('Failed to fetch costs (Admin):', error);
         return { success: false, totalCost: 0, message: error instanceof Error ? error.message : 'Failed to fetch costs' };
     }
 }

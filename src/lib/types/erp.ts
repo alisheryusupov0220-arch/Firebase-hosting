@@ -1,39 +1,30 @@
 /**
- * FLOW ERP Core Types
- * Definitions for items, stock, transactions, and access control.
+ * FLOW ERP Core Types - REBUILT (NO LEGACY SUPPLIERS)
  */
 
 export type ItemType = 'RAW' | 'PRODUCT' | 'SEMI_FINISHED' | 'DISH' | 'OTHER';
 export type UnitType = 'KG' | 'L' | 'PCS' | 'PORTION' | 'PACK';
 export type TransactionType = 'PURCHASE' | 'WRITE_OFF' | 'TRANSFER' | 'SALE' | 'INVENTORY' | 'PRODUCTION' | 'PAYMENT';
-export type UserRole = 'SUPER_ADMIN' | 'MANAGER' | 'STAFF_POINT' | 'KITCHEN';
-export type OrderStatus = 'DRAFT' | 'APPROVED' | 'WAITING_FOR_PROVIDER' | 'SUPPLIER_CONFIRMED' | 'VERIFIED_ON_GATE' | 'FINAL_WEIGHTED' | 'POSTED_TO_POSTER';
-export type AccountingStatus = 'WAITING_INVOICE' | 'DEDOX_VERIFIED' | 'PAID' | 'PARTIAL_PAID';
+export type UserRole = 'super_admin' | 'brand_admin' | 'outlet_admin' | 'employee' | 'cashier';
+export type OrderStatus = 'NEED_REVIEW' | 'DRAFT' | 'APPROVED' | 'WAITING_FOR_PROVIDER' | 'SUPPLIER_CONFIRMED' | 'VERIFIED_ON_GATE' | 'FINAL_WEIGHTED' | 'POSTED_TO_POSTER' | 'ARCHIVED';
+export type OrderType = 'PLANNED' | 'EMERGENCY';
+export type ABCGroup = 'A' | 'B' | 'C';
 export type LimitType = 'MIN' | 'OPT' | 'MAX';
 export type PaymentStatus = 'UNPAID' | 'PARTIAL' | 'PAID';
-export type CommunicationMethod = 'WHATSAPP' | 'TELEGRAM' | 'EMAIL' | 'PHONE';
+
+export interface ERPCategory {
+  id: string;      // Poster Category ID
+  name: string;    // Custom display name (e.g. "Drinks")
+  order: number;   // Sorting order
+  isActive: boolean;
+  updatedAt?: any;
+}
 
 export interface Location {
   id: string;
   name: string;
   type: 'WAREHOUSE' | 'POINT' | 'KITCHEN' | 'BAR';
-  mappings?: Record<string, string>; // e.g., { "poster": "123", "scales": "99" }
-}
-
-export interface Supplier {
-  id: string;
-  posterId?: string; // Keep for legacy but move to mappings
-  mappings?: Record<string, string>;
-  name: string;
-  contactPerson?: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  paymentTerms?: string; // e.g., "NET-30", "PREPAID"
-  balance: number; // Current debt/balance (positive = we owe, negative = prepayment)
-  preferredCommunication?: CommunicationMethod;
-  providerContactUid?: string; // Telegram Chat ID or Phone for WhatsApp
-  isActive: boolean;
+  mappings?: Record<string, string>; 
 }
 
 export interface ERPItem {
@@ -43,67 +34,116 @@ export interface ERPItem {
   type: ItemType;
   baseUnit: UnitType;
   categoryId: string;
+  barcode?: string;
   minStock?: number;
+  maxStock?: number; 
   lastPurchasePrice?: number;
-  averagePurchasePrice?: number; // New field for smart validation
+  averagePurchasePrice?: number; 
   preferredSupplierId?: string;
+  supplierItemName?: string;
   mappings?: Record<string, string>;
+  source: 'POSTER' | 'MANUAL';
+  abcGroup?: ABCGroup;
+  categoryName?: string; 
+  orderSchedule?: {
+    daysOfWeek: number[]; // 0-6
+    weeksInterval: number; // 1 to 4
+    startDate?: any; 
+  };
+  supplierLeadTime?: number; 
+  isActive: boolean;
+  syncStatus?: string;
+  hasPosterUpdate?: boolean;
+  pendingPosterData?: {
+    name: string;
+    baseUnit: string;
+    categoryId: string;
+    barcode?: string;
+  };
+  createdAt: any;
+  updatedAt: any;
 }
 
-export interface RecipeIngredient {
-  itemId: string; // ID of the ingredient (RAW or SEMI_FINISHED)
-  gross: number;  // Weight before processing
-  net: number;    // Weight after processing
-  lossPercent: number; // calculated loss percentage
+export interface Contractor {
+    id: string; 
+    name: string; 
+    brandName?: string;
+    inn?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+    
+    // Банковские детали для переводов
+    bankAccount?: string;
+    bankName?: string;
+    bankCode?: string;
+    defaultPaymentCode?: string;
+
+    balance: number; // Общий баланс долга (в копейках)
+    isActive: boolean;
+    createdAt: any;
+    updatedAt: any;
 }
 
-export interface Recipe {
-  id: string;
-  targetItemId: string; // The item produced (DISH or SEMI_FINISHED)
-  ingredients: RecipeIngredient[];
-}
-
-export interface StockTransaction {
-  id: string;
-  type: TransactionType;
-  itemId: string;
-  locationId: string;
-  quantity: number; // delta change (+ for added stock, - for removed)
-  timestamp: any;   // Firestore serverTimestamp
-  userId: string;
-  comment?: string;
-  referenceId?: string; // Link to purchase order id, sale id, or inventory session id
-}
-
-export interface UserERP {
-  uid: string;
-  email: string;
-  displayName: string;
-  role: UserRole;
-  locationIds: string[]; // Scope of locations the user has access to
-  telegramId?: string;
+/**
+ * CONTRACTOR ITEM LIST (Price List & Routing)
+ * This connects a Contractor to our Poster Ingredients.
+ */
+export interface ContractorItem {
+    id: string;
+    contractorId: string; // Link to Contractor from Bank Hub
+    linkedPosterId: string; // Link to Item in 'erp_items' (Poster base)
+    
+    nameInInvoice?: string; // How the supplier calls it
+    unitInInvoice?: string; // kg, box, etc.
+    price: number; // Price per base unit
+    
+    isPreferred: boolean; // Flag to AUTO-SELECT this supplier for this item in Order Form
+    
+    isActive: boolean;
+    updatedAt: any;
 }
 
 export interface OrderItem {
-  itemId: string;
+  itemId: string; // Internal UUID
   posterId?: string;
+  name?: string; 
+  unit?: string; 
   count: number;
   pricePerUnit: number;
   totalPrice: number;
-  invoiceWeight?: number; // Weight from the supplier invoice
-  finalWeight?: number;   // Weight after weighing on site
-  deviation?: number;     // Deviation % (final vs invoice)
+  sku?: string;           
+  invoiceWeight?: number; 
+  finalWeight?: number;   
+  deviation?: number;     
+  onHand?: number;        
+  isVerifiedAtGate?: boolean; 
+  isSkipped?: boolean;   
+  comment?: string;       
 }
 
 export interface OrderRequest {
   id: string;
-  supplierId: string;
+  orgId?: string;
   locationId: string;
+  locationName?: string; 
+  contractorId?: string; // NEW UNIFIED LINK
+  supplierId?: string;
+  supplierName?: string;
+  imageUrl?: string;
+  totalPrice?: number;
   status: OrderStatus;
   limitType: LimitType;
-  scheduleDay?: string; // Delivery day preference
-  reasonForExcess?: string; // If ordering more than max
-  supplierInvoiceRef?: string; // Photo reference or ID
+  orderType: OrderType;
+  scheduleDay?: string; 
+  deliveryDate?: string; 
+  reasonForEmergency?: string; 
+  reasonForExcess?: string;
+  invoiceNumber?: string; 
+  vehicleNumber?: string; 
+  driverName?: string;    
+  vatAmount?: number;     
+  comment?: string;       
   items: OrderItem[];
   createdBy: string;
   approvedBy?: string;
@@ -111,34 +151,11 @@ export interface OrderRequest {
   finalizedBy?: string;
   hasCriticalDiscrepancy: boolean;
   isConfirmedByAdmin: boolean;
-  accountingStatus?: AccountingStatus; // Link to CASH module
-  invoiceId?: string; // Digital invoice number/ID
+  isSupplierConfirmed?: boolean;
+  invoiceId?: string; 
+  parentRequestId?: string; 
   createdAt: any;
   updatedAt: any;
-}
-
-export interface PaymentTransaction {
-  id: string;
-  supplierId: string;
-  orderId?: string; // Reference specific order if paying for one
-  amount: number;
-  paymentMethod: 'CASH' | 'CARD' | 'BANK';
-  timestamp: any;
-  userId: string;
-  comment?: string;
-}
-
-export interface AccountsPayable {
-  id: string; // usually linked to orderId or supplyId
-  supplierId: string;
-  totalAmount: number;
-  paidAmount: number;
-  remainingAmount: number;
-  dueDate?: any;
-  status: AccountingStatus;
-  orderId?: string;
-  posterSupplyId?: string;
-  createdAt: any;
 }
 
 export interface SystemLog {
@@ -155,10 +172,50 @@ export interface SystemLog {
 export interface SyncQueueItem {
   id: string;
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
-  action: string; // e.g., "PUSH_TO_POSTER", "SEND_TELEGRAM"
+  action: string; 
   payload: any;
   retryCount: number;
   lastError?: string;
   timestamp: any;
   processedAt?: any;
+}
+
+export interface Supplier {
+  id: string;
+  posterId?: string;
+  mappings?: Record<string, string>;
+  name: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  paymentTerms?: string;
+  balance: number;
+  isActive: boolean;
+  preferredCommunication?: string;
+  providerContactUid?: string;
+}
+
+export interface SupplierItem {
+  id: string;
+  supplierId: string;
+  itemId: string;
+  linkedPosterId?: string;
+  price: number;
+  isActive: boolean;
+}
+
+export type AccountingStatus = 'WAITING_INVOICE' | 'DEDOX_VERIFIED' | 'PAID' | 'PARTIAL_PAID';
+
+export interface AccountsPayable {
+  id: string;
+  supplierId: string;
+  totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  dueDate?: any;
+  status: AccountingStatus;
+  orderId?: string;
+  posterSupplyId?: string;
+  createdAt: any;
 }

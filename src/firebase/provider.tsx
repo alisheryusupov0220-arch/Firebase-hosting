@@ -18,6 +18,10 @@ interface UserAuthState {
   user: User | null;
   isUserLoading: boolean;
   userError: Error | null;
+  role: string | null;
+  orgId: string | null;
+  locationId: string | null;
+  locationIds: string[] | null;
 }
 
 // Combined state for the Firebase context
@@ -30,6 +34,10 @@ export interface FirebaseContextState {
   user: User | null;
   isUserLoading: boolean; // True during initial auth check
   userError: Error | null; // Error from auth listener
+  role: string | null;
+  orgId: string | null;
+  locationId: string | null;
+  locationIds: string[] | null;
 }
 
 // Return type for useFirebase()
@@ -40,6 +48,10 @@ export interface FirebaseServicesAndUser {
   user: User | null;
   isUserLoading: boolean;
   userError: Error | null;
+  role: string | null;
+  orgId: string | null;
+  locationId: string | null;
+  locationIds: string[] | null;
 }
 
 // Return type for useUser() - specific to user auth state
@@ -65,25 +77,78 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     user: null,
     isUserLoading: true, // Start loading until first auth event
     userError: null,
+    role: null,
+    orgId: null,
+    locationId: null,
+    locationIds: null
   });
 
   // Effect to subscribe to Firebase auth state changes
   useEffect(() => {
     if (!auth) { // If no Auth service instance, cannot determine user state
-      setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Auth service not provided.") });
+      setUserAuthState({
+        user: null,
+        isUserLoading: false,
+        userError: new Error("Auth service not provided."),
+        role: null,
+        orgId: null,
+        locationId: null,
+        locationIds: null
+      });
       return;
     }
 
-    setUserAuthState({ user: null, isUserLoading: true, userError: null }); // Reset on auth instance change
+    setUserAuthState(prev => ({ ...prev, isUserLoading: true, userError: null })); // Reset on auth instance change
 
     const unsubscribe = onAuthStateChanged(
       auth,
-      (firebaseUser) => { // Auth state determined
-        setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
+      async (firebaseUser) => { // Auth state determined
+        if (firebaseUser) {
+          try {
+            const tokenResult = await firebaseUser.getIdTokenResult(true);
+            setUserAuthState({
+              user: firebaseUser,
+              isUserLoading: false,
+              userError: null,
+              role: (tokenResult.claims.role as string) || 'employee',
+              orgId: (tokenResult.claims.orgId as string) || null,
+              locationId: (tokenResult.claims.locationId as string) || null,
+              locationIds: (tokenResult.claims.locationIds as string[]) || null,
+            });
+          } catch (e: any) {
+            setUserAuthState({
+              user: firebaseUser,
+              isUserLoading: false,
+              userError: e,
+              role: 'employee',
+              orgId: null,
+              locationId: null,
+              locationIds: null
+            });
+          }
+        } else {
+          setUserAuthState({
+            user: null,
+            isUserLoading: false,
+            userError: null,
+            role: null,
+            orgId: null,
+            locationId: null,
+            locationIds: null
+          });
+        }
       },
       (error) => { // Auth listener error
         console.error("FirebaseProvider: onAuthStateChanged error:", error);
-        setUserAuthState({ user: null, isUserLoading: false, userError: error });
+        setUserAuthState({
+          user: null,
+          isUserLoading: false,
+          userError: error,
+          role: null,
+          orgId: null,
+          locationId: null,
+          locationIds: null
+        });
       }
     );
     return () => unsubscribe(); // Cleanup
@@ -100,6 +165,10 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       user: userAuthState.user,
       isUserLoading: userAuthState.isUserLoading,
       userError: userAuthState.userError,
+      role: userAuthState.role,
+      orgId: userAuthState.orgId,
+      locationId: userAuthState.locationId,
+      locationIds: userAuthState.locationIds,
     };
   }, [firebaseApp, firestore, auth, userAuthState]);
 
@@ -113,7 +182,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
 /**
  * Hook to access core Firebase services and user authentication state.
- * Throws error if core services are not available or used outside provider.
+ * Throws error if used outside provider, but returns null-safe values during initialization.
  */
 export const useFirebase = (): FirebaseServicesAndUser => {
   const context = useContext(FirebaseContext);
@@ -122,19 +191,20 @@ export const useFirebase = (): FirebaseServicesAndUser => {
     throw new Error('useFirebase must be used within a FirebaseProvider.');
   }
 
-  if (!context.areServicesAvailable || !context.firebaseApp || !context.firestore || !context.auth) {
-    throw new Error('Firebase core services not available. Check FirebaseProvider props.');
-  }
-
   return {
-    firebaseApp: context.firebaseApp,
-    firestore: context.firestore,
-    auth: context.auth,
+    firebaseApp: context.firebaseApp!,
+    firestore: context.firestore!,
+    auth: context.auth!,
     user: context.user,
     isUserLoading: context.isUserLoading,
     userError: context.userError,
+    role: context.role,
+    orgId: context.orgId,
+    locationId: context.locationId,
+    locationIds: context.locationIds,
   };
 };
+
 
 /** Hook to access Firebase Auth instance. */
 export const useAuth = (): Auth => {

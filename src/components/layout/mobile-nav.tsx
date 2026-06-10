@@ -3,33 +3,18 @@
 import Link from 'next/link';
 import { Menu, Package2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { allRoutes } from '@/components/layout/main-nav';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
-import { useUser, useDoc, useFirestore } from '@/firebase/hooks';
-import { doc } from 'firebase/firestore';
-import { useMemoFirebase } from '@/firebase/provider';
-import { UserRole } from '@/lib/types/erp';
-
-type UserProfile = {
-  role: UserRole | string;
-};
+import { useFirebase } from '@/firebase/provider';
 
 export function MobileNav() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
-  const { user } = useUser();
-  const firestore = useFirestore();
-
-  const userProfileRef = useMemoFirebase(() => {
-    if (!firestore || !user?.uid) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [firestore, user?.uid]);
-
-  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
-  const userRole = userProfile?.role || 'employee';
+  const { role } = useFirebase();
+  const userRole = role || 'employee';
 
   const visibleRoutes = allRoutes.filter((route) => 
     route.roles.includes(userRole)
@@ -44,11 +29,18 @@ export function MobileNav() {
         </Button>
       </SheetTrigger>
       <SheetContent side="left">
-        <nav className="grid gap-6 text-lg font-medium">
-          <Link href="/" className="flex items-center gap-2 text-lg font-semibold" onClick={() => setIsOpen(false)}>
-            <Package2 className="h-6 w-6" />
-            <span className="sr-only">Dog&Dog Invent+</span>
-          </Link>
+        <SheetHeader className="text-left">
+          <SheetTitle>
+            <Link href="/" className="flex items-center gap-2 text-lg font-semibold" onClick={() => setIsOpen(false)}>
+              <Package2 className="h-6 w-6" />
+              <span>Dog&Dog Invent+</span>
+            </Link>
+          </SheetTitle>
+          <SheetDescription className="sr-only">
+            Навигация по приложению
+          </SheetDescription>
+        </SheetHeader>
+        <nav className="grid gap-6 text-lg font-medium mt-6">
           {visibleRoutes.map((route) => (
             <Link
               key={route.href}

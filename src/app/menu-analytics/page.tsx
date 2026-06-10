@@ -1,6 +1,5 @@
 import { getProducts, type Product } from '@/lib/poster';
-import { getFirebaseApp } from '@/firebase/server';
-import { getFirestore, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { adminDb } from '@/firebase/server';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -16,18 +15,20 @@ type EnrichedProduct = Product & {
 
 // Helper function to fetch the latest prices for a list of ingredient IDs
 async function getLatestPrices(ingredientIds: string[]): Promise<Record<string, number>> {
-    const db = getFirestore(getFirebaseApp());
     const prices: Record<string, number> = {};
 
     const pricePromises = ingredientIds.map(async (id) => {
-        const pricesQuery = query(
-            collection(db, `ingredients/${id}/price_history`),
-            orderBy('date', 'desc'),
-            limit(1)
-        );
-        const querySnapshot = await getDocs(pricesQuery);
-        if (!querySnapshot.empty) {
-            return { id, price: querySnapshot.docs[0].data().price };
+        try {
+            const querySnapshot = await adminDb.collection(`ingredients/${id}/price_history`)
+                .orderBy('date', 'desc')
+                .limit(1)
+                .get();
+
+            if (!querySnapshot.empty) {
+                return { id, price: querySnapshot.docs[0].data().price };
+            }
+        } catch (e) {
+            console.error(`Error fetching price for ${id}:`, e);
         }
         return { id, price: 0 }; // Default to 0 if no price history
     });

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { useAuth, useFirestore } from '@/firebase/hooks';
 import { Button } from '@/components/ui/button';
@@ -26,17 +26,14 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      
-      // Create a user profile document in Firestore
-      if (firestore) {
-        const userRef = doc(firestore, 'users', user.uid);
-        await setDoc(userRef, {
-          email: user.email,
-          displayName: user.email?.split('@')[0], // Use part of email as initial display name
-          role: 'employee', // Default role
-        });
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to register');
       }
 
       toast({
@@ -48,6 +45,42 @@ export default function RegisterPage() {
       toast({
         variant: 'destructive',
         title: 'Ошибка регистрации',
+        description: error.message,
+      });
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      const userCredential = await signInWithPopup(auth, provider);
+      const user = userCredential.user;
+
+      const idToken = await user.getIdToken();
+      const res = await fetch('/api/auth/sync-claims', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error('Ошибка синхронизации прав.');
+      }
+
+      await user.getIdToken(true);
+
+      toast({
+        title: 'Успешная регистрация!',
+        description: 'Вы вошли и зарегистрировались через Google.',
+      });
+      router.push('/supplies');
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Ошибка Google-регистрации',
         description: error.message,
       });
       setLoading(false);
@@ -98,6 +131,20 @@ export default function RegisterPage() {
               Создать аккаунт
             </Button>
           </form>
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Или</span>
+            </div>
+          </div>
+
+          <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignIn} disabled={loading}>
+            Зарегистрироваться через Google
+          </Button>
+
           <div className="mt-4 text-center text-sm">
             Уже есть аккаунт?{' '}
             <Link href="/login" className="underline">

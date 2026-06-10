@@ -5,6 +5,12 @@ import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { AuthGuard } from '@/components/auth/auth-guard';
+import { startTelegramPolling } from '@/lib/telegram-background-service';
+
+// АВТО-ЗАПУСК ТЕЛЕГРАМ БОТА ДЛЯ ЛОКАЛЬНОЙ РАЗРАБОТКИ
+if (typeof window === 'undefined') {
+  startTelegramPolling();
+}
 
 export const metadata: Metadata = {
   title: 'Dog&Dog Invent+',

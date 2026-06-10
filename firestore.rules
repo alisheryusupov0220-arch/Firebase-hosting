@@ -1,26 +1,155 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    function isOwner(userId) {
-      return request.auth.uid == userId;
+
+    // ──────────────────────────────────────────────
+    // Helper functions
+    // ──────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.role == 'super_admin';
+    }
+
+    function isBrandAdmin() {
+      return isSignedIn() && request.auth.token.role == 'brand_admin';
     }
 
     function isAdmin() {
-      // Check if the requesting user has the 'admin' role in their own user document.
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isSuperAdmin() || isBrandAdmin();
     }
 
-    match /users/{userId} {
-      allow read: if request.auth != null;
-      allow create: if true; // For registration
-      allow update: if isOwner(userId) || isAdmin(); // User can edit self, admin can edit anyone
-      allow delete: if isAdmin();
+    function isEmployee() {
+      return isSignedIn() && request.auth.token.role in ['employee', 'outlet_admin', 'cashier'];
     }
-    
-    // Allow authenticated users to read/write to their own data or if they are an admin
-    match /{path=**}/{document} {
-      allow read, write: if request.auth != null;
+
+    function belongsToOrg(orgId) {
+      return isSignedIn() && request.auth.token.orgId == orgId;
+    }
+
+    // ──────────────────────────────────────────────
+    // Users collection
+    // ──────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow write: if isSuperAdmin();
+    }
+
+    // ──────────────────────────────────────────────
+    // Organizations collection
+    // ──────────────────────────────────────────────
+    match /organizations/{orgId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || (isBrandAdmin() && belongsToOrg(orgId)));
+      allow write: if isSuperAdmin() || (isBrandAdmin() && belongsToOrg(orgId));
+
+      // Staff subcollection
+      match /staff/{staffId} {
+        allow read: if isSignedIn() && (isSuperAdmin() || belongsToOrg(orgId));
+        allow write: if isSuperAdmin() || (isBrandAdmin() && belongsToOrg(orgId));
+      }
+
+      // Locations subcollection
+      match /locations/{locationId} {
+        allow read: if isSignedIn() && (isSuperAdmin() || belongsToOrg(orgId));
+        allow write: if isSuperAdmin() || (isBrandAdmin() && belongsToOrg(orgId));
+      }
+
+      // ERP Items subcollection
+      match /erp_items/{itemId} {
+        allow read: if isSignedIn() && (isSuperAdmin() || belongsToOrg(orgId));
+        allow write: if isSuperAdmin() || (isBrandAdmin() && belongsToOrg(orgId));
+      }
+
+      // Suppliers subcollection
+      match /suppliers/{supplierId} {
+        allow read: if isSignedIn() && (isSuperAdmin() || belongsToOrg(orgId));
+        allow write: if isSuperAdmin() || (isBrandAdmin() && belongsToOrg(orgId));
+      }
+
+      // Contractors subcollection
+      match /contractors/{contractorId} {
+        allow read: if isSignedIn() && (isSuperAdmin() || belongsToOrg(orgId));
+        allow write: if isSuperAdmin() || (isBrandAdmin() && belongsToOrg(orgId));
+      }
+
+      // Contractor Items subcollection
+      match /contractor_items/{itemId} {
+        allow read: if isSignedIn() && (isSuperAdmin() || belongsToOrg(orgId));
+        allow write: if isSuperAdmin() || (isBrandAdmin() && belongsToOrg(orgId));
+      }
+
+      // Bank Accounts subcollection
+      match /bank_accounts/{accountId} {
+        allow read: if isSignedIn() && (isSuperAdmin() || belongsToOrg(orgId));
+        allow write: if isSuperAdmin() || (isBrandAdmin() && belongsToOrg(orgId));
+      }
+
+      // My Companies subcollection
+      match /my_companies/{companyId} {
+        allow read: if isSignedIn() && (isSuperAdmin() || belongsToOrg(orgId));
+        allow write: if isSuperAdmin() || (isBrandAdmin() && belongsToOrg(orgId));
+      }
+
+      // Finance Transactions subcollection
+      match /finance_transactions/{txId} {
+        allow read: if isSignedIn() && (isSuperAdmin() || belongsToOrg(orgId));
+        allow write: if isSuperAdmin() || (isBrandAdmin() && belongsToOrg(orgId));
+      }
+
+      // Accounts Payable subcollection
+      match /accounts_payable/{id} {
+        allow read: if isSignedIn() && (isSuperAdmin() || belongsToOrg(orgId));
+        allow write: if isSuperAdmin() || (isBrandAdmin() && belongsToOrg(orgId));
+      }
+
+      // Stock Transactions subcollection
+      match /stock_transactions/{id} {
+        allow read: if isSignedIn() && (isSuperAdmin() || belongsToOrg(orgId));
+        allow write: if isSuperAdmin() || (isBrandAdmin() && belongsToOrg(orgId));
+      }
+    }
+
+    // ──────────────────────────────────────────────
+    // ERP Items collection (root-level)
+    // brand_admin can read/list within their org
+    // super_admin has full access
+    // employees can only read
+    // ──────────────────────────────────────────────
+    match /erp_items/{itemId} {
+      allow read, list: if isSignedIn() && (
+        isSuperAdmin() ||
+        (isBrandAdmin() && request.auth.token.orgId == resource.data.orgId)
+      );
+      allow write: if isSuperAdmin() || (isBrandAdmin() && request.auth.token.orgId == resource.data.orgId);
+    }
+
+    // ──────────────────────────────────────────────
+    // Suppliers collection
+    // ──────────────────────────────────────────────
+    match /suppliers/{supplierId} {
+      allow read, list: if isSignedIn() && (
+        isSuperAdmin() ||
+        (isAdmin() && request.auth.token.orgId == resource.data.orgId)
+      );
+      allow write: if isAdmin();
+    }
+
+    // ──────────────────────────────────────────────
+    // Orders collection
+    // ──────────────────────────────────────────────
+    match /orders/{orderId} {
+      allow read, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && isAdmin();
+    }
+
+    // ──────────────────────────────────────────────
+    // Fallback: deny everything else
+    // ──────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if isSuperAdmin();
     }
   }
 }

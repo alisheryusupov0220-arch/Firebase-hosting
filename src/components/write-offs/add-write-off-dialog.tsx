@@ -12,10 +12,10 @@ import {
 } from '@/components/ui/dialog';
 import { PackageMinus } from 'lucide-react';
 import { CreateWriteOffForm } from './create-write-off-form';
-import type { LocalIngredient } from '@/app/ingredients/actions';
+import { type ERPItem } from '@/lib/types/erp';
 
 type AddWriteOffDialogProps = {
-  ingredients: LocalIngredient[] | null;
+  ingredients: ERPItem[] | null;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   isFab?: boolean;
