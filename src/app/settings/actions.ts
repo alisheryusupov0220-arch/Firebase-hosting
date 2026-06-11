@@ -1,6 +1,6 @@
 'use server';
 
-import { adminDb } from '@/firebase/server';
+import { adminDb, adminAuth } from '@/firebase/server';
 import { revalidatePath } from 'next/cache';
 
 export type UserProfileServer = {
@@ -123,4 +123,42 @@ export async function updatePosterIntegrationAction(
     const message = error instanceof Error ? error.message : 'Произошла неизвестная ошибка.';
     return { success: false, message: `Ошибка обновления интеграции: ${message}` };
   }
+}
+
+export async function changePasswordAction(idToken: string, newPassword: string) {
+    if (!idToken || !newPassword) {
+        return { success: false, message: 'Не указаны все обязательные данные.' };
+    }
+    if (newPassword.length < 6) {
+        return { success: false, message: 'Пароль должен состоять минимум из 6 символов.' };
+    }
+    try {
+        const decodedToken = await adminAuth.verifyIdToken(idToken);
+        const uid = decodedToken.uid;
+
+        // 1. Update password in Firebase Auth
+        await adminAuth.updateUser(uid, { password: newPassword });
+
+        // 2. Clean up plaintext password in Firestore if it exists in staff document
+        const userRef = adminDb.collection('users').doc(uid);
+        const userSnap = await userRef.get();
+        if (userSnap.exists) {
+            const orgId = userSnap.data()?.orgId;
+            if (orgId) {
+                const staffRef = adminDb.collection('organizations').doc(orgId).collection('staff').doc(uid);
+                const staffDoc = await staffRef.get();
+                if (staffDoc.exists) {
+                    await staffRef.update({
+                        password: '(изменен)',
+                        updatedAt: new Date()
+                    });
+                }
+            }
+        }
+
+        return { success: true, message: 'Пароль успешно обновлен.' };
+    } catch (error: any) {
+        console.error('Failed to change password:', error);
+        return { success: false, message: error.message || 'Ошибка сервера при смене пароля.' };
+    }
 }

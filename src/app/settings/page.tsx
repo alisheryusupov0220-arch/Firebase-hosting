@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ProfileCard } from "@/components/settings/profile-card";
+import { ChangePasswordCard } from "@/components/settings/change-password-card";
 import { useUser, useDoc, useFirestore } from "@/firebase/hooks";
 import { doc } from "firebase/firestore";
 import { ManageEmployeesCard } from "@/components/settings/manage-employees-card";
@@ -32,19 +33,18 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-8 pb-24">
-      {isAdmin && (
-        <PageHeader
-          title="Настройки"
-          description="Управляйте настройками вашего аккаунта и приложения."
-        />
-      )}
+      <PageHeader
+        title="Настройки"
+        description={isAdmin ? "Управляйте настройками вашего аккаунта и приложения." : "Управляйте своим профилем и настройками темы."}
+      />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {isAdmin && <PosterIntegrationCard />}
         {isAdmin && <AIAgentSettingsCard />}
         {isAdmin && <TelegramIntegrationCard />}
-        {isAdmin && <ProfileCard />}
-        <Card>
+        <ProfileCard />
+        <ChangePasswordCard />
+        <Card className="shadow-md border border-muted-foreground/15 hover:border-muted-foreground/25 transition-all duration-300">
           <CardHeader>
             <CardTitle>Тема</CardTitle>
             <CardDescription>

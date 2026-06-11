@@ -1,5 +1,5 @@
 'use client';
-import { useUser, useFirestore, useDoc } from '@/firebase/hooks';
+import { useFirebase, useFirestore, useDoc } from '@/firebase/hooks';
 import { doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -17,7 +17,7 @@ type UserProfile = {
 };
 
 export function ProfileCard() {
-    const { user, loading: userLoading } = useUser();
+    const { user, role, isUserLoading: userLoading } = useFirebase();
     const firestore = useFirestore();
     const { toast } = useToast();
 
@@ -27,6 +27,7 @@ export function ProfileCard() {
     }, [firestore, user?.uid]);
 
     const { data: userProfile, isLoading: profileLoading } = useDoc<UserProfile>(userProfileRef);
+    const isAdmin = role === 'brand_admin' || role === 'super_admin';
 
     const handleRoleChange = async (newRole: 'admin' | 'employee') => {
         if (!user?.uid) return;
@@ -107,7 +108,7 @@ export function ProfileCard() {
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="role">Роль</Label>
-                    <Select value={mappedRole} onValueChange={handleRoleChange}>
+                    <Select value={mappedRole} onValueChange={handleRoleChange} disabled={!isAdmin}>
                         <SelectTrigger id="role" className="w-full">
                             <SelectValue placeholder="Выберите роль..." />
                         </SelectTrigger>
@@ -116,9 +117,11 @@ export function ProfileCard() {
                             <SelectItem value="admin">Администратор</SelectItem>
                         </SelectContent>
                     </Select>
-                     <p className="text-xs text-muted-foreground pt-1">
-                        Администраторы могут одобрять поставки.
-                     </p>
+                    {isAdmin && (
+                         <p className="text-xs text-muted-foreground pt-1">
+                            Администраторы могут одобрять поставки.
+                         </p>
+                    )}
                 </div>
             </CardContent>
         </Card>

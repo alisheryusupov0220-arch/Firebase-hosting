@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithCustomToken, linkWithCredential } from 'firebase/auth';
 import { useAuth } from '@/firebase/hooks';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,8 +58,37 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      const userCredential = await signInWithPopup(auth, provider);
-      const user = userCredential.user;
+      let user;
+      try {
+        const userCredential = await signInWithPopup(auth, provider);
+        user = userCredential.user;
+      } catch (error: any) {
+        if (error.code === 'auth/account-exists-with-different-credential') {
+          const credential = GoogleAuthProvider.credentialFromError(error);
+          if (!credential || !credential.idToken) {
+            throw new Error('Не удалось получить учетные данные Google.');
+          }
+
+          const resLink = await fetch('/api/auth/google-login-link', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ idToken: credential.idToken }),
+          });
+          const dataLink = await resLink.json();
+          if (!resLink.ok) {
+            throw new Error(dataLink.error || 'Ошибка при получении токена связывания.');
+          }
+
+          const customUserCredential = await signInWithCustomToken(auth, dataLink.customToken);
+          user = customUserCredential.user;
+
+          await linkWithCredential(user, credential);
+        } else {
+          throw error;
+        }
+      }
 
       const idToken = await user.getIdToken();
       const res = await fetch('/api/auth/sync-claims', {
