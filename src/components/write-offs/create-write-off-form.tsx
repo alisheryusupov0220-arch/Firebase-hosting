@@ -17,8 +17,10 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Trash } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useUser, useFirebase } from '@/firebase/hooks';
+import { useUser, useFirebase, useCollection, useFirestore } from '@/firebase/hooks';
 import { type ERPItem } from '@/lib/types/erp';
+import { collection, query, orderBy, limit, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useMemoFirebase } from '@/firebase/provider';
 import { SearchableSelect } from '../ui/searchable-select';
 import { translateUnit } from '@/lib/utils';
 import { createDirectWriteOffAction } from '@/app/write-offs/actions';
@@ -43,6 +45,41 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
   const { toast } = useToast();
   const { user } = useUser();
   const { orgId } = useFirebase();
+  const firestore = useFirestore();
+
+  // Запрашиваем последние 50 списаний из базы данных для расчета популярности ингредиентов
+  const writeOffsQuery = useMemoFirebase(() => {
+    if (!firestore || !orgId) return null;
+    return query(
+      collection(firestore, 'organizations', orgId, 'pendingWriteOffs'),
+      orderBy('createdAt', 'desc'),
+      limit(50)
+    );
+  }, [firestore, orgId]);
+
+  const { data: pastWriteOffs } = useCollection(writeOffsQuery as any);
+
+  // Вычисляем топ-5 часто используемых ингредиентов на основе статистики
+  const popularIngredients = useMemo(() => {
+    if (!pastWriteOffs || !ingredients) return [];
+    
+    const frequencies: Record<string, number> = {};
+    pastWriteOffs.forEach((wo: any) => {
+      if (wo.ingredients && Array.isArray(wo.ingredients)) {
+        wo.ingredients.forEach((ing: any) => {
+          if (ing.ingredient_id) {
+            frequencies[ing.ingredient_id] = (frequencies[ing.ingredient_id] || 0) + 1;
+          }
+        });
+      }
+    });
+
+    const sortedIds = Object.keys(frequencies).sort((a, b) => frequencies[b] - frequencies[a]);
+    return sortedIds
+      .map(id => ingredients.find(ing => ing.id === id))
+      .filter((ing): ing is ERPItem => !!ing)
+      .slice(0, 5);
+  }, [pastWriteOffs, ingredients]);
 
   const form = useForm<CreateWriteOffFormValues>({
     resolver: zodResolver(formSchema),
@@ -105,6 +142,21 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
     const result = await createDirectWriteOffAction(writeOffData, orgId || undefined);
     
     if (result.success) {
+        // Логируем прямое списание в Firestore для сохранения истории и подсчета статистики
+        if (firestore && orgId) {
+            try {
+                await addDoc(collection(firestore, 'organizations', orgId, 'pendingWriteOffs'), {
+                    ingredients: values.ingredients,
+                    comment: values.comment || 'Прямое списание',
+                    status: 'completed',
+                    createdAt: serverTimestamp(),
+                    posterId: result.data
+                });
+            } catch (err) {
+                console.error('Failed to log direct write-off to Firestore:', err);
+            }
+        }
+
         toast({
             title: 'Успех!',
             description: 'Списание успешно создано в Poster.',
@@ -173,6 +225,40 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
                     </div>
                 )
             })}
+            {popularIngredients.length > 0 && (
+              <div className="space-y-1.5 mt-3 mb-1 px-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                  Часто списываемые:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {popularIngredients.map((ing) => {
+                    const isAlreadyAdded = watchedIngredients.some(
+                      (field) => field.ingredient_id === ing.id
+                    );
+                    return (
+                      <Button
+                        key={ing.id}
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={isAlreadyAdded}
+                        onClick={() => {
+                          if (fields.length === 1 && !watchedIngredients[0].ingredient_id) {
+                            form.setValue('ingredients.0.ingredient_id', ing.id);
+                          } else {
+                            append({ ingredient_id: ing.id, quantity: '' as unknown as number });
+                          }
+                        }}
+                        className="h-7 rounded-full text-[11px] px-3 bg-secondary/60 hover:bg-primary/10 hover:text-primary transition-all duration-200 border border-muted/50"
+                      >
+                        +{ing.name}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <Button
                 type="button"
                 variant="outline"
