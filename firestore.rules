@@ -109,6 +109,38 @@ service cloud.firestore {
         allow read: if isSignedIn() && (isSuperAdmin() || belongsToOrg(orgId));
         allow write: if isSuperAdmin() || (isBrandAdmin() && belongsToOrg(orgId));
       }
+
+      // Categories subcollection
+      match /categories/{categoryId} {
+        allow read: if isSignedIn() && (isSuperAdmin() || belongsToOrg(orgId));
+        allow write: if isSuperAdmin() || (isBrandAdmin() && belongsToOrg(orgId));
+      }
+
+      // Pending write-offs subcollection
+      match /pendingWriteOffs/{id} {
+        allow read, write: if isSignedIn() && (isSuperAdmin() || belongsToOrg(orgId));
+      }
+
+      // Order Requests subcollection
+      match /order_requests/{id} {
+        allow read, write: if isSignedIn() && (isSuperAdmin() || belongsToOrg(orgId));
+      }
+
+      // Inventory Templates subcollection
+      match /inventory_templates/{id} {
+        allow read: if isSignedIn() && (isSuperAdmin() || belongsToOrg(orgId));
+        allow write: if isSuperAdmin() || (isBrandAdmin() && belongsToOrg(orgId));
+      }
+
+      // Inventory Tasks subcollection
+      match /inventory_tasks/{id} {
+        allow read, write: if isSignedIn() && (isSuperAdmin() || belongsToOrg(orgId));
+      }
+
+      // Inventory Counts subcollection
+      match /inventory_counts/{id} {
+        allow read, write: if isSignedIn() && (isSuperAdmin() || belongsToOrg(orgId));
+      }
     }
 
     // ──────────────────────────────────────────────
