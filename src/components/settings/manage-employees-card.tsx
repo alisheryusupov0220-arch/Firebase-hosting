@@ -36,7 +36,7 @@ const newUserSchema = z.object({
     displayName: z.string().min(1, "Имя обязательно для заполнения"),
     telegramId: z.string().optional(),
     email: z.string().email("Неверный формат email"),
-    role: z.enum(['admin', 'employee']).default('employee'),
+    role: z.enum(['admin', 'employee', 'tablet']).default('employee'),
     locationId: z.string().optional(),
 });
 
@@ -76,7 +76,7 @@ function AddUserDialog({ locations }: { locations: LocationDoc[] }) {
                     },
                     body: JSON.stringify({
                         email: values.email,
-                        role: values.role === 'admin' ? 'brand_admin' : 'employee',
+                        role: values.role === 'admin' ? 'brand_admin' : values.role,
                         displayName: values.displayName,
                         telegramId: values.telegramId || null,
                         locationId: values.locationId || null,
@@ -168,6 +168,7 @@ function AddUserDialog({ locations }: { locations: LocationDoc[] }) {
                                         <SelectContent>
                                             <SelectItem value="employee">Сотрудник</SelectItem>
                                             <SelectItem value="admin">Администратор</SelectItem>
+                                            <SelectItem value="tablet">Планшет</SelectItem>
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />
@@ -276,6 +277,7 @@ function EditUserDialog({ user, locations }: { user: UserProfileServer, location
                                 <SelectItem value="employee">Сотрудник</SelectItem>
                                 <SelectItem value="cashier">Кассир</SelectItem>
                                 <SelectItem value="outlet_admin">Администратор локации</SelectItem>
+                                <SelectItem value="tablet">Планшет (Ограниченный доступ)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

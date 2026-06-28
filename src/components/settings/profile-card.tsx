@@ -115,6 +115,7 @@ export function ProfileCard() {
                         <SelectContent>
                             <SelectItem value="employee">Сотрудник</SelectItem>
                             <SelectItem value="admin">Администратор</SelectItem>
+                            <SelectItem value="tablet">Планшет</SelectItem>
                         </SelectContent>
                     </Select>
                     {isAdmin && (
