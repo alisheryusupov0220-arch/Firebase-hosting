@@ -97,33 +97,30 @@ export default function IngredientsPage() {
     // --- ПРЯМАЯ ГРУППИРОВКА ПО POSTER ID (Парсинг по числам 2,3,4,5) ---
     const groupedItems = useMemo(() => {
         if (!rawItems) return {};
-        const filtered = rawItems.filter(i => i.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+        const filtered = rawItems.filter(i => (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
         
         const groups: Record<string, { name: string, items: ERPItem[] }> = {};
 
         // 1. Инициализируем блоки ПО ТВОИМ НАСТРОЙКАМ (чтобы сохранить названия и порядок)
-        const sortedCats = (categories || []).sort((a,b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+        // Делаем копию массива [...(categories || [])] перед сортировкой, чтобы избежать TypeError на read-only массивах
+        const sortedCats = [...(categories || [])].sort((a,b) => (Number(a.order) || 0) - (Number(b.order) || 0));
         sortedCats.forEach(cat => {
-            // Ключом сделаем именно числовой ID для безопасности
-            const posterIdStr = String(cat.posterId);
-            groups[posterIdStr] = { name: cat.name, items: [] };
+            const posterIdStr = String(cat.posterId || '');
+            groups[posterIdStr] = { name: cat.name || 'Без названия', items: [] };
         });
 
         // 2. Раскидываем продукты
         filtered.forEach(item => {
             const itemCatId = String(item.categoryId || '');
             
-            // Если такой блок у нас заведен в настройках
             if (groups[itemCatId]) {
                 groups[itemCatId].items.push(item);
             } else {
-                // Если нет соответствия - падаем в "Другое" / "Без категории"
                 if (!groups['other']) groups['other'] = { name: 'Без категории', items: [] };
                 groups['other'].items.push(item);
             }
         });
 
-        // При поиске чистим пустые блоки
         if (searchTerm) {
             Object.keys(groups).forEach(k => { if (groups[k].items.length === 0) delete groups[k]; });
         }
@@ -252,10 +249,9 @@ export default function IngredientsPage() {
                                 {(contractorItems||[])
                                     .filter(ci => {
                                         const erpItem = rawItems?.find(i => i.id === ci.linkedErpItemId);
-                                        const contractor = contractors?.find(c => c.id === ci.contractorId);
                                         const matchSearch = !logisticsSearch || 
-                                            erpItem?.name?.toLowerCase().includes(logisticsSearch.toLowerCase()) ||
-                                            ci.supplierName?.toLowerCase().includes(logisticsSearch.toLowerCase());
+                                            (erpItem?.name || '').toLowerCase().includes(logisticsSearch.toLowerCase()) ||
+                                            (ci.supplierName || '').toLowerCase().includes(logisticsSearch.toLowerCase());
                                         const matchContractor = !selectedContractorId || ci.contractorId === selectedContractorId;
                                         return matchSearch && matchContractor;
                                     })
