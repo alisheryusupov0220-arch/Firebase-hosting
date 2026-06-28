@@ -2,7 +2,7 @@
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, initializeAuth, inMemoryPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore'
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
@@ -33,9 +33,24 @@ export function initializeFirebase() {
 }
 
 export function getSdks(firebaseApp: FirebaseApp) {
+  let auth;
+  try {
+    auth = getAuth(firebaseApp);
+  } catch (e) {
+    console.error('Failed to initialize default Firebase Auth persistence, falling back to inMemoryPersistence:', e);
+    try {
+      auth = initializeAuth(firebaseApp, {
+        persistence: inMemoryPersistence
+      });
+    } catch (err) {
+      console.error('Failed to initialize fallback Firebase Auth:', err);
+      auth = getAuth(firebaseApp);
+    }
+  }
+
   return {
     firebaseApp,
-    auth: getAuth(firebaseApp),
+    auth,
     firestore: getFirestore(firebaseApp)
   };
 }

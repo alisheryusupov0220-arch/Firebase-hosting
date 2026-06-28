@@ -83,11 +83,13 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
             <main className="flex-1 p-4 pb-32">
                 {children}
             </main>
-            <FabMenu
-              ingredients={ingredients}
-              storages={storages}
-              suppliers={suppliers}
-            />
+            {role !== 'tablet' && (
+              <FabMenu
+                ingredients={ingredients}
+                storages={storages}
+                suppliers={suppliers}
+              />
+            )}
             <MobileBottomNav />
         </div>
     );

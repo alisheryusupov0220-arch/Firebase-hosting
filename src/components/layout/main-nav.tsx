@@ -34,7 +34,7 @@ export const allRoutes = [
     href: '/supplies/reception',
     label: 'Приемка по фото',
     icon: Camera,
-    roles: ['super_admin', 'brand_admin', 'outlet_admin', 'employee'],
+    roles: ['super_admin', 'brand_admin', 'outlet_admin', 'employee', 'tablet'],
   },
   {
     href: '/orders',
@@ -46,7 +46,7 @@ export const allRoutes = [
     href: '/write-offs',
     label: 'Списания',
     icon: PackageMinus,
-    roles: ['super_admin', 'brand_admin', 'outlet_admin', 'employee', 'cashier'],
+    roles: ['super_admin', 'brand_admin', 'outlet_admin', 'employee', 'cashier', 'tablet'],
   },
   {
     href: '/finance-hub',
@@ -118,7 +118,7 @@ export const allRoutes = [
     href: '/settings',
     label: 'Настройки',
     icon: Settings,
-    roles: ['super_admin', 'brand_admin', 'outlet_admin', 'employee', 'cashier'],
+    roles: ['super_admin', 'brand_admin', 'outlet_admin', 'employee', 'cashier', 'tablet'],
   },
 ];
 

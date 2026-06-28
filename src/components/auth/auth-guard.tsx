@@ -22,8 +22,9 @@ type UserProfile = {
 // Route permissions mapping
 const routePermissions: Record<string, string[]> = {
   '/supplies': ['super_admin', 'brand_admin', 'outlet_admin', 'employee'],
+  '/supplies/reception': ['super_admin', 'brand_admin', 'outlet_admin', 'employee', 'tablet'],
   '/orders': ['super_admin', 'brand_admin', 'outlet_admin', 'employee', 'cashier'],
-  '/write-offs': ['super_admin', 'brand_admin', 'outlet_admin', 'employee', 'cashier'],
+  '/write-offs': ['super_admin', 'brand_admin', 'outlet_admin', 'employee', 'cashier', 'tablet'],
   '/finance-hub': ['super_admin', 'brand_admin'],
   '/transfers': ['super_admin', 'brand_admin', 'outlet_admin'],
   '/inventory': ['super_admin', 'brand_admin', 'outlet_admin', 'employee', 'cashier'],
@@ -31,13 +32,14 @@ const routePermissions: Record<string, string[]> = {
   '/super-admin': ['super_admin'],
   '/sandbox': ['super_admin'],
   '/ingredients': ['super_admin', 'brand_admin', 'outlet_admin', 'employee'],
-  '/settings': ['super_admin', 'brand_admin', 'outlet_admin', 'employee', 'cashier'],
+  '/settings': ['super_admin', 'brand_admin', 'outlet_admin', 'employee', 'cashier', 'tablet'],
 };
 
 // Helper to determine default landing page by role
 const getDefaultPathForRole = (role: string): string => {
   if (role === 'super_admin') return '/super-admin';
   if (role === 'cashier') return '/orders';
+  if (role === 'tablet') return '/supplies/reception';
   return '/supplies';
 };
 
@@ -172,7 +174,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
          }
 
          // Roles that use the simplified Employee Layout (staff or kitchen)
-         if (role === 'employee' || role === 'cashier' || role === 'staff_point' || role === 'kitchen' || !role) {
+         if (role === 'employee' || role === 'cashier' || role === 'staff_point' || role === 'kitchen' || role === 'tablet' || !role) {
             return <EmployeeLayout>{children}</EmployeeLayout>;
          }
     }

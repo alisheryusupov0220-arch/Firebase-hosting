@@ -122,10 +122,10 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40">
        <div className="absolute left-4 top-4">
-        <Link href="/" className="flex items-center gap-2 font-headline text-lg font-semibold">
+         <Link href="/" className="flex items-center gap-2 font-headline text-lg font-semibold">
             <Package2 className="h-6 w-6" />
-            <span>Dog&Dog Invent+</span>
-        </Link>
+            <span>FLOW Invent+</span>
+         </Link>
        </div>
       <Card className="w-full max-w-sm">
         <CardHeader>

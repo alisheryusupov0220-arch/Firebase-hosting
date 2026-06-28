@@ -13,8 +13,8 @@ if (typeof window === 'undefined') {
 }
 
 export const metadata: Metadata = {
-  title: 'Dog&Dog Invent+',
-  description: 'Inventory management for Dog&Dog',
+  title: 'FLOW Invent+',
+  description: 'Inventory management and procurement hub',
 };
 
 export default function RootLayout({
@@ -34,7 +34,7 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <FirebaseClientProvider>
-          <ThemeProvider storageKey="dog-invent-theme">
+          <ThemeProvider storageKey="flow-invent-theme">
             <AuthGuard>
               {children}
             </AuthGuard>

@@ -33,7 +33,7 @@ export function MobileNav() {
           <SheetTitle>
             <Link href="/" className="flex items-center gap-2 text-lg font-semibold" onClick={() => setIsOpen(false)}>
               <Package2 className="h-6 w-6" />
-              <span>Dog&Dog Invent+</span>
+              <span>FLOW Invent+</span>
             </Link>
           </SheetTitle>
           <SheetDescription className="sr-only">

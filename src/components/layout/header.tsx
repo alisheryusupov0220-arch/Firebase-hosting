@@ -9,7 +9,7 @@ export function Header() {
     <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
       <Link href="/" className="flex items-center gap-2 font-headline text-lg font-semibold">
         <Package2 className="h-6 w-6" />
-        <span>Dog&Dog Invent+</span>
+        <span>FLOW Invent+</span>
       </Link>
       <MainNav className="mx-auto" />
       <div className="ml-auto flex items-center gap-4">

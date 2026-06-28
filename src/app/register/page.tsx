@@ -121,7 +121,7 @@ export default function RegisterPage() {
         <div className="absolute left-4 top-4">
          <Link href="/" className="flex items-center gap-2 font-headline text-lg font-semibold">
             <Package2 className="h-6 w-6" />
-            <span>Dog&Dog Invent+</span>
+            <span>FLOW Invent+</span>
          </Link>
        </div>
       <Card className="w-full max-w-sm">
