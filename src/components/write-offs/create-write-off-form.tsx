@@ -124,7 +124,8 @@ export function CreateWriteOffForm({ ingredients, onFormSubmitted }: CreateWrite
       write_off: {
           date: posterDate,
           storage_id: String(storageId),
-          reason: finalComment || 'Списание FLOW'
+          reason: finalComment || 'Списание FLOW',
+          comment: finalComment || 'Списание FLOW'
       },
       ingredient: values.ingredients.map(ing => {
           const matchedIng = ingredients?.find(i => i.id === ing.ingredient_id);

@@ -63,7 +63,8 @@ export async function approveWriteOffOnPosterAction(orgId: string, id: string): 
           write_off: {
               date: posterDate,
               storage_id: "1", // we default to 1 as fallback
-              reason: `[FLOW] ${data.comment || 'Списание по заявке'}`
+              reason: `[FLOW] ${data.comment || 'Списание по заявке'}`,
+              comment: `[FLOW] ${data.comment || 'Списание по заявке'}`
           },
           ingredient: data.ingredients.map((ing: any) => ({
               // if we need accurate poster ID, we should really fetch it from ingredients_master

@@ -279,6 +279,7 @@ export type CreateWriteOffData = {
         date: string;       // "Y-m-d H:i:s"
         storage_id: string;
         reason?: string;
+        comment?: string;
     };
     ingredient?: {
         id: string;
