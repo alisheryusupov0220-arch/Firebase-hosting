@@ -9,9 +9,9 @@ import { RecognizedDocument } from "@/lib/types/ai";
 export async function runReceiptOCRAction(base64: string, mimeType: string, orgId?: string): Promise<RecognizedDocument | null> {
     try {
         return await extractOCR(base64, mimeType, orgId);
-    } catch (e) {
+    } catch (e: any) {
         console.error("AI OCR Action Error:", e);
-        return null;
+        throw new Error(e.message || String(e));
     }
 }
 

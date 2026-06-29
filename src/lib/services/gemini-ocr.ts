@@ -102,6 +102,6 @@ export async function extractReceiptDataFromImage(base64Image: string, mimeType:
 
     } catch (error: any) {
         console.error('Gemini CRITICAL ERROR:', error);
-        return { error: 'api_error' } as any;
+        throw error;
     }
 }
