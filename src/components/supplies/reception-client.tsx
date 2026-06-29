@@ -215,6 +215,50 @@ export function ReceptionClient({
         );
     }, [scannedItems]);
 
+    const compressImage = (file: File, maxWidth = 1600, maxHeight = 1600, quality = 0.8): Promise<{ base64: string; mimeType: string }> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > maxWidth) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        }
+                    } else {
+                        if (height > maxHeight) {
+                            width = Math.round((width * maxHeight) / height);
+                            height = maxHeight;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        reject(new Error('Failed to get canvas 2d context'));
+                        return;
+                    }
+
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    const base64 = dataUrl.split(',')[1];
+                    resolve({ base64, mimeType: 'image/jpeg' });
+                };
+                img.onerror = (err) => reject(err);
+                img.src = e.target?.result as string;
+            };
+            reader.onerror = (err) => reject(err);
+            reader.readAsDataURL(file);
+        });
+    };
+
     const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -225,119 +269,117 @@ export function ReceptionClient({
 
         setIsScanning(true);
         try {
-            const reader = new FileReader();
-            reader.onload = async () => {
-                const base64 = (reader.result as string).split(',')[1];
-                
-                // 1. OCR Extract
-                const result = await runReceiptOCRAction(base64, file.type, orgId);
-                if (!result || !result.items || result.items.length === 0) {
-                    toast({ variant: 'destructive', title: 'Накладная не распознана', description: 'Попробуйте сделать фото еще раз при хорошем освещении.' });
-                    return;
+            // Сжимаем фото на клиенте до приемлемого разрешения для ускорения загрузки и обхода лимитов размера payload
+            const { base64, mimeType } = await compressImage(file);
+            
+            // 1. OCR Extract
+            const result = await runReceiptOCRAction(base64, mimeType, orgId);
+            if (!result || !result.items || result.items.length === 0) {
+                toast({ variant: 'destructive', title: 'Накладная не распознана', description: 'Попробуйте сделать фото еще раз при хорошем освещении.' });
+                return;
+            }
+
+            const detectedName = result.counterparty || '';
+            setScannedSupplierName(detectedName);
+            setOcrSupplierName(detectedName);
+            setScannedSupplierInn(result.counterpartyInn || result.inn || '');
+            setScannedSupplierBankAccount(result.senderAccount || result.bankAccount || '');
+            setScannedSupplierBankName(result.bankName || '');
+            setScannedSupplierBankCode(result.mfo || '');
+            setScannedSupplierPhone(result.phone || '');
+            setScannedSupplierAddress(result.address || '');
+
+            // Upload image to Firebase Storage
+            try {
+                const fileName = `reception_${orgId}_${Date.now()}.jpg`;
+                const uploadResult = await uploadSupplyImageAction(base64, fileName, mimeType);
+                if (uploadResult && uploadResult.url) {
+                    setPhotoUrl(uploadResult.url);
+                    console.log("Photo uploaded to Firebase Storage:", uploadResult.url);
                 }
+            } catch (uploadError) {
+                console.error("Failed to upload reception photo:", uploadError);
+            }
 
-                const detectedName = result.counterparty || '';
-                setScannedSupplierName(detectedName);
-                setOcrSupplierName(detectedName);
-                setScannedSupplierInn(result.counterpartyInn || result.inn || '');
-                setScannedSupplierBankAccount(result.senderAccount || result.bankAccount || '');
-                setScannedSupplierBankName(result.bankName || '');
-                setScannedSupplierBankCode(result.mfo || '');
-                setScannedSupplierPhone(result.phone || '');
-                setScannedSupplierAddress(result.address || '');
+            // Auto-resolve supplier if possible using smart scoring matching
+            let resolvedSupplierId = supplierId;
+            const scannedInn = result.counterpartyInn || result.inn || '';
+            
+            if (!resolvedSupplierId && suppliers && suppliers.length > 0) {
+                let bestScore = 0;
+                let bestMatchSupplier = null;
 
-                // Upload image to Firebase Storage
-                try {
-                    const fileName = `reception_${orgId}_${Date.now()}.jpg`;
-                    const uploadResult = await uploadSupplyImageAction(base64, fileName, file.type);
-                    if (uploadResult && uploadResult.url) {
-                        setPhotoUrl(uploadResult.url);
-                        console.log("Photo uploaded to Firebase Storage:", uploadResult.url);
-                    }
-                } catch (uploadError) {
-                    console.error("Failed to upload reception photo:", uploadError);
-                }
-
-                // Auto-resolve supplier if possible using smart scoring matching
-                let resolvedSupplierId = supplierId;
-                const scannedInn = result.counterpartyInn || result.inn || '';
-                
-                if (!resolvedSupplierId && suppliers && suppliers.length > 0) {
-                    let bestScore = 0;
-                    let bestMatchSupplier = null;
-
-                    for (const supplier of suppliers) {
-                        const score = calculateSupplierMatchScore(detectedName, scannedInn, supplier);
-                        if (score > bestScore) {
-                            bestScore = score;
-                            bestMatchSupplier = supplier;
-                        }
-                    }
-
-                    if (bestMatchSupplier && bestScore > 0) {
-                        console.log(`Auto-matched supplier: ${bestMatchSupplier.name} (Score: ${bestScore})`);
-                        resolvedSupplierId = bestMatchSupplier.id;
-                        setSupplierId(bestMatchSupplier.id);
-                        setScannedSupplierName(bestMatchSupplier.name);
+                for (const supplier of suppliers) {
+                    const score = calculateSupplierMatchScore(detectedName, scannedInn, supplier);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMatchSupplier = supplier;
                     }
                 }
 
-                // Fallback: Auto-resolve supplier by checking scanned item name matches in suppliers' priceLists
-                if (!resolvedSupplierId && suppliers && suppliers.length > 0 && result.items && result.items.length > 0) {
-                    let bestSupplierId = '';
-                    let maxMatchCount = 0;
+                if (bestMatchSupplier && bestScore > 0) {
+                    console.log(`Auto-matched supplier: ${bestMatchSupplier.name} (Score: ${bestScore})`);
+                    resolvedSupplierId = bestMatchSupplier.id;
+                    setSupplierId(bestMatchSupplier.id);
+                    setScannedSupplierName(bestMatchSupplier.name);
+                }
+            }
 
-                    for (const supplier of suppliers) {
-                        if (supplier.priceList && supplier.priceList.length > 0) {
-                            let matchCount = 0;
-                            for (const scannedItem of result.items) {
-                                const normScanned = normalizeCompanyName(scannedItem.name);
-                                const hasMatch = supplier.priceList.some(plItem => normalizeCompanyName(plItem.name) === normScanned);
-                                if (hasMatch) {
-                                    matchCount++;
-                                }
-                            }
-                            if (matchCount > maxMatchCount) {
-                                maxMatchCount = matchCount;
-                                bestSupplierId = supplier.id;
+            // Fallback: Auto-resolve supplier by checking scanned item name matches in suppliers' priceLists
+            if (!resolvedSupplierId && suppliers && suppliers.length > 0 && result.items && result.items.length > 0) {
+                let bestSupplierId = '';
+                let maxMatchCount = 0;
+
+                for (const supplier of suppliers) {
+                    if (supplier.priceList && supplier.priceList.length > 0) {
+                        let matchCount = 0;
+                        for (const scannedItem of result.items) {
+                            const normScanned = normalizeCompanyName(scannedItem.name);
+                            const hasMatch = supplier.priceList.some(plItem => normalizeCompanyName(plItem.name) === normScanned);
+                            if (hasMatch) {
+                                matchCount++;
                             }
                         }
-                    }
-
-                    if (bestSupplierId && maxMatchCount > 0) {
-                        const matchedSupplier = suppliers.find(s => s.id === bestSupplierId);
-                        if (matchedSupplier) {
-                            console.log(`Auto-matched supplier by priceList item matches: ${matchedSupplier.name} (matched items: ${maxMatchCount})`);
-                            resolvedSupplierId = bestSupplierId;
-                            setSupplierId(bestSupplierId);
-                            setScannedSupplierName(matchedSupplier.name);
+                        if (matchCount > maxMatchCount) {
+                            maxMatchCount = matchCount;
+                            bestSupplierId = supplier.id;
                         }
                     }
                 }
 
-                // 2. AI Matching
-                const matches = await getSmartIngredientMatchesAction(orgId, result.items, resolvedSupplierId || undefined);
-                
-                // 3. Populate Form State
-                const itemsToVerify: ScannedItem[] = matches.map(m => {
-                    const scannedItem = result.items?.find(si => si.name === m.scannedName);
-                    const invoiceQty = scannedItem?.qty ? Number(scannedItem.qty) : 1;
-                    return {
-                        itemId: m.matchedItemId || '',
-                        originalName: m.scannedName,
-                        name: m.scannedName,
-                        invoiceQty,
-                        factQty: '', // Awaiting user input
-                        price: scannedItem?.sum ? Number(scannedItem.sum) : 0,
-                    };
-                });
+                if (bestSupplierId && maxMatchCount > 0) {
+                    const matchedSupplier = suppliers.find(s => s.id === bestSupplierId);
+                    if (matchedSupplier) {
+                        console.log(`Auto-matched supplier by priceList item matches: ${matchedSupplier.name} (matched items: ${maxMatchCount})`);
+                        resolvedSupplierId = bestSupplierId;
+                        setSupplierId(bestSupplierId);
+                        setScannedSupplierName(matchedSupplier.name);
+                    }
+                }
+            }
 
-                setScannedItems(itemsToVerify);
-                setStep(2);
-                toast({ title: 'Оцифровка завершена!', description: `Распознано позиций: ${itemsToVerify.length}` });
-            };
-            reader.readAsDataURL(file);
+            // 2. AI Matching
+            const matches = await getSmartIngredientMatchesAction(orgId, result.items, resolvedSupplierId || undefined);
+            
+            // 3. Populate Form State
+            const itemsToVerify: ScannedItem[] = matches.map(m => {
+                const scannedItem = result.items?.find(si => si.name === m.scannedName);
+                const invoiceQty = scannedItem?.qty ? Number(scannedItem.qty) : 1;
+                return {
+                    itemId: m.matchedItemId || '',
+                    originalName: m.scannedName,
+                    name: m.scannedName,
+                    invoiceQty,
+                    factQty: '', // Awaiting user input
+                    price: scannedItem?.sum ? Number(scannedItem.sum) : 0,
+                };
+            });
+
+            setScannedItems(itemsToVerify);
+            setStep(2);
+            toast({ title: 'Оцифровка завершена!', description: `Распознано позиций: ${itemsToVerify.length}` });
         } catch (err: any) {
+            console.error("Error during OCR/matching:", err);
             toast({ variant: 'destructive', title: 'Ошибка распознавания', description: err.message || String(err) });
         } finally {
             setIsScanning(false);

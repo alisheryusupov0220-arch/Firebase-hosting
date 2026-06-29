@@ -91,6 +91,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
                     });
                     if (res.ok) {
                         await user.getIdToken(true); // force JWT refresh
+                        window.location.reload(); // reload to apply refreshed custom claims in provider
                     }
                 } catch (e) {
                     console.error('Self-healing claims sync failed:', e);
