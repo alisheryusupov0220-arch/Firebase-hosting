@@ -2,9 +2,6 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { adminDb } from '@/firebase/server';
 import { RecognizedDocument } from '@/lib/types/ai';
 
-// Инициализация API
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-
 /**
  * ПРЯМОЕ ИСПОЛЬЗОВАНИЕ ПАРАМЕТРИЧЕСКОЙ МОДЕЛИ ИЗ НАСТРОЕК
  */
@@ -14,6 +11,13 @@ export async function extractReceiptDataFromImage(base64Image: string, mimeType:
         const settings = settingsDoc.data();
         const modelId = settings?.model || 'gemini-2.5-flash';
         const temperature = settings?.temperature ?? 0.1;
+        const apiKey = (settings?.geminiApiKey as string || '').trim() || process.env.GEMINI_API_KEY || '';
+
+        if (!apiKey) {
+            throw new Error('Ключ Gemini API не настроен. Пожалуйста, зайдите в Настройки → Инженер промптов и укажите Ключ API.');
+        }
+
+        const genAI = new GoogleGenerativeAI(apiKey);
 
         // --- НОВОЕ: ПОЛУЧАЕМ НАШИ ДАННЫЕ ДЛЯ КОНТЕКСТА ---
         const collectionRef = orgId 

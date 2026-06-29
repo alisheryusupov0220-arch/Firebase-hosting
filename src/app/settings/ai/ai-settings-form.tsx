@@ -133,6 +133,20 @@ export function AISettingsForm({ initialSettings }: { initialSettings: AISystemS
               </div>
 
               <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase tracking-widest opacity-40">Gemini API Key (Ключ API)</Label>
+                <Input 
+                   type="password"
+                   value={settings.geminiApiKey || ''}
+                   onChange={(e) => setSettings({ ...settings, geminiApiKey: e.target.value })}
+                   placeholder="AIzaSy..."
+                   className="h-14 bg-white/10 border-white/5 rounded-2xl font-mono text-sm text-white placeholder:opacity-20 focus:ring-indigo-500"
+                />
+                <p className="text-[9px] text-indigo-300/50 font-bold uppercase mt-1">
+                  Необходим для работы ИИ-оцифровки накладных и списаний.
+                </p>
+              </div>
+
+              <div className="space-y-3">
                 <Label className="text-[10px] font-black uppercase tracking-widest opacity-40">Креативность (Temp)</Label>
                 <Input 
                    type="range" 

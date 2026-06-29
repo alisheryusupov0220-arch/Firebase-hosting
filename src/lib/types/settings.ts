@@ -3,5 +3,6 @@ export interface AISystemSettings {
     systemPrompt: string;
     model: string;
     temperature: number;
+    geminiApiKey?: string;
     updatedAt: any;
 }

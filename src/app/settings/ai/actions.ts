@@ -39,6 +39,7 @@ export async function getAISettingsAction(): Promise<AISystemSettings> {
             systemPrompt: DEFAULT_PROMPT,
             model: 'gemini-2.5-flash',
             temperature: 0.1,
+            geminiApiKey: '',
             updatedAt: new Date()
         };
     }
@@ -49,6 +50,7 @@ export async function getAISettingsAction(): Promise<AISystemSettings> {
         systemPrompt: data.systemPrompt || DEFAULT_PROMPT,
         model: data.model || 'gemini-2.5-flash',
         temperature: data.temperature ?? 0.1,
+        geminiApiKey: data.geminiApiKey || '',
         updatedAt: data.updatedAt?.toDate() || new Date()
     } as AISystemSettings;
 }
