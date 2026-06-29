@@ -11,7 +11,7 @@ export async function runReceiptOCRAction(base64: string, mimeType: string, orgI
         return await extractOCR(base64, mimeType, orgId);
     } catch (e: any) {
         console.error("AI OCR Action Error:", e);
-        throw new Error(e.message || String(e));
+        return { error: e.message || String(e) } as RecognizedDocument;
     }
 }
 

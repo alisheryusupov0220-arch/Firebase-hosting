@@ -274,7 +274,21 @@ export function ReceptionClient({
             
             // 1. OCR Extract
             const result = await runReceiptOCRAction(base64, mimeType, orgId);
-            if (!result || !result.items || result.items.length === 0) {
+            if (!result) {
+                toast({ variant: 'destructive', title: 'Ошибка распознавания', description: 'Не удалось получить ответ от сервера.' });
+                return;
+            }
+
+            if ('error' in result) {
+                toast({ 
+                    variant: 'destructive', 
+                    title: 'Ошибка ИИ-распознавания', 
+                    description: String((result as any).error || 'Ошибка на сервере распознавания.') 
+                });
+                return;
+            }
+
+            if (!result.items || result.items.length === 0) {
                 toast({ variant: 'destructive', title: 'Накладная не распознана', description: 'Попробуйте сделать фото еще раз при хорошем освещении.' });
                 return;
             }
