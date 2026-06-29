@@ -77,17 +77,25 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     const { data: userProfile, isLoading: profileLoading } = useDoc<UserProfile>(userProfileRef);
 
-    const isLoading = userLoading || (user && (profileLoading || !claimsRole || !claimsOrgId));
+    // Loading is true if auth state is loading, or user is logged in but claims are not ready.
+    // Super admin does not require claimsOrgId to be defined.
+    const isLoading = userLoading || (user && (
+        profileLoading || 
+        !claimsRole || 
+        (!claimsOrgId && claimsRole !== 'super_admin')
+    ));
 
     // Real-time self-healing claims check
     useEffect(() => {
         const healClaims = async () => {
-            if (user && (!claimsRole || !claimsOrgId)) {
-                // Предотвращаем бесконечный цикл перезагрузки страницы
-                const hasReloaded = sessionStorage.getItem('claims_healed_reload');
-                if (hasReloaded === 'true') {
-                    console.warn('Self-healing claims: already reloaded once. Aborting to prevent infinite loop.');
-                    return;
+            if (user && (!claimsRole || (!claimsOrgId && claimsRole !== 'super_admin'))) {
+                // Предотвращаем бесконечный цикл перезагрузки с помощью параметра в URL (безопасно для iframe/WebView)
+                if (typeof window !== 'undefined') {
+                    const url = new URL(window.location.href);
+                    if (url.searchParams.get('healed') === '1') {
+                        console.warn('Self-healing claims: already reloaded once. Aborting reload loop.');
+                        return;
+                    }
                 }
 
                 try {
@@ -98,11 +106,16 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
                     });
                     if (res.ok) {
                         await user.getIdToken(true); // force JWT refresh
-                        sessionStorage.setItem('claims_healed_reload', 'true');
-                        // Небольшая задержка перед перезагрузкой, чтобы Firebase SDK успел записать кэш токена в WebView
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 800);
+                        
+                        if (typeof window !== 'undefined') {
+                            const url = new URL(window.location.href);
+                            url.searchParams.set('healed', '1');
+                            
+                            // Задержка перед перезагрузкой, чтобы Firebase SDK успел записать токен в кэш
+                            setTimeout(() => {
+                                window.location.replace(url.toString());
+                            }, 800);
+                        }
                     }
                 } catch (e) {
                     console.error('Self-healing claims sync failed:', e);
