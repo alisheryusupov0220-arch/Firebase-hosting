@@ -1,5 +1,7 @@
 export interface RecognizedDocument {
     doc_type: string;
+    document_subtype?: 'invoice' | 'receipt';
+    is_paid?: boolean;
     document_id?: string;
     date: string;
     counterparty: string;

@@ -8,6 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Badge } from '@/components/ui/badge';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useCollection, useFirestore } from '@/firebase/hooks';
@@ -175,6 +182,7 @@ export function ReceptionClient({
     const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
     const [priceHistory, setPriceHistory] = useState<Record<string, { date: string; pricePerUnit: number; qty: number }[]>>({});
     const [comment, setComment] = useState('');
+    const [isPaid, setIsPaid] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
     const [isPending, startTransition] = useTransition();
 
@@ -302,6 +310,7 @@ export function ReceptionClient({
             setScannedSupplierBankCode(result.mfo || '');
             setScannedSupplierPhone(result.phone || '');
             setScannedSupplierAddress(result.address || '');
+            setIsPaid(result.is_paid || false);
 
             // Upload image to Firebase Storage
             try {
@@ -426,6 +435,7 @@ export function ReceptionClient({
                 storageId: storageId || undefined,
                 comment,
                 photoUrl: photoUrl || undefined,
+                isPaid,
                 supplierInn: scannedSupplierInn || undefined,
                 supplierBankAccount: scannedSupplierBankAccount || undefined,
                 supplierBankName: scannedSupplierBankName || undefined,
@@ -449,6 +459,7 @@ export function ReceptionClient({
                 setSupplierId('');
                 setScannedSupplierName('');
                 setOcrSupplierName('');
+                setIsPaid(false);
                 setScannedSupplierInn('');
                 setScannedSupplierBankAccount('');
                 setScannedSupplierBankName('');
@@ -566,7 +577,7 @@ export function ReceptionClient({
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="p-8 space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="space-y-2">
                                     <Label className="text-xs font-bold uppercase text-slate-400 ml-1">Поставщик (FLOW)</Label>
                                     <SearchableSelect 
@@ -604,6 +615,25 @@ export function ReceptionClient({
                                         onChange={setStorageId} 
                                         placeholder="Автовыбор склада" 
                                     />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold uppercase text-slate-400 ml-1">Тип документа / Оплата</Label>
+                                    <Select 
+                                        value={isPaid ? 'paid' : 'unpaid'} 
+                                        onValueChange={(val) => setIsPaid(val === 'paid')}
+                                    >
+                                        <SelectTrigger className="h-12 bg-white border border-slate-200 rounded-2xl font-bold text-sm text-slate-800 focus:ring-blue-500">
+                                            <SelectValue placeholder="Статус оплаты" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-white border-slate-200 text-slate-800 rounded-xl">
+                                            <SelectItem value="unpaid" className="focus:bg-blue-600 focus:text-white font-bold">
+                                                ❌ Поставка в долг (Накладная)
+                                            </SelectItem>
+                                            <SelectItem value="paid" className="focus:bg-blue-600 focus:text-white font-bold">
+                                                ✅ Оплачено сразу (Чек / Корзинка)
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
                         </CardContent>

@@ -20,6 +20,18 @@ export async function extractReceiptDataFromImage(base64Image: string, mimeType:
         const genAI = new GoogleGenerativeAI(apiKey);
 
         // --- НОВОЕ: ПОЛУЧАЕМ НАШИ ДАННЫЕ ДЛЯ КОНТЕКСТА ---
+        let orgName = '';
+        if (orgId) {
+            try {
+                const orgDoc = await adminDb.collection('organizations').doc(orgId).get();
+                if (orgDoc.exists) {
+                    orgName = orgDoc.data()?.name || '';
+                }
+            } catch (err) {
+                console.error('Failed to fetch org details for prompt:', err);
+            }
+        }
+
         const collectionRef = orgId 
             ? adminDb.collection(`organizations/${orgId}/my_companies`)
             : adminDb.collection('my_companies');
@@ -32,21 +44,32 @@ export async function extractReceiptDataFromImage(base64Image: string, mimeType:
 
         const systemPrompt = `Ты — финансовый эксперт FLOW. Твоя задача — классифицировать документ и извлечь данные в JSON.
                 
-                ИНФОРМАЦИЯ О НАШЕЙ КОМПАНИИ (ЭТО МЫ, FLOW):
+                ИНФОРМАЦИЯ О НАШЕЙ КОМПАНИИ (ЭТО МЫ):
+                Название бренда/компании в системе: ${orgName}
+                Наши зарегистрированные юридические лица:
                 ${myCompaniesInfo}
 
-                ЖЕСТКИЕ ПРАВИЛА:
-                1. 'counterparty': Сюда должно попасть ТОЛЬКО название другой стороны (НЕ НАШЕЙ). Например, из поля "Поставщик" или "Продавец".
+                ЖЕСТКИЕ ПРАВИЛА ОПРЕДЕЛЕНИЯ СТОРОН:
+                1. 'counterparty': Название ДРУГОЙ стороны (НЕ нашей). Любое название, содержащее ${orgName} или наши юрлица выше, является НАШЕЙ компанией, а не контрагентом!
+                   - Пример: если в накладной Получатель — "${orgName}", а Поставщик — "ООО Мечта", то контрагент — "ООО Мечта".
                 2. 'counterpartyInn': ИНН другой стороны (НЕ НАШЕЙ).
                 3. 'type': 
-                   - 'expense', если наша компания является Плательщиком (Sender) или Получателем товаров (Покупателем).
-                   - 'income', если наша компания является Получателем денег или Продавцом.
-                4. 'senderAccount' / 'recipientAccount': Извлеки оба счета из документа.
-                5. 'myAccountNumber': Номер счета, который принадлежит НАШЕЙ компании из списка выше.
+                   - 'expense', если наша компания является Получателем товаров (Покупателем) или Плательщиком.
+                   - 'income', если наша компания является Продавцом или Получателем денег.
+                4. 'senderAccount' / 'recipientAccount': Извлеки счета из документа.
+                5. 'myAccountNumber': Номер счета нашей компании.
                 
+                ОПРЕДЕЛЕНИЕ ТИПА И ОПЛАТЫ ДОКУМЕНТА (ЖЕСТКОЕ ТРЕБОВАНИЕ):
+                6. 'document_subtype':
+                   - 'receipt', если это кассовый чек, фискальный чек, чек из супермаркета (например, Korzinka, Makro, Havas) или чек терминала (где оплата происходит моментально).
+                   - 'invoice', если это товарная накладная, расходная накладная, счет-фактура или акт (где товар отпускается на склад, а оплата будет позже).
+                7. 'is_paid':
+                   - true, если это кассовый/фискальный чек или покупка из супермаркета (так как они всегда оплачиваются на кассе сразу).
+                   - false, если это товарная накладная или счет-фактура (поставка осуществляется в долг под последующую оплату).
+
                 ТИПЫ ДОКУМЕНТОВ (doc_type):
-                1. 'receipt' — платежное поручение, чек, накладная, счет-фактура (есть сумма, дата и, возможно, список товаров).
-                2. 'requisites' — карточка компании, реквизиты (есть ИНН, МФО, расчетный счет).
+                1. 'receipt' — платежное поручение, чек, накладная, счет-фактура (есть сумма, дата и список товаров).
+                2. 'requisites' — карточка компании, реквизиты.
 
                 ИНСТРУКЦИИ ДЛЯ REQUISITES:
                 - Извлеки данные той компании, которая указана в реквизитах.
@@ -60,11 +83,13 @@ export async function extractReceiptDataFromImage(base64Image: string, mimeType:
                   - price: цена за единицу
                   - sum: общая сумма по данной строке (qty * price)
 
-                ВАЖНО: Если документ - реквизиты, amount должен быть null, а items должен отсутствовать или быть пустым. 
+                ВАЖНО: Если документ - реквизиты, amount должен быть null, а items должен быть пустым. 
                 
                 JSON:
                 {
                   "doc_type": "receipt" | "requisites",
+                  "document_subtype": "invoice" | "receipt",
+                  "is_paid": true | false,
                   "counterparty": "...",
                   "counterpartyInn": "...",
                   "amount": 0,

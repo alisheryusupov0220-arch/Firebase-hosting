@@ -69,6 +69,7 @@ export async function confirmPhotoReceptionAction(orgId: string, userId: string,
     storageId?: string;
     comment?: string;
     photoUrl?: string;
+    isPaid?: boolean;
     supplierInn?: string;
     supplierBankAccount?: string;
     supplierBankName?: string;
@@ -399,19 +400,23 @@ export async function confirmPhotoReceptionAction(orgId: string, userId: string,
             }
         });
 
-        batch.update(adminDb.collection(`organizations/${orgId}/suppliers`).doc(finalSupplierId), {
-            balance: FieldValue.increment(totalAmount)
-        });
+        const isPaid = payload.isPaid || false;
 
-        // Также обновляем баланс контрагента в казначействе (для синхронности казначейства и долгов)
-        const contractorRef = adminDb.collection(`organizations/${orgId}/contractors`).doc(finalSupplierId);
-        batch.set(contractorRef, {
-            id: finalSupplierId,
-            name: supplierName,
-            balance: FieldValue.increment(totalAmount),
-            updatedAt: FieldValue.serverTimestamp(),
-            isActive: true
-        }, { merge: true });
+        if (!isPaid) {
+            batch.update(adminDb.collection(`organizations/${orgId}/suppliers`).doc(finalSupplierId), {
+                balance: FieldValue.increment(totalAmount)
+            });
+
+            // Также обновляем баланс контрагента в казначействе (для синхронности казначейства и долгов)
+            const contractorRef = adminDb.collection(`organizations/${orgId}/contractors`).doc(finalSupplierId);
+            batch.set(contractorRef, {
+                id: finalSupplierId,
+                name: supplierName,
+                balance: FieldValue.increment(totalAmount),
+                updatedAt: FieldValue.serverTimestamp(),
+                isActive: true
+            }, { merge: true });
+        }
 
         // Создаем накладную-запрос (order_request) со статусом POSTED_TO_POSTER
         // Это позволит просматривать её детали, фото чека и факт приемки на странице заказов
@@ -454,9 +459,9 @@ export async function confirmPhotoReceptionAction(orgId: string, userId: string,
             supplierId: finalSupplierId,
             supplierName: supplierName,
             totalAmount: totalAmount,
-            paidAmount: 0,
-            remainingAmount: totalAmount,
-            status: 'INVOICE_RECEIVED',
+            paidAmount: isPaid ? totalAmount : 0,
+            remainingAmount: isPaid ? 0 : totalAmount,
+            status: isPaid ? 'PAID' : 'INVOICE_RECEIVED',
             orderId: orderId,
             posterSupplyId: posterSupplyId,
             imageUrl: payload.photoUrl || '',
