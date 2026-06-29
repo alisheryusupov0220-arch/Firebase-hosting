@@ -83,6 +83,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const healClaims = async () => {
             if (user && (!claimsRole || !claimsOrgId)) {
+                // Предотвращаем бесконечный цикл перезагрузки страницы
+                const hasReloaded = sessionStorage.getItem('claims_healed_reload');
+                if (hasReloaded === 'true') {
+                    console.warn('Self-healing claims: already reloaded once. Aborting to prevent infinite loop.');
+                    return;
+                }
+
                 try {
                     const idToken = await user.getIdToken();
                     const res = await fetch('/api/auth/sync-claims', {
@@ -91,7 +98,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
                     });
                     if (res.ok) {
                         await user.getIdToken(true); // force JWT refresh
-                        window.location.reload(); // reload to apply refreshed custom claims in provider
+                        sessionStorage.setItem('claims_healed_reload', 'true');
+                        // Небольшая задержка перед перезагрузкой, чтобы Firebase SDK успел записать кэш токена в WebView
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 800);
                     }
                 } catch (e) {
                     console.error('Self-healing claims sync failed:', e);
