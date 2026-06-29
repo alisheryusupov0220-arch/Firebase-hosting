@@ -478,18 +478,18 @@ export function ReceptionClient({
     return (
         <div className="space-y-6 max-w-3xl mx-auto p-4 pb-24">
             {/* Steps indicator */}
-            <div className="flex items-center justify-between px-4 py-2 bg-slate-50 rounded-2xl border border-slate-100">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Шаги приемки:</span>
+            <div className="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Шаги приемки:</span>
                 <div className="flex items-center gap-4">
-                    <span className={cn("text-sm font-black", step === 1 ? "text-blue-600" : "text-slate-400")}>1. Фото и Склад</span>
-                    <ArrowRight className="w-4 h-4 text-slate-300" />
-                    <span className={cn("text-sm font-black", step === 2 ? "text-blue-600" : "text-slate-400")}>2. Сверка Факта</span>
+                    <span className={cn("text-sm font-black", step === 1 ? "text-blue-600" : "text-slate-400 dark:text-slate-500")}>1. Фото и Склад</span>
+                    <ArrowRight className="w-4 h-4 text-slate-300 dark:text-slate-700" />
+                    <span className={cn("text-sm font-black", step === 2 ? "text-blue-600" : "text-slate-400 dark:text-slate-500")}>2. Сверка Факта</span>
                 </div>
             </div>
 
             {step === 1 && (
                 <Card className="rounded-[2rem] shadow-xl border-none">
-                    <CardHeader className="bg-slate-50 border-b p-6 rounded-t-[2rem]">
+                    <CardHeader className="bg-slate-50 dark:bg-slate-900/40 border-b p-6 rounded-t-[2rem]">
                         <CardTitle className="text-lg font-bold flex items-center gap-2">
                             <Camera className="w-5 h-5 text-blue-600" /> Быстрая приемка по фото
                         </CardTitle>
@@ -557,7 +557,7 @@ export function ReceptionClient({
                         <Button 
                             variant="ghost" 
                             onClick={() => setStep(1)} 
-                            className="rounded-xl font-bold hover:bg-slate-100"
+                            className="rounded-xl font-bold hover:bg-slate-100 dark:hover:bg-slate-800"
                         >
                             <ArrowLeft className="w-4 h-4 mr-2" /> Сделать новое фото
                         </Button>
@@ -568,7 +568,7 @@ export function ReceptionClient({
 
                     {/* Contractor & Storage Card */}
                     <Card className="rounded-[2rem] shadow-xl border-none">
-                        <CardHeader className="bg-slate-50 border-b p-6 rounded-t-[2rem]">
+                        <CardHeader className="bg-slate-50 dark:bg-slate-900/40 border-b p-6 rounded-t-[2rem]">
                             <CardTitle className="text-lg font-bold flex items-center gap-2">
                                 <Building2 className="w-5 h-5 text-blue-600" /> Контрагент и Склад
                             </CardTitle>
@@ -579,7 +579,7 @@ export function ReceptionClient({
                         <CardContent className="p-8 space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="space-y-2">
-                                    <Label className="text-xs font-bold uppercase text-slate-400 ml-1">Поставщик (FLOW)</Label>
+                                    <Label className="text-xs font-bold uppercase text-slate-400 dark:text-slate-500 ml-1">Поставщик (FLOW)</Label>
                                     <SearchableSelect 
                                         options={supplierOptions} 
                                         value={supplierId} 
@@ -599,7 +599,7 @@ export function ReceptionClient({
                                                 value={scannedSupplierName} 
                                                 onChange={(e) => setScannedSupplierName(e.target.value)} 
                                                 placeholder="Введите название (например, b2b quality)"
-                                                className="h-10 rounded-xl border-amber-200 bg-white font-black text-sm pl-3 focus-visible:ring-amber-500 text-slate-800 uppercase"
+                                                className="h-10 rounded-xl border-amber-200 bg-white dark:bg-slate-950 font-black text-sm pl-3 focus-visible:ring-amber-500 text-slate-800 dark:text-slate-100 uppercase"
                                             />
                                             <p className="text-[9px] font-bold text-amber-700/60 leading-tight pl-0.5">
                                                 Отредактируйте юридическое имя на понятный бренд (например, b2b quality вместо ЯТТ), чтобы долги группировались правильно.
@@ -608,7 +608,7 @@ export function ReceptionClient({
                                     )}
                                 </div>
                                 <div className="space-y-2">
-                                    <Label className="text-xs font-bold uppercase text-slate-400 ml-1">Склад / Объект (Poster)</Label>
+                                    <Label className="text-xs font-bold uppercase text-slate-400 dark:text-slate-500 ml-1">Склад / Объект (Poster)</Label>
                                     <SearchableSelect 
                                         options={storageOptions} 
                                         value={storageId} 
@@ -617,15 +617,15 @@ export function ReceptionClient({
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label className="text-xs font-bold uppercase text-slate-400 ml-1">Тип документа / Оплата</Label>
+                                    <Label className="text-xs font-bold uppercase text-slate-400 dark:text-slate-500 ml-1">Тип документа / Оплата</Label>
                                     <Select 
                                         value={isPaid ? 'paid' : 'unpaid'} 
                                         onValueChange={(val) => setIsPaid(val === 'paid')}
                                     >
-                                        <SelectTrigger className="h-12 bg-white border border-slate-200 rounded-2xl font-bold text-sm text-slate-800 focus:ring-blue-500">
+                                        <SelectTrigger className="h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold text-sm text-slate-800 dark:text-slate-100 focus:ring-blue-500">
                                             <SelectValue placeholder="Статус оплаты" />
                                         </SelectTrigger>
-                                        <SelectContent className="bg-white border-slate-200 text-slate-800 rounded-xl">
+                                        <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-850 text-slate-800 dark:text-slate-100 rounded-xl">
                                             <SelectItem value="unpaid" className="focus:bg-blue-600 focus:text-white font-bold">
                                                 ❌ Поставка в долг (Накладная)
                                             </SelectItem>
@@ -641,7 +641,7 @@ export function ReceptionClient({
 
                     {/* Items List */}
                     <Card className="rounded-[2rem] shadow-xl border-none">
-                        <CardHeader className="bg-slate-50 border-b p-6 rounded-t-[2rem] flex flex-row items-center justify-between">
+                        <CardHeader className="bg-slate-50 dark:bg-slate-900/40 border-b p-6 rounded-t-[2rem] flex flex-row items-center justify-between">
                             <div>
                                 <CardTitle className="text-lg">Проверка и оцифрованный Факт</CardTitle>
                                 <CardDescription>Сопоставьте товары и укажите фактическое количество (Факт).</CardDescription>
@@ -649,7 +649,7 @@ export function ReceptionClient({
                             <Sparkles className="w-6 h-6 text-blue-500" />
                         </CardHeader>
                         <CardContent className="p-0">
-                            <div className="divide-y divide-slate-100">
+                            <div className="divide-y divide-slate-100 dark:divide-slate-800">
                                 {scannedItems.map((item, index) => {
                                     const diff = item.factQty - item.invoiceQty;
                                     const hasDiff = diff !== 0;
@@ -671,19 +671,19 @@ export function ReceptionClient({
                                     }
 
                                     return (
-                                        <div key={index} className="p-6 space-y-4 hover:bg-slate-50/50 transition-colors">
+                                        <div key={index} className="p-6 space-y-4 hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                                             {/* Line Item Info */}
                                             <div className="flex items-start justify-between gap-4">
                                                 <div className="space-y-3 flex-1">
                                                     <div>
-                                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Название в накладной (оригинал)</div>
-                                                        <h4 className="text-base font-bold text-slate-900 leading-tight">
+                                                        <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Название в накладной (оригинал)</div>
+                                                        <h4 className="text-base font-bold text-slate-900 dark:text-slate-100 leading-tight">
                                                             {item.originalName}
                                                         </h4>
                                                     </div>
                                                     
                                                     <div className="space-y-1">
-                                                        <label className="text-xs font-semibold text-slate-500 block">
+                                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">
                                                             Связь с ингредиентом Poster:
                                                         </label>
                                                         <SearchableSelect 
@@ -695,21 +695,21 @@ export function ReceptionClient({
                                                     </div>
                                                     
                                                     {item.itemId && (
-                                                        <div className="mt-3 pt-3 border-t border-slate-100/80 space-y-2 animate-in fade-in duration-300">
+                                                        <div className="mt-3 pt-3 border-t border-slate-100/80 dark:border-slate-800/80 space-y-2 animate-in fade-in duration-300">
                                                             <div className="flex items-center justify-between text-xs">
-                                                                <span className="text-slate-400 font-bold flex items-center gap-1">
+                                                                <span className="text-slate-400 dark:text-slate-500 font-bold flex items-center gap-1">
                                                                     <Sparkles className="w-3.5 h-3.5 text-blue-500" />
                                                                     Текущая цена за {erpItem?.baseUnit === 'KG' ? 'кг' : 'шт'}:
                                                                 </span>
-                                                                <div className="font-black text-slate-800 bg-slate-100 px-2 py-0.5 rounded-lg">
+                                                                <div className="font-black text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg">
                                                                     {Math.round(currentUnitPrice).toLocaleString()} сум / {erpItem?.baseUnit === 'KG' ? 'кг' : 'шт'}
                                                                 </div>
                                                             </div>
 
                                                             {lastEntry ? (
-                                                                <div className="flex flex-col gap-1.5 bg-slate-50 p-3 rounded-2xl border border-slate-100 shadow-sm">
+                                                                <div className="flex flex-col gap-1.5 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
                                                                     <div className="flex items-center justify-between text-xs">
-                                                                        <span className="text-slate-500 font-semibold">Предыдущая поставка ({lastEntry.date}):</span>
+                                                                        <span className="text-slate-500 dark:text-slate-400 font-semibold">Предыдущая поставка ({lastEntry.date}):</span>
                                                                         <div className="flex items-center gap-1.5 font-bold">
                                                                             <span>{Math.round(lastEntry.pricePerUnit).toLocaleString()} сум</span>
                                                                             {priceDiff !== 0 ? (
@@ -720,7 +720,7 @@ export function ReceptionClient({
                                                                                     {priceDiff > 0 ? `📈 +${priceDiffPercent.toFixed(1)}%` : `📉 ${priceDiffPercent.toFixed(1)}%`}
                                                                                 </span>
                                                                             ) : (
-                                                                                <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-lg text-[10px] font-black leading-none">
+                                                                                <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded-lg text-[10px] font-black leading-none">
                                                                                     ➡️ Без изменений
                                                                                 </span>
                                                                             )}
@@ -728,13 +728,13 @@ export function ReceptionClient({
                                                                     </div>
                                                                     
                                                                     {historyEntries && historyEntries.length > 1 && (
-                                                                        <div className="pt-2 mt-1 border-t border-slate-200/50">
-                                                                            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">История последних закупок у этого поставщика:</div>
-                                                                            <div className="grid grid-cols-1 gap-1 text-[11px] text-slate-600 font-medium">
+                                                                        <div className="pt-2 mt-1 border-t border-slate-200/50 dark:border-slate-800/50">
+                                                                            <div className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">История последних закупок у этого поставщика:</div>
+                                                                            <div className="grid grid-cols-1 gap-1 text-[11px] text-slate-600 dark:text-slate-350 font-medium">
                                                                                 {historyEntries.slice(1, 4).map((hist, idx) => (
-                                                                                    <div key={idx} className="flex justify-between items-center bg-white px-2 py-1 rounded-lg border border-slate-100">
-                                                                                        <span className="text-slate-400 text-[10px]">{hist.date} (пост. {hist.qty} {erpItem?.baseUnit === 'KG' ? 'кг' : 'шт'}):</span>
-                                                                                        <span className="font-bold text-slate-700">{Math.round(hist.pricePerUnit).toLocaleString()} сум</span>
+                                                                                    <div key={idx} className="flex justify-between items-center bg-white dark:bg-slate-950 px-2 py-1 rounded-lg border border-slate-100 dark:border-slate-850">
+                                                                                        <span className="text-slate-400 dark:text-slate-500 text-[10px]">{hist.date} (пост. {hist.qty} {erpItem?.baseUnit === 'KG' ? 'кг' : 'шт'}):</span>
+                                                                                        <span className="font-bold text-slate-700 dark:text-slate-200">{Math.round(hist.pricePerUnit).toLocaleString()} сум</span>
                                                                                     </div>
                                                                                 ))}
                                                                             </div>
@@ -742,7 +742,7 @@ export function ReceptionClient({
                                                                     )}
                                                                 </div>
                                                             ) : (
-                                                                <div className="text-[10px] text-slate-400 italic pl-1 bg-slate-50/50 p-2 rounded-xl border border-dashed">
+                                                                <div className="text-[10px] text-slate-400 dark:text-slate-500 italic pl-1 bg-slate-50/50 dark:bg-slate-900/20 p-2 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
                                                                     История поставок этого товара от данного поставщика отсутствует в системе.
                                                                 </div>
                                                             )}
@@ -757,20 +757,20 @@ export function ReceptionClient({
                                                     )}
                                                 </div>
                                                 <div className="text-right flex-shrink-0 pt-6">
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase">Сумма (OCR)</span>
-                                                    <div className="font-black text-sm text-slate-950">{(item.price).toLocaleString()} сум</div>
+                                                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">Сумма (OCR)</span>
+                                                    <div className="font-black text-sm text-slate-950 dark:text-slate-100">{(item.price).toLocaleString()} сум</div>
                                                 </div>
                                             </div>
 
                                             {/* Quantity Input */}
-                                            <div className="flex items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-100 gap-4">
+                                            <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 gap-4">
                                                 <div className="text-xs">
-                                                    <span className="text-slate-400 font-bold">Накладная:</span>{' '}
-                                                    <span className="font-black text-slate-700">{item.invoiceQty} {erpItem?.baseUnit === 'KG' ? 'кг' : 'шт'}</span>
+                                                    <span className="text-slate-400 dark:text-slate-500 font-bold">Накладная:</span>{' '}
+                                                    <span className="font-black text-slate-700 dark:text-slate-200">{item.invoiceQty} {erpItem?.baseUnit === 'KG' ? 'кг' : 'шт'}</span>
                                                 </div>
 
                                                 <div className="flex items-center gap-2 flex-1 max-w-[200px]">
-                                                    <span className="text-xs font-bold text-slate-400 whitespace-nowrap">Принято (Факт):</span>
+                                                    <span className="text-xs font-bold text-slate-400 dark:text-slate-500 whitespace-nowrap">Принято (Факт):</span>
                                                     <Input 
                                                         type="text"
                                                         inputMode="decimal"
@@ -786,8 +786,8 @@ export function ReceptionClient({
                                                         }}
                                                         placeholder="0"
                                                         className={cn(
-                                                            "h-10 rounded-xl border bg-white font-black text-center text-sm w-full focus-visible:ring-blue-500",
-                                                            item.factQty === '' ? "border-amber-300 bg-amber-50/10" : "border-slate-200"
+                                                            "h-10 rounded-xl border bg-white dark:bg-slate-950 font-black text-center text-sm w-full focus-visible:ring-blue-500",
+                                                            item.factQty === '' ? "border-amber-300 bg-amber-50/10" : "border-slate-200 dark:border-slate-800"
                                                         )}
                                                     />
                                                 </div>
@@ -830,12 +830,12 @@ export function ReceptionClient({
                     <Card className="rounded-[2rem] shadow-xl border-none overflow-hidden">
                         <CardContent className="p-8 space-y-6">
                             <div className="space-y-2">
-                                <Label className="text-xs font-bold uppercase text-slate-400 ml-1">Комментарий к приёмке (Audit)</Label>
+                                <Label className="text-xs font-bold uppercase text-slate-400 dark:text-slate-500 ml-1">Комментарий к приёмке (Audit)</Label>
                                 <Textarea 
                                     value={comment} 
                                     onChange={(e) => setComment(e.target.value)} 
                                     placeholder="Например: Недовоз 2кг картофеля, водитель согласился..." 
-                                    className="rounded-2xl border-slate-200"
+                                    className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100"
                                 />
                             </div>
 
