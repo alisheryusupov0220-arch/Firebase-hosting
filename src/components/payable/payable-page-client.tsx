@@ -44,7 +44,7 @@ export function PayablePageClient() {
     return query(collection(firestore, 'organizations', orgId, 'accounts_payable'), orderBy('createdAt', 'desc'));
   }, [firestore, orgId]);
 
-  const { data: payables, isLoading } = useCollection<AccountPayable>(payablesQuery);
+  const { data: payables, isLoading } = useCollection<AccountPayable>(payablesQuery, { once: true });
 
   const filteredPayables = payables?.filter((p) =>
     p.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) || 

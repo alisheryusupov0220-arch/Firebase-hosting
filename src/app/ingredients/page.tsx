@@ -64,23 +64,23 @@ export default function IngredientsPage() {
         if (!firestore || !orgId) return null;
         return query(collection(firestore, 'organizations', orgId, 'erp_items'), orderBy('name', 'asc'));
     }, [firestore, orgId]);
-    const { data: rawItems } = useCollection<ERPItem>(erpItemsQuery);
+    const { data: rawItems, refresh: refreshRaw } = useCollection<ERPItem>(erpItemsQuery, { once: true });
 
     const categoriesQuery = useMemoFirebase(() => 
         (firestore && orgId) ? query(collection(firestore, 'organizations', orgId, 'categories'), orderBy('order', 'asc')) : null, [firestore, orgId]);
-    const { data: categories } = useCollection<FlowCategory>(categoriesQuery as any);
+    const { data: categories, refresh: refreshCats } = useCollection<FlowCategory>(categoriesQuery as any, { once: true });
 
     const contractorItemsQuery = useMemoFirebase(() => {
         if (!firestore || !orgId) return null;
         return query(collection(firestore, 'organizations', orgId, 'contractor_items'), orderBy('contractorId', 'asc'));
     }, [firestore, orgId]);
-    const { data: contractorItems } = useCollection<ContractorItem>(contractorItemsQuery);
+    const { data: contractorItems, refresh: refreshContrItems } = useCollection<ContractorItem>(contractorItemsQuery, { once: true });
 
     const contractorsQuery = useMemoFirebase(() => {
         if (!firestore || !orgId) return null;
         return query(collection(firestore, 'organizations', orgId, 'contractors'), orderBy('name', 'asc'));
     }, [firestore, orgId]);
-    const { data: contractors } = useCollection<Contractor>(contractorsQuery);
+    const { data: contractors, refresh: refreshContractors } = useCollection<Contractor>(contractorsQuery, { once: true });
 
     const handleSync = async () => {
         if (!orgId) return;
@@ -88,6 +88,8 @@ export default function IngredientsPage() {
             const result = await syncItemsFromPosterAction(orgId);
             if (result.success) {
                 toast({ title: 'Синхронизация завершена' });
+                refreshRaw();
+                refreshCats();
             } else {
                 toast({ variant: 'destructive', title: 'Ошибка синхронизации', description: result.message });
             }

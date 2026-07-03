@@ -48,9 +48,9 @@ export default function TreasuryPage() {
     const contractorsQuery = useMemoFirebase(() => 
         (firestore && orgId) ? query(collection(firestore, 'organizations', orgId, 'contractors'), orderBy('name', 'asc')) : null, [firestore, orgId]);
 
-    const { data: companies } = useCollection<MyCompany>(companiesQuery);
-    const { data: accounts } = useCollection<BankAccount>(accountsQuery);
-    const { data: contractors } = useCollection<Contractor>(contractorsQuery);
+    const { data: companies } = useCollection<MyCompany>(companiesQuery, { once: true });
+    const { data: accounts } = useCollection<BankAccount>(accountsQuery, { once: true });
+    const { data: contractors } = useCollection<Contractor>(contractorsQuery, { once: true });
 
 
 

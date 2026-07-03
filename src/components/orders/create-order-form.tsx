@@ -70,9 +70,9 @@ export function CreateOrderForm({ locations, onFormSubmitted }: {
     return query(collection(firestore, 'organizations', orgId, 'contractor_items'), orderBy('updatedAt', 'desc'));
   }, [firestore, orgId]);
 
-  const { data: erpItems } = useCollection<ERPItem & { id: string }>(itemsQuery);
-  const { data: contractors } = useCollection<Contractor>(contractorsQuery);
-  const { data: allLogistics } = useCollection<ContractorItem>(contractorItemsQuery);
+  const { data: erpItems } = useCollection<ERPItem & { id: string }>(itemsQuery, { once: true });
+  const { data: contractors } = useCollection<Contractor>(contractorsQuery, { once: true });
+  const { data: allLogistics } = useCollection<ContractorItem>(contractorItemsQuery, { once: true });
 
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(orderFormSchema),

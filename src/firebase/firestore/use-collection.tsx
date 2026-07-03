@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import {
   Query,
   onSnapshot,
+  getDocs,
   DocumentData,
   FirestoreError,
   QuerySnapshot,
@@ -26,6 +27,7 @@ export interface UseCollectionResult<T> {
   data: WithId<T>[] | null; // Document data with ID, or null.
   isLoading: boolean;       // True if loading.
   error: FirestoreError | Error | null; // Error object, or null.
+  refresh: () => void;      // Force reload data.
 }
 
 /* Internal implementation of Query:
@@ -40,11 +42,14 @@ export interface InternalQuery extends Query<DocumentData> {
   }
 }
 
+// Global in-memory cache for one-time queries
+const collectionCache = new Map<string, { data: any[]; timestamp: number }>();
+const CACHE_TTL_MS = 60 * 1000; // 1 minute
+
 /**
- * React hook to subscribe to a Firestore collection or query in real-time.
+ * React hook to subscribe to a Firestore collection or query in real-time or once.
  * Handles nullable references/queries.
  * 
- *
  * IMPORTANT! YOU MUST MEMOIZE the inputted memoizedTargetRefOrQuery or BAD THINGS WILL HAPPEN
  * use useMemo to memoize it per React guidence.  Also make sure that it's dependencies are stable
  * references
@@ -52,10 +57,13 @@ export interface InternalQuery extends Query<DocumentData> {
  * @template T Optional type for document data. Defaults to any.
  * @param {CollectionReference<DocumentData> | Query<DocumentData> | null | undefined} targetRefOrQuery -
  * The Firestore CollectionReference or Query. Waits if null/undefined.
- * @returns {UseCollectionResult<T>} Object with data, isLoading, error.
+ * @param {Object} [options] - Options configuration.
+ * @param {boolean} [options.once] - If true, fetches once using getDocs instead of subscribing in real-time.
+ * @returns {UseCollectionResult<T>} Object with data, isLoading, error, and refresh.
  */
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
+    options?: { once?: boolean }
 ): UseCollectionResult<T> {
   type ResultItemType = WithId<T>;
   type StateDataType = ResultItemType[] | null;
@@ -64,6 +72,24 @@ export function useCollection<T = any>(
   const [data, setData] = useState<StateDataType>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+
+  const refresh = () => {
+    if (memoizedTargetRefOrQuery) {
+      const path = memoizedTargetRefOrQuery.type === 'collection'
+        ? (memoizedTargetRefOrQuery as CollectionReference).path
+        : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString();
+      
+      // Delete any variations of this collection in cache
+      collectionCache.delete(path);
+      for (const key of collectionCache.keys()) {
+        if (key.startsWith(path)) {
+          collectionCache.delete(key);
+        }
+      }
+    }
+    setRefreshTrigger(prev => prev + 1);
+  };
 
   useEffect(() => {
     if (!memoizedTargetRefOrQuery) {
@@ -92,6 +118,44 @@ export function useCollection<T = any>(
       }
     }
 
+    const cacheKey = finalQuery.type === 'collection'
+      ? (finalQuery as CollectionReference).path
+      : (finalQuery as unknown as InternalQuery)._query.path.canonicalString();
+
+    // Check cache
+    if (options?.once) {
+      const cached = collectionCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+        setData(cached.data);
+        setError(null);
+        setIsLoading(false);
+        return;
+      }
+    }
+
+    // Execute query once
+    if (options?.once) {
+      getDocs(finalQuery)
+        .then((snapshot) => {
+          const results: ResultItemType[] = [];
+          for (const doc of snapshot.docs) {
+            results.push({ ...(doc.data() as T), id: doc.id });
+          }
+          collectionCache.set(cacheKey, { data: results, timestamp: Date.now() });
+          setData(results);
+          setError(null);
+          setIsLoading(false);
+        })
+        .catch((error) => {
+          console.error("ACTUAL FIRESTORE ERROR IN useCollection (once):", error);
+          setError(error);
+          setData(null);
+          setIsLoading(false);
+        });
+      return;
+    }
+
+    // Subscribe in real-time
     const unsubscribe = onSnapshot(
       finalQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
@@ -131,9 +195,10 @@ export function useCollection<T = any>(
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference changes.
+  }, [memoizedTargetRefOrQuery, refreshTrigger]); // Re-run if query or trigger changes
+
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
     throw new Error(memoizedTargetRefOrQuery + ' was not properly memoized using useMemoFirebase');
   }
-  return { data, isLoading, error };
+  return { data, isLoading, error, refresh };
 }

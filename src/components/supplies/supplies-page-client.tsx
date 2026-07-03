@@ -67,8 +67,8 @@ export function SuppliesPageClient() {
         return query(collection(firestore, 'organizations', orgId, 'suppliers'), orderBy('name', 'asc'));
     }, [firestore, orgId]);
 
-    const { data: ingredients, isLoading: ingredientsLoading } = useCollection<ERPItem>(ingredientsQuery);
-    const { data: suppliers, isLoading: suppliersLoading } = useCollection<Supplier>(suppliersQuery);
+    const { data: ingredients, isLoading: ingredientsLoading } = useCollection<ERPItem>(ingredientsQuery, { once: true });
+    const { data: suppliers, isLoading: suppliersLoading } = useCollection<Supplier>(suppliersQuery, { once: true });
 
     useEffect(() => {
         if (!orgId) return;

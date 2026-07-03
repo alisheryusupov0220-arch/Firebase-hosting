@@ -58,7 +58,7 @@ export default function FinanceHubPage() {
         );
     }, [firestore, orgId]);
 
-    const { data: transactions = [], isLoading: txLoading } = useCollection<FinanceTransaction>(txQuery);
+    const { data: transactions = [], isLoading: txLoading, refresh: refreshTx } = useCollection<FinanceTransaction>(txQuery, { once: true });
     const safeTransactions = transactions || [];
 
     const fetchServerData = useCallback(async () => {
@@ -122,7 +122,7 @@ export default function FinanceHubPage() {
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={fetchServerData} className="gap-2">
+                    <Button variant="outline" size="sm" onClick={() => { refreshTx(); fetchServerData(); }} className="gap-2">
                         <RefreshCw className="h-4 w-4" /> Обновить
                     </Button>
                     {orgId && (

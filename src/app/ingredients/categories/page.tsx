@@ -30,7 +30,7 @@ export default function CategoryManagerPage() {
     const categoriesQuery = useMemoFirebase(() => 
         (firestore && orgId) ? query(collection(firestore, 'organizations', orgId, 'categories'), orderBy('order', 'asc')) : null, 
     [firestore, orgId]);
-    const { data: categories, isLoading } = useCollection<ERPCategory>(categoriesQuery);
+    const { data: categories, isLoading } = useCollection<ERPCategory>(categoriesQuery, { once: true });
 
     const handleUpdateName = async (id: string, name: string) => {
         if (!firestore || !orgId) return;

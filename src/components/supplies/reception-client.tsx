@@ -142,8 +142,8 @@ export function ReceptionClient({
         return query(collection(firestore, 'organizations', orgId, 'contractors'), orderBy('name', 'asc'));
     }, [firestore, orgId]);
 
-    const { data: erpItems } = useCollection<ERPItem>(ingredientsQuery);
-    const { data: suppliers } = useCollection<Contractor>(suppliersQuery);
+    const { data: erpItems } = useCollection<ERPItem>(ingredientsQuery, { once: true });
+    const { data: suppliers } = useCollection<Contractor>(suppliersQuery, { once: true });
 
     const itemOptions = useMemo(() => {
         const base = (erpItems || []).map(item => ({ value: item.id, label: item.name }));
