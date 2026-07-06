@@ -75,7 +75,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         return doc(firestore, 'users', user.uid);
     }, [firestore, user?.uid]);
 
-    const { data: userProfile, isLoading: profileLoading } = useDoc<UserProfile>(userProfileRef);
+    const { data: userProfile, isLoading: profileLoading } = useDoc<UserProfile>(userProfileRef, { once: true });
 
     // Loading is true if auth state is loading, or user is logged in but claims are not ready.
     // Super admin does not require claimsOrgId to be defined.
