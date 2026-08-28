@@ -411,9 +411,11 @@ export function ReceptionClient({
             <div className="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-slate-800">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Шаги приемки:</span>
                 <div className="flex items-center gap-4">
-                    <span className={cn("text-sm font-black", step === 1 ? "text-blue-600" : "text-slate-400 dark:text-slate-500")}>1. Фото и Склад</span>
-                    <ArrowRight className="w-4 h-4 text-slate-300 dark:text-slate-700" />
-                    <span className={cn("text-sm font-black", step === 2 ? "text-blue-600" : "text-slate-400 dark:text-slate-500")}>2. Сверка Факта</span>
+                    <span className={cn("text-xs font-black", step === 1 ? "text-blue-600" : "text-slate-400 dark:text-slate-500")}>1. Контрагент</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                    <span className={cn("text-xs font-black", step === 2 ? "text-blue-600" : "text-slate-400 dark:text-slate-500")}>2. Снимок</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                    <span className={cn("text-xs font-black", step === 3 ? "text-blue-600" : "text-slate-400 dark:text-slate-500")}>3. Товары</span>
                 </div>
             </div>
 
@@ -421,23 +423,41 @@ export function ReceptionClient({
                 <Card className="rounded-[2rem] shadow-xl border-none">
                     <CardHeader className="bg-slate-50 dark:bg-slate-900/40 border-b p-6 rounded-t-[2rem]">
                         <CardTitle className="text-lg font-bold flex items-center gap-2">
-                            <Camera className="w-5 h-5 text-blue-600" /> Быстрая приемка по фото
+                            <Building2 className="w-5 h-5 text-blue-600" /> Шаг 1: Поставщик и Склад
                         </CardTitle>
                         <CardDescription>
-                            Выберите поставщика, объект и сделайте снимок накладной для оцифровки ИИ.
+                            Выберите контрагента, склад разгрузки и статус оплаты.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="p-8 space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-6">
                             <div className="space-y-2">
                                 <Label className="text-xs font-bold uppercase text-slate-400 ml-1">Поставщик (FLOW)</Label>
                                 <SearchableSelect 
                                     options={supplierOptions} 
                                     value={supplierId} 
-                                    onChange={setSupplierId} 
+                                    onChange={(val) => {
+                                        setSupplierId(val);
+                                        if (val) {
+                                            const selected = suppliers?.find(s => s.id === val);
+                                            setScannedSupplierName(selected?.name || '');
+                                        }
+                                    }} 
                                     placeholder="От кого товары?" 
                                 />
+                                {!supplierId && (
+                                    <div className="space-y-1.5 mt-2 bg-amber-50/30 p-4 rounded-2xl border border-amber-100 shadow-sm animate-in fade-in duration-300">
+                                        <Label className="text-[10px] font-black text-amber-800 uppercase tracking-wider pl-0.5">Название нового контрагента (Бренд/Имя)</Label>
+                                        <Input 
+                                            value={scannedSupplierName} 
+                                            onChange={(e) => setScannedSupplierName(e.target.value)} 
+                                            placeholder="Введите название нового контрагента"
+                                            className="h-10 rounded-xl border-amber-200 bg-white dark:bg-slate-950 font-black text-sm pl-3 focus-visible:ring-amber-500 text-slate-800 dark:text-slate-100 uppercase"
+                                        />
+                                    </div>
+                                )}
                             </div>
+
                             <div className="space-y-2">
                                 <Label className="text-xs font-bold uppercase text-slate-400 ml-1">Склад / Объект (Poster)</Label>
                                 <SearchableSelect 
@@ -447,8 +467,61 @@ export function ReceptionClient({
                                     placeholder="Куда выгружать?" 
                                 />
                             </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-xs font-bold uppercase text-slate-400 ml-1">Тип документа / Оплата</Label>
+                                <Select 
+                                    value={isPaid ? 'paid' : 'unpaid'} 
+                                    onValueChange={(val) => setIsPaid(val === 'paid')}
+                                >
+                                    <SelectTrigger className="h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold text-sm text-slate-800 dark:text-slate-100 focus:ring-blue-500">
+                                        <SelectValue placeholder="Статус оплаты" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-850 text-slate-800 dark:text-slate-100 rounded-xl">
+                                        <SelectItem value="unpaid" className="focus:bg-blue-600 focus:text-white font-bold">
+                                            ❌ Поставка в долг (Накладная)
+                                        </SelectItem>
+                                        <SelectItem value="paid" className="focus:bg-blue-600 focus:text-white font-bold">
+                                            ✅ Оплачено сразу (Чек / Корзинка)
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
 
+                        <Button 
+                            type="button"
+                            onClick={() => setStep(2)}
+                            disabled={!storageId || (!supplierId && !scannedSupplierName)}
+                            className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold uppercase text-xs tracking-wider shadow-lg shadow-blue-100 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            Далее: Сделать фото накладной <ArrowRight className="w-4 h-4" />
+                        </Button>
+                    </CardContent>
+                </Card>
+            )}
+
+            {step === 2 && (
+                <Card className="rounded-[2rem] shadow-xl border-none">
+                    <CardHeader className="bg-slate-50 dark:bg-slate-900/40 border-b p-6 rounded-t-[2rem] flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle className="text-lg font-bold flex items-center gap-2">
+                                <Camera className="w-5 h-5 text-blue-600" /> Шаг 2: Снимок накладной
+                            </CardTitle>
+                            <CardDescription>
+                                Сделайте фото чека или накладной для отчета.
+                            </CardDescription>
+                        </div>
+                        <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => setStep(1)} 
+                            className="rounded-xl font-bold text-xs"
+                        >
+                            <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Назад
+                        </Button>
+                    </CardHeader>
+                    <CardContent className="p-8 space-y-6">
                         <input 
                             type="file" 
                             ref={fileInputRef} 
@@ -461,113 +534,74 @@ export function ReceptionClient({
                         <Button 
                             onClick={() => fileInputRef.current?.click()}
                             disabled={isScanning}
-                            className="w-full h-24 rounded-3xl bg-blue-600 hover:bg-blue-700 text-white flex flex-col items-center justify-center gap-2 shadow-lg shadow-blue-200 transition-all active:scale-[0.98] disabled:opacity-50"
+                            className="w-full h-32 rounded-3xl bg-blue-600 hover:bg-blue-700 text-white flex flex-col items-center justify-center gap-2 shadow-lg shadow-blue-200 transition-all active:scale-[0.98] disabled:opacity-50"
                         >
                             {isScanning ? (
                                 <>
                                     <RefreshCw className="w-8 h-8 animate-spin" />
-                                    <span className="font-bold text-sm uppercase tracking-wide">ИИ оцифровывает накладную...</span>
+                                    <span className="font-bold text-sm uppercase tracking-wide">Загрузка фото...</span>
                                 </>
                             ) : (
                                 <>
-                                    <Camera className="w-8 h-8 text-white" />
+                                    <Camera className="w-8 h-8 text-white animate-pulse" />
                                     <span className="font-bold text-sm uppercase tracking-wide">Сделать фото накладной</span>
-                                    <span className="text-[10px] opacity-70">Откроется камера планшета/устройства</span>
+                                    <span className="text-[10px] opacity-70">Запустит камеру устройства</span>
                                 </>
                             )}
                         </Button>
+
+                        <div className="flex gap-2">
+                            <Button 
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    setPhotoUrl('');
+                                    setScannedItems([]);
+                                    setStep(3);
+                                    toast({ title: 'Пропущено', description: 'Перешли к ручному вводу без фото накладной.' });
+                                }}
+                                className="w-full h-12 rounded-xl text-slate-500 dark:text-slate-400 font-bold text-xs uppercase"
+                            >
+                                Пропустить фото и ввести вручную
+                            </Button>
+                        </div>
                     </CardContent>
                 </Card>
             )}
 
-            {step === 2 && (
+            {step === 3 && (
                 <div className="space-y-6">
                     {/* Header */}
                     <div className="flex items-center justify-between">
                         <Button 
                             variant="ghost" 
-                            onClick={() => setStep(1)} 
+                            onClick={() => setStep(2)} 
                             className="rounded-xl font-bold hover:bg-slate-100 dark:hover:bg-slate-800"
                         >
-                            <ArrowLeft className="w-4 h-4 mr-2" /> Сделать новое фото
+                            <ArrowLeft className="w-4 h-4 mr-2" /> Назад к фото
                         </Button>
                         <Badge className="bg-amber-100 text-amber-800 border-none font-bold">
-                            Сверка расхождений
+                            Шаг 3: Ввод товаров
                         </Badge>
                     </div>
 
-                    {/* Contractor & Storage Card */}
-                    <Card className="rounded-[2rem] shadow-xl border-none">
-                        <CardHeader className="bg-slate-50 dark:bg-slate-900/40 border-b p-6 rounded-t-[2rem]">
-                            <CardTitle className="text-lg font-bold flex items-center gap-2">
-                                <Building2 className="w-5 h-5 text-blue-600" /> Контрагент и Склад
-                            </CardTitle>
-                            <CardDescription>
-                                Проверьте реквизиты поставщика и склад выгрузки.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-8 space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="space-y-2">
-                                    <Label className="text-xs font-bold uppercase text-slate-400 dark:text-slate-500 ml-1">Поставщик (FLOW)</Label>
-                                    <SearchableSelect 
-                                        options={supplierOptions} 
-                                        value={supplierId} 
-                                        onChange={(val) => {
-                                            setSupplierId(val);
-                                            if (val) {
-                                                const selected = suppliers?.find(s => s.id === val);
-                                                setScannedSupplierName(selected?.name || '');
-                                            }
-                                        }} 
-                                        placeholder="От кого товары?" 
-                                    />
-                                    {!supplierId && (
-                                        <div className="space-y-1.5 mt-2 bg-amber-50/30 p-4 rounded-2xl border border-amber-100 shadow-sm animate-in fade-in duration-300">
-                                            <Label className="text-[10px] font-black text-amber-800 uppercase tracking-wider pl-0.5">Название нового контрагента (Бренд/Имя)</Label>
-                                            <Input 
-                                                value={scannedSupplierName} 
-                                                onChange={(e) => setScannedSupplierName(e.target.value)} 
-                                                placeholder="Введите название (например, b2b quality)"
-                                                className="h-10 rounded-xl border-amber-200 bg-white dark:bg-slate-950 font-black text-sm pl-3 focus-visible:ring-amber-500 text-slate-800 dark:text-slate-100 uppercase"
-                                            />
-                                            <p className="text-[9px] font-bold text-amber-700/60 leading-tight pl-0.5">
-                                                Отредактируйте юридическое имя на понятный бренд (например, b2b quality вместо ЯТТ), чтобы долги группировались правильно.
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-xs font-bold uppercase text-slate-400 dark:text-slate-500 ml-1">Склад / Объект (Poster)</Label>
-                                    <SearchableSelect 
-                                        options={storageOptions} 
-                                        value={storageId} 
-                                        onChange={setStorageId} 
-                                        placeholder="Автовыбор склада" 
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-xs font-bold uppercase text-slate-400 dark:text-slate-500 ml-1">Тип документа / Оплата</Label>
-                                    <Select 
-                                        value={isPaid ? 'paid' : 'unpaid'} 
-                                        onValueChange={(val) => setIsPaid(val === 'paid')}
-                                    >
-                                        <SelectTrigger className="h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold text-sm text-slate-800 dark:text-slate-100 focus:ring-blue-500">
-                                            <SelectValue placeholder="Статус оплаты" />
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-850 text-slate-800 dark:text-slate-100 rounded-xl">
-                                            <SelectItem value="unpaid" className="focus:bg-blue-600 focus:text-white font-bold">
-                                                ❌ Поставка в долг (Накладная)
-                                            </SelectItem>
-                                            <SelectItem value="paid" className="focus:bg-blue-600 focus:text-white font-bold">
-                                                ✅ Оплачено сразу (Чек / Корзинка)
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    {/* Image Preview Reference Card */}
+                    {photoUrl && (
+                        <Card className="rounded-[2rem] shadow-xl border-none overflow-hidden">
+                            <CardHeader className="bg-slate-50 dark:bg-slate-900/40 border-b p-4">
+                                <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                    Фото накладной (для сверки)
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-4 flex justify-center bg-slate-950/5 dark:bg-slate-950/20">
+                                <img 
+                                    src={photoUrl} 
+                                    alt="Накладная" 
+                                    className="max-h-[260px] object-contain rounded-2xl border border-slate-200 dark:border-slate-800" 
+                                />
+                            </CardContent>
+                        </Card>
+                    )}
 
                     {/* Items List */}
                     <Card className="rounded-[2rem] shadow-xl border-none">
