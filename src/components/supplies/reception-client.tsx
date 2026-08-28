@@ -18,14 +18,14 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useCollection, useFirestore } from '@/firebase/hooks';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, where, getDocs } from 'firebase/firestore';
 import { type Storage } from '@/lib/poster';
 import { type ERPItem } from '@/lib/types/erp';
 import { type Contractor } from '@/lib/types/finance';
 import { runReceiptOCRAction, uploadSupplyImageAction } from '@/app/actions/ai-ocr-actions';
 import { getSmartIngredientMatchesAction, getSupplierPriceHistoryAction } from '@/app/actions/ai-matching-actions';
 import { confirmPhotoReceptionAction } from '@/app/supplies/actions';
-import { Camera, Plus, Minus, CheckCircle, AlertTriangle, RefreshCw, Sparkles, ArrowRight, ArrowLeft, Building2, Clock } from 'lucide-react';
+import { Camera, Plus, Minus, CheckCircle, AlertTriangle, RefreshCw, Sparkles, ArrowRight, ArrowLeft, Building2, Clock, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type ScannedItem = {
@@ -185,6 +185,7 @@ export function ReceptionClient({
     const [isPaid, setIsPaid] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
     const [isPending, startTransition] = useTransition();
+    const [contractorItems, setContractorItems] = useState<any[]>([]);
 
     useEffect(() => {
         if (orgId && supplierId && step === 2) {
@@ -195,6 +196,21 @@ export function ReceptionClient({
             setPriceHistory({});
         }
     }, [orgId, supplierId, step]);
+
+    useEffect(() => {
+        if (!orgId || !supplierId || !firestore || step !== 2) {
+            setContractorItems([]);
+            return;
+        }
+        const q = query(
+            collection(firestore, 'organizations', orgId, 'contractor_items'),
+            where('contractorId', '==', supplierId)
+        );
+        getDocs(q).then((snap) => {
+            const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setContractorItems(items);
+        }).catch(err => console.error("Failed to load contractor items:", err));
+    }, [orgId, supplierId, firestore, step]);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -280,38 +296,6 @@ export function ReceptionClient({
             // Сжимаем фото на клиенте до приемлемого разрешения для ускорения загрузки и обхода лимитов размера payload
             const { base64, mimeType } = await compressImage(file);
             
-            // 1. OCR Extract
-            const result = await runReceiptOCRAction(base64, mimeType, orgId);
-            if (!result) {
-                toast({ variant: 'destructive', title: 'Ошибка распознавания', description: 'Не удалось получить ответ от сервера.' });
-                return;
-            }
-
-            if ('error' in result) {
-                toast({ 
-                    variant: 'destructive', 
-                    title: 'Ошибка ИИ-распознавания', 
-                    description: String((result as any).error || 'Ошибка на сервере распознавания.') 
-                });
-                return;
-            }
-
-            if (!result.items || result.items.length === 0) {
-                toast({ variant: 'destructive', title: 'Накладная не распознана', description: 'Попробуйте сделать фото еще раз при хорошем освещении.' });
-                return;
-            }
-
-            const detectedName = result.counterparty || '';
-            setScannedSupplierName(detectedName);
-            setOcrSupplierName(detectedName);
-            setScannedSupplierInn(result.counterpartyInn || result.inn || '');
-            setScannedSupplierBankAccount(result.senderAccount || result.bankAccount || '');
-            setScannedSupplierBankName(result.bankName || '');
-            setScannedSupplierBankCode(result.mfo || '');
-            setScannedSupplierPhone(result.phone || '');
-            setScannedSupplierAddress(result.address || '');
-            setIsPaid(result.is_paid || false);
-
             // Upload image to Firebase Storage
             try {
                 const fileName = `reception_${orgId}_${Date.now()}.jpg`;
@@ -324,99 +308,45 @@ export function ReceptionClient({
                 console.error("Failed to upload reception photo:", uploadError);
             }
 
-            // Auto-resolve supplier if possible using smart scoring matching
-            let resolvedSupplierId = supplierId;
-            const scannedInn = result.counterpartyInn || result.inn || '';
-            
-            if (!resolvedSupplierId && suppliers && suppliers.length > 0) {
-                let bestScore = 0;
-                let bestMatchSupplier = null;
-
-                for (const supplier of suppliers) {
-                    const score = calculateSupplierMatchScore(detectedName, scannedInn, supplier);
-                    if (score > bestScore) {
-                        bestScore = score;
-                        bestMatchSupplier = supplier;
-                    }
-                }
-
-                if (bestMatchSupplier && bestScore > 0) {
-                    console.log(`Auto-matched supplier: ${bestMatchSupplier.name} (Score: ${bestScore})`);
-                    resolvedSupplierId = bestMatchSupplier.id;
-                    setSupplierId(bestMatchSupplier.id);
-                    setScannedSupplierName(bestMatchSupplier.name);
-                }
-            }
-
-            // Fallback: Auto-resolve supplier by checking scanned item name matches in suppliers' priceLists
-            if (!resolvedSupplierId && suppliers && suppliers.length > 0 && result.items && result.items.length > 0) {
-                let bestSupplierId = '';
-                let maxMatchCount = 0;
-
-                for (const supplier of suppliers) {
-                    if (supplier.priceList && supplier.priceList.length > 0) {
-                        let matchCount = 0;
-                        for (const scannedItem of result.items) {
-                            const normScanned = normalizeCompanyName(scannedItem.name);
-                            const hasMatch = supplier.priceList.some(plItem => normalizeCompanyName(plItem.name) === normScanned);
-                            if (hasMatch) {
-                                matchCount++;
-                            }
-                        }
-                        if (matchCount > maxMatchCount) {
-                            maxMatchCount = matchCount;
-                            bestSupplierId = supplier.id;
-                        }
-                    }
-                }
-
-                if (bestSupplierId && maxMatchCount > 0) {
-                    const matchedSupplier = suppliers.find(s => s.id === bestSupplierId);
-                    if (matchedSupplier) {
-                        console.log(`Auto-matched supplier by priceList item matches: ${matchedSupplier.name} (matched items: ${maxMatchCount})`);
-                        resolvedSupplierId = bestSupplierId;
-                        setSupplierId(bestSupplierId);
-                        setScannedSupplierName(matchedSupplier.name);
-                    }
-                }
-            }
-
-            // 2. AI Matching
-            const matches = await getSmartIngredientMatchesAction(orgId, result.items, resolvedSupplierId || undefined);
-            
-            // 3. Populate Form State
-            const itemsToVerify: ScannedItem[] = matches.map(m => {
-                const scannedItem = result.items?.find(si => si.name === m.scannedName);
-                const invoiceQty = scannedItem?.qty ? Number(scannedItem.qty) : 1;
-                return {
-                    itemId: m.matchedItemId || '',
-                    originalName: m.scannedName,
-                    name: m.scannedName,
-                    invoiceQty,
-                    factQty: '', // Awaiting user input
-                    price: scannedItem?.sum ? Number(scannedItem.sum) : 0,
-                };
-            });
-
-            setScannedItems(itemsToVerify);
+            setScannedItems([]);
             setStep(2);
-            toast({ title: 'Оцифровка завершена!', description: `Распознано позиций: ${itemsToVerify.length}` });
+            toast({ title: 'Фото сохранено!', description: 'Фотография накладной успешно прикреплена. Введите позиции вручную.' });
         } catch (err: any) {
-            console.error("Error during OCR/matching:", err);
-            toast({ variant: 'destructive', title: 'Ошибка распознавания', description: err.message || String(err) });
+            console.error("Error uploading image:", err);
+            toast({ variant: 'destructive', title: 'Ошибка загрузки фото', description: err.message || String(err) });
         } finally {
             setIsScanning(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
+    const handleAddItem = () => {
+        setScannedItems(prev => [
+            ...prev,
+            {
+                itemId: '',
+                originalName: '',
+                name: '',
+                invoiceQty: 1,
+                factQty: '',
+                price: 0,
+            }
+        ]);
+    };
 
+    const handleRemoveItem = (index: number) => {
+        setScannedItems(prev => prev.filter((_, idx) => idx !== index));
+    };
 
-    const handleItemSelect = (index: number, itemId: string) => {
+    const handleUpdateItemField = (index: number, field: keyof ScannedItem, value: any) => {
         const updated = [...scannedItems];
-        updated[index].itemId = itemId;
-        if (itemId) {
-            const erpItem = erpItems?.find(i => i.id === itemId);
+        updated[index] = {
+            ...updated[index],
+            [field]: value
+        };
+        // Auto-update clean name if itemId changes
+        if (field === 'itemId') {
+            const erpItem = erpItems?.find(i => i.id === value);
             if (erpItem) {
                 updated[index].name = erpItem.name;
             }
@@ -643,185 +573,236 @@ export function ReceptionClient({
                     <Card className="rounded-[2rem] shadow-xl border-none">
                         <CardHeader className="bg-slate-50 dark:bg-slate-900/40 border-b p-6 rounded-t-[2rem] flex flex-row items-center justify-between">
                             <div>
-                                <CardTitle className="text-lg">Проверка и оцифрованный Факт</CardTitle>
-                                <CardDescription>Сопоставьте товары и укажите фактическое количество (Факт).</CardDescription>
+                                <CardTitle className="text-lg">Товары в накладной</CardTitle>
+                                <CardDescription>Заполните номенклатуру поставщика, сопоставьте с Poster и укажите цены.</CardDescription>
                             </div>
-                            <Sparkles className="w-6 h-6 text-blue-500" />
+                            <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={handleAddItem}
+                                className="rounded-xl border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20 font-bold flex items-center gap-1"
+                            >
+                                <Plus className="w-4 h-4" /> Добавить товар
+                            </Button>
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {scannedItems.map((item, index) => {
-                                    const diff = item.factQty - item.invoiceQty;
-                                    const hasDiff = diff !== 0;
-                                    const erpItem = erpItems?.find(i => i.id === item.itemId);
+                                {scannedItems.length === 0 ? (
+                                    <div className="p-12 text-center text-slate-400 dark:text-slate-500">
+                                        <p className="font-bold mb-3 text-sm">В накладной пока нет добавленных товаров.</p>
+                                        <Button 
+                                            type="button" 
+                                            variant="outline" 
+                                            onClick={handleAddItem}
+                                            className="rounded-xl font-bold text-xs uppercase"
+                                        >
+                                            <Plus className="w-4 h-4 mr-1" /> Добавить первую позицию
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    scannedItems.map((item, index) => {
+                                        const factNum = item.factQty !== '' ? Number(String(item.factQty).replace(',', '.')) : 0;
+                                        const diff = factNum - item.invoiceQty;
+                                        const hasDiff = diff !== 0;
+                                        const erpItem = erpItems?.find(i => i.id === item.itemId);
 
-                                    // Calculate unit prices for historical analysis
-                                    const currentQty = (item.factQty !== '' && !isNaN(Number(String(item.factQty).replace(',', '.'))))
-                                        ? Number(String(item.factQty).replace(',', '.'))
-                                        : item.invoiceQty || 1;
-                                    const currentUnitPrice = item.price / (currentQty || 1);
-                                    const historyEntries = item.itemId ? priceHistory[item.itemId] : undefined;
-                                    const lastEntry = historyEntries && historyEntries.length > 0 ? historyEntries[0] : undefined;
-                                    
-                                    let priceDiff = 0;
-                                    let priceDiffPercent = 0;
-                                    if (lastEntry) {
-                                        priceDiff = currentUnitPrice - lastEntry.pricePerUnit;
-                                        priceDiffPercent = lastEntry.pricePerUnit > 0 ? (priceDiff / lastEntry.pricePerUnit) * 100 : 0;
-                                    }
+                                        // Calculate unit prices for historical analysis
+                                        const currentQty = (item.factQty !== '' && !isNaN(Number(String(item.factQty).replace(',', '.'))))
+                                            ? Number(String(item.factQty).replace(',', '.'))
+                                            : item.invoiceQty || 1;
+                                        const currentUnitPrice = item.price / (currentQty || 1);
+                                        const historyEntries = item.itemId ? priceHistory[item.itemId] : undefined;
+                                        const lastEntry = historyEntries && historyEntries.length > 0 ? historyEntries[0] : undefined;
+                                        
+                                        let priceDiff = 0;
+                                        let priceDiffPercent = 0;
+                                        if (lastEntry) {
+                                            priceDiff = currentUnitPrice - lastEntry.pricePerUnit;
+                                            priceDiffPercent = lastEntry.pricePerUnit > 0 ? (priceDiff / lastEntry.pricePerUnit) * 100 : 0;
+                                        }
 
-                                    return (
-                                        <div key={index} className="p-6 space-y-4 hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
-                                            {/* Line Item Info */}
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div className="space-y-3 flex-1">
-                                                    <div>
-                                                        <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Название в накладной (оригинал)</div>
-                                                        <h4 className="text-base font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                                                            {item.originalName}
-                                                        </h4>
-                                                    </div>
-                                                    
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">
-                                                            Связь с ингредиентом Poster:
-                                                        </label>
-                                                        <SearchableSelect 
-                                                            options={itemOptions} 
-                                                            value={item.itemId} 
-                                                            onChange={(val) => handleItemSelect(index, val)} 
-                                                            placeholder="Выберите ингредиент из Poster..." 
-                                                        />
-                                                    </div>
-                                                    
-                                                    {item.itemId && (
-                                                        <div className="mt-3 pt-3 border-t border-slate-100/80 dark:border-slate-800/80 space-y-2 animate-in fade-in duration-300">
-                                                            <div className="flex items-center justify-between text-xs">
-                                                                <span className="text-slate-400 dark:text-slate-500 font-bold flex items-center gap-1">
-                                                                    <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-                                                                    Текущая цена за {erpItem?.baseUnit === 'KG' ? 'кг' : 'шт'}:
-                                                                </span>
-                                                                <div className="font-black text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg">
-                                                                    {Math.round(currentUnitPrice).toLocaleString()} сум / {erpItem?.baseUnit === 'KG' ? 'кг' : 'шт'}
-                                                                </div>
+                                        return (
+                                            <div key={index} className="p-6 space-y-4 hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors border-b border-slate-100 dark:border-slate-800">
+                                                {/* Header & Template Row */}
+                                                <div className="flex justify-between items-start gap-4">
+                                                    <div className="flex-1 space-y-3">
+                                                        {contractorItems.length > 0 && (
+                                                            <div className="space-y-1">
+                                                                <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                                                                    Шаблон привязки поставщика:
+                                                                </label>
+                                                                <Select
+                                                                    onValueChange={(val) => {
+                                                                        const mapping = contractorItems.find(ci => ci.id === val);
+                                                                        if (mapping) {
+                                                                            handleUpdateItemField(index, 'originalName', mapping.supplierName);
+                                                                            handleUpdateItemField(index, 'itemId', mapping.linkedErpItemId);
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <SelectTrigger className="h-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-700 dark:text-slate-200">
+                                                                        <SelectValue placeholder="Заполнить из привязанных товаров..." />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent className="bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100">
+                                                                        {contractorItems.map(ci => (
+                                                                            <SelectItem key={ci.id} value={ci.id}>
+                                                                                {ci.supplierName} ➔ {erpItems?.find(i => i.id === ci.linkedErpItemId)?.name || 'Неизвестно'}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
                                                             </div>
+                                                        )}
 
-                                                            {lastEntry ? (
-                                                                <div className="flex flex-col gap-1.5 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                                                                    <div className="flex items-center justify-between text-xs">
-                                                                        <span className="text-slate-500 dark:text-slate-400 font-semibold">Предыдущая поставка ({lastEntry.date}):</span>
-                                                                        <div className="flex items-center gap-1.5 font-bold">
-                                                                            <span>{Math.round(lastEntry.pricePerUnit).toLocaleString()} сум</span>
-                                                                            {priceDiff !== 0 ? (
-                                                                                <span className={cn(
-                                                                                    "px-1.5 py-0.5 rounded-lg text-[10px] font-black leading-none",
-                                                                                    priceDiff > 0 ? "bg-rose-50 text-rose-600 border border-rose-100" : "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                                                                                )}>
-                                                                                    {priceDiff > 0 ? `📈 +${priceDiffPercent.toFixed(1)}%` : `📉 ${priceDiffPercent.toFixed(1)}%`}
-                                                                                </span>
-                                                                            ) : (
-                                                                                <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded-lg text-[10px] font-black leading-none">
-                                                                                    ➡️ Без изменений
-                                                                                </span>
-                                                                            )}
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                                                                Название у поставщика (в накладной):
+                                                            </label>
+                                                            <Input
+                                                                type="text"
+                                                                value={item.originalName}
+                                                                onChange={(e) => handleUpdateItemField(index, 'originalName', e.target.value)}
+                                                                placeholder="Например: Картофель мытый крупный"
+                                                                className="h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-sm focus-visible:ring-blue-500"
+                                                            />
+                                                        </div>
+
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                                                                Ингредиент Poster:
+                                                            </label>
+                                                            <SearchableSelect 
+                                                                options={itemOptions} 
+                                                                value={item.itemId} 
+                                                                onChange={(val) => handleUpdateItemField(index, 'itemId', val)} 
+                                                                placeholder="Связать с ингредиентом Poster..." 
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleRemoveItem(index)}
+                                                        className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl h-10 w-10 mt-5"
+                                                    >
+                                                        <Trash2 className="w-5 h-5" />
+                                                    </Button>
+                                                </div>
+
+                                                {/* Price/History details */}
+                                                {item.itemId && (
+                                                    <div className="pt-3 border-t border-slate-100/80 dark:border-slate-800/80 space-y-2 animate-in fade-in duration-300">
+                                                        <div className="flex items-center justify-between text-xs">
+                                                            <span className="text-slate-400 dark:text-slate-500 font-bold flex items-center gap-1">
+                                                                <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                                                                Расчетная цена за {erpItem?.baseUnit === 'KG' ? 'кг' : 'шт'}:
+                                                            </span>
+                                                            <div className="font-black text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg">
+                                                                {Math.round(currentUnitPrice).toLocaleString()} сум / {erpItem?.baseUnit === 'KG' ? 'кг' : 'шт'}
+                                                            </div>
+                                                        </div>
+
+                                                        {lastEntry ? (
+                                                            <div className="flex flex-col gap-1.5 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                                                                <div className="flex items-center justify-between text-xs">
+                                                                    <span className="text-slate-500 dark:text-slate-400 font-semibold">Предыдущая поставка ({lastEntry.date}):</span>
+                                                                    <div className="flex items-center gap-1.5 font-bold">
+                                                                        <span>{Math.round(lastEntry.pricePerUnit).toLocaleString()} сум</span>
+                                                                        {priceDiff !== 0 ? (
+                                                                            <span className={cn(
+                                                                                "px-1.5 py-0.5 rounded-lg text-[10px] font-black leading-none",
+                                                                                priceDiff > 0 ? "bg-rose-50 text-rose-600 border border-rose-100" : "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                                                                            )}>
+                                                                                {priceDiff > 0 ? `📈 +${priceDiffPercent.toFixed(1)}%` : `📉 ${priceDiffPercent.toFixed(1)}%`}
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded-lg text-[10px] font-black leading-none">
+                                                                                ➡️ Без изменений
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                {historyEntries && historyEntries.length > 1 && (
+                                                                    <div className="pt-2 mt-1 border-t border-slate-200/50 dark:border-slate-800/50">
+                                                                        <div className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">История последних закупок у этого поставщика:</div>
+                                                                        <div className="grid grid-cols-1 gap-1 text-[11px] text-slate-600 dark:text-slate-350 font-medium">
+                                                                            {historyEntries.slice(1, 4).map((hist, idx) => (
+                                                                                <div key={idx} className="flex justify-between items-center bg-white dark:bg-slate-950 px-2 py-1 rounded-lg border border-slate-100 dark:border-slate-850">
+                                                                                    <span className="text-slate-400 dark:text-slate-500 text-[10px]">{hist.date} (пост. {hist.qty} {erpItem?.baseUnit === 'KG' ? 'кг' : 'шт'}):</span>
+                                                                                    <span className="font-bold text-slate-700 dark:text-slate-200">{Math.round(hist.pricePerUnit).toLocaleString()} сум</span>
+                                                                                </div>
+                                                                            ))}
                                                                         </div>
                                                                     </div>
-                                                                    
-                                                                    {historyEntries && historyEntries.length > 1 && (
-                                                                        <div className="pt-2 mt-1 border-t border-slate-200/50 dark:border-slate-800/50">
-                                                                            <div className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">История последних закупок у этого поставщика:</div>
-                                                                            <div className="grid grid-cols-1 gap-1 text-[11px] text-slate-600 dark:text-slate-350 font-medium">
-                                                                                {historyEntries.slice(1, 4).map((hist, idx) => (
-                                                                                    <div key={idx} className="flex justify-between items-center bg-white dark:bg-slate-950 px-2 py-1 rounded-lg border border-slate-100 dark:border-slate-850">
-                                                                                        <span className="text-slate-400 dark:text-slate-500 text-[10px]">{hist.date} (пост. {hist.qty} {erpItem?.baseUnit === 'KG' ? 'кг' : 'шт'}):</span>
-                                                                                        <span className="font-bold text-slate-700 dark:text-slate-200">{Math.round(hist.pricePerUnit).toLocaleString()} сум</span>
-                                                                                    </div>
-                                                                                ))}
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            ) : (
-                                                                <div className="text-[10px] text-slate-400 dark:text-slate-500 italic pl-1 bg-slate-50/50 dark:bg-slate-900/20 p-2 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-                                                                    История поставок этого товара от данного поставщика отсутствует в системе.
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                    
-                                                    {!item.itemId && (
-                                                        <div className="text-xs font-semibold text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-100 flex items-center gap-1.5 animate-in slide-in-from-top-1 duration-200">
-                                                            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                                                            Пожалуйста, свяжите этот товар с ингредиентом из Poster для проведения накладной!
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="text-right flex-shrink-0 pt-6">
-                                                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">Сумма (OCR)</span>
-                                                    <div className="font-black text-sm text-slate-950 dark:text-slate-100">{(item.price).toLocaleString()} сум</div>
-                                                </div>
-                                            </div>
-
-                                            {/* Quantity Input */}
-                                            <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 gap-4">
-                                                <div className="text-xs">
-                                                    <span className="text-slate-400 dark:text-slate-500 font-bold">Накладная:</span>{' '}
-                                                    <span className="font-black text-slate-700 dark:text-slate-200">{item.invoiceQty} {erpItem?.baseUnit === 'KG' ? 'кг' : 'шт'}</span>
-                                                </div>
-
-                                                <div className="flex items-center gap-2 flex-1 max-w-[200px]">
-                                                    <span className="text-xs font-bold text-slate-400 dark:text-slate-500 whitespace-nowrap">Принято (Факт):</span>
-                                                    <Input 
-                                                        type="text"
-                                                        inputMode="decimal"
-                                                        value={item.factQty}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            // Match empty string, integers, or decimals (dot/comma allowed)
-                                                            if (val === '' || /^\d*[.,]?\d*$/.test(val)) {
-                                                                const updated = [...scannedItems];
-                                                                updated[index].factQty = val;
-                                                                setScannedItems(updated);
-                                                            }
-                                                        }}
-                                                        placeholder="0"
-                                                        className={cn(
-                                                            "h-10 rounded-xl border bg-white dark:bg-slate-950 font-black text-center text-sm w-full focus-visible:ring-blue-500",
-                                                            item.factQty === '' ? "border-amber-300 bg-amber-50/10" : "border-slate-200 dark:border-slate-800"
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="text-[10px] text-slate-400 dark:text-slate-500 italic pl-1 bg-slate-50/50 dark:bg-slate-900/20 p-2 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                                                                История поставок этого товара от данного поставщика отсутствует в системе.
+                                                            </div>
                                                         )}
-                                                    />
-                                                </div>
+                                                    </div>
+                                                )}
 
-                                                <div>
-                                                    {item.factQty !== '' ? (
-                                                        (() => {
-                                                            const factNum = Number(String(item.factQty).replace(',', '.'));
-                                                            const diff = factNum - item.invoiceQty;
-                                                            const hasDiff = diff !== 0;
-                                                            return hasDiff ? (
-                                                                <div className={cn(
-                                                                    "text-xs font-black px-3 py-1 rounded-xl flex items-center gap-1",
-                                                                    diff > 0 ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
-                                                                )}>
-                                                                    <AlertTriangle className="w-3.5 h-3.5" />
-                                                                    Разница: {diff > 0 ? `+${diff}` : diff}
-                                                                </div>
-                                                            ) : (
-                                                                <div className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-xl flex items-center gap-1">
-                                                                    <CheckCircle className="w-3.5 h-3.5" /> Свершено
-                                                                </div>
-                                                            );
-                                                        })()
-                                                    ) : (
-                                                        <div className="text-xs font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-xl flex items-center gap-1">
-                                                            <Clock className="w-3.5 h-3.5" /> Ожидает ввода
-                                                        </div>
-                                                    )}
+                                                {!item.itemId && (
+                                                    <div className="text-xs font-semibold text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-100 flex items-center gap-1.5 animate-in slide-in-from-top-1 duration-200">
+                                                        <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                                                        Пожалуйста, свяжите этот товар с ингредиентом из Poster для проведения накладной!
+                                                    </div>
+                                                )}
+
+                                                {/* Quantities & Price Grid */}
+                                                <div className="grid grid-cols-3 gap-3 bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                                    <div className="space-y-1">
+                                                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Кол-во по накл.</span>
+                                                        <Input 
+                                                            type="number"
+                                                            value={item.invoiceQty || ''}
+                                                            onChange={(e) => handleUpdateItemField(index, 'invoiceQty', Number(e.target.value))}
+                                                            placeholder="1"
+                                                            className="h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-black text-center text-xs w-full focus-visible:ring-blue-500"
+                                                        />
+                                                    </div>
+
+                                                    <div className="space-y-1">
+                                                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Кол-во по факту</span>
+                                                        <Input 
+                                                            type="text"
+                                                            inputMode="decimal"
+                                                            value={item.factQty}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                if (val === '' || /^\d*[.,]?\d*$/.test(val)) {
+                                                                    handleUpdateItemField(index, 'factQty', val);
+                                                                }
+                                                            }}
+                                                            placeholder="1"
+                                                            className={cn(
+                                                                "h-10 rounded-xl border bg-white dark:bg-slate-950 font-black text-center text-xs w-full focus-visible:ring-blue-500",
+                                                                item.factQty === '' ? "border-amber-300 bg-amber-50/10" : "border-slate-200 dark:border-slate-800"
+                                                            )}
+                                                        />
+                                                    </div>
+
+                                                    <div className="space-y-1">
+                                                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Общая сумма</span>
+                                                        <Input 
+                                                            type="number"
+                                                            value={item.price || ''}
+                                                            onChange={(e) => handleUpdateItemField(index, 'price', Number(e.target.value))}
+                                                            placeholder="0"
+                                                            className="h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-black text-center text-xs w-full focus-visible:ring-blue-500"
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })
+                                )}
                             </div>
                         </CardContent>
                     </Card>
