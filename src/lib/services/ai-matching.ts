@@ -1,7 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ERPItem } from '@/lib/types/erp';
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+import { adminDb } from '@/firebase/server';
 
 export interface MatchResult {
     scannedName: string;
@@ -19,6 +18,16 @@ export async function matchScannedItemsToERP(
     internalItems: ERPItem[]
 ): Promise<MatchResult[]> {
     try {
+        const settingsDoc = await adminDb.collection('system_settings').doc('ai_agent').get();
+        const settings = settingsDoc.data();
+        const apiKey = (settings?.geminiApiKey as string || '').trim() || process.env.GEMINI_API_KEY || '';
+
+        if (!apiKey) {
+            console.error('Gemini API key is not configured in system_settings/ai_agent');
+            return scannedItems.map(s => ({ scannedName: s.name, matchedItemId: null, confidence: 0, isNew: true }));
+        }
+
+        const genAI = new GoogleGenerativeAI(apiKey);
         const modelId = 'gemini-2.5-flash'; // Используем flash для скорости
         const model = genAI.getGenerativeModel({ model: modelId });
 

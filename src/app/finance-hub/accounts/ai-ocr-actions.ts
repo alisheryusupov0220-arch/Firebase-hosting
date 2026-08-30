@@ -8,8 +8,11 @@ import { adminDb } from "@/firebase/server"; // Импорт серверной 
  */
 export async function scanContractorInvoiceAction(base64Image: string) {
     try {
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) return { success: false, error: 'API КЛЮЧ НЕ НАЙДЕН' };
+        const settingsDoc = await adminDb.collection('system_settings').doc('ai_agent').get();
+        const settings = settingsDoc.data();
+        const apiKey = (settings?.geminiApiKey as string || '').trim() || process.env.GEMINI_API_KEY || '';
+        
+        if (!apiKey) return { success: false, error: 'API КЛЮЧ НЕ НАЙДЕН. Пожалуйста, настройте его в Настройках -> Инженер промптов.' };
 
         // 1. ДОСТАЕМ ТВОЙ ПРОМПТ ИЗ НАСТРОЕК (Firestore: ai_prompts/contractor_ocr)
         let customPrompt = "";
