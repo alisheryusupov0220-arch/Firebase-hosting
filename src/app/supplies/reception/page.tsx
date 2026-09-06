@@ -9,22 +9,22 @@ import { useFirebase } from '@/firebase/provider';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ReceptionPage() {
-    const { orgId } = useFirebase();
+    const { orgId: ctxOrgId } = useFirebase();
+    const orgId = ctxOrgId || 'default';
     const [storages, setStorages] = useState<Storage[]>([]);
     const [suppliers, setSuppliers] = useState<PosterSupplier[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!orgId) return;
-
         const loadAll = async () => {
             try {
+                const targetOrgId = orgId !== 'default' ? orgId : undefined;
                 const [storagesData, suppliersData] = await Promise.all([
-                    fetchStoragesAction(orgId),
-                    fetchSuppliersAction(orgId)
+                    fetchStoragesAction(targetOrgId),
+                    fetchSuppliersAction(targetOrgId)
                 ]);
-                setStorages(storagesData);
-                setSuppliers(suppliersData);
+                setStorages(storagesData || []);
+                setSuppliers(suppliersData || []);
             } catch (e) {
                 console.error('Failed to load initial reception data:', e);
             } finally {
@@ -35,7 +35,7 @@ export default function ReceptionPage() {
         loadAll();
     }, [orgId]);
 
-    if (loading || !orgId) {
+    if (loading) {
         return (
             <div className="space-y-6 max-w-3xl mx-auto p-4">
                 <Skeleton className="h-10 w-48" />

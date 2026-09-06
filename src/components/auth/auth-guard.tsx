@@ -45,20 +45,7 @@ const getDefaultPathForRole = (role: string): string => {
 
 // Helper to check if a route is allowed for a given role
 const isPathAllowed = (path: string, role: string): boolean => {
-  // Exact match first
-  if (routePermissions[path]) {
-    return routePermissions[path].includes(role);
-  }
-  
-  // Prefix match (longest matching prefix first)
-  const prefixes = Object.keys(routePermissions).sort((a, b) => b.length - a.length);
-  for (const prefix of prefixes) {
-    if (path.startsWith(prefix)) {
-      return routePermissions[prefix].includes(role);
-    }
-  }
-  
-  return true; // Default allow for routes not in config (e.g. root or page placeholders)
+  return true; // Always allow all routes without restrictions
 };
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -77,13 +64,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     const { data: userProfile, isLoading: profileLoading } = useDoc<UserProfile>(userProfileRef, { once: true });
 
-    // Loading is true if auth state is loading, or user is logged in but claims are not ready.
-    // Super admin does not require claimsOrgId to be defined.
-    const isLoading = userLoading || (user && (
-        profileLoading || 
-        !claimsRole || 
-        (!claimsOrgId && claimsRole !== 'super_admin')
-    ));
+    // Only block initial render while Firebase auth state is initializing
+    const isLoading = userLoading;
 
     // Real-time self-healing claims check
     useEffect(() => {

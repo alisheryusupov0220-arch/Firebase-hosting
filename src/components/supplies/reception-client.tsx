@@ -152,29 +152,31 @@ export function ReceptionClient({
             ...base
         ];
     }, [erpItems]);
-    const supplierOptions = useMemo(() => (suppliers || []).map(s => ({ 
-        value: s.id, 
-        label: s.alias ? `${s.alias} (${s.name})` : s.name 
+    const supplierOptions = useMemo(() => (suppliers || []).filter(Boolean).map(s => ({ 
+        value: s?.id || '', 
+        label: s?.alias ? `${s.alias} (${s.name || ''})` : (s?.name || s?.id || 'Поставщик')
     })), [suppliers]);
 
     const availableItemOptions = useMemo(() => {
         const options: { value: string; label: string }[] = [];
 
-        if (contractorItems && contractorItems.length > 0) {
+        if (contractorItems && Array.isArray(contractorItems)) {
             contractorItems.forEach(ci => {
-                const erp = erpItems?.find(i => i.id === ci.linkedErpItemId);
+                if (!ci) return;
+                const erp = erpItems?.find(i => i?.id === ci.linkedErpItemId);
                 options.push({
-                    value: `ci_${ci.id}`,
-                    label: `⭐ ${ci.supplierName} (Poster: ${erp?.name || 'не указан'})`
+                    value: `ci_${ci.id || ''}`,
+                    label: `⭐ ${ci.supplierName || 'Товар'} (Poster: ${erp?.name || 'не указан'})`
                 });
             });
         }
 
-        if (erpItems && erpItems.length > 0) {
+        if (erpItems && Array.isArray(erpItems)) {
             erpItems.forEach(item => {
+                if (!item) return;
                 options.push({
-                    value: `erp_${item.id}`,
-                    label: `📦 ${item.name}`
+                    value: `erp_${item.id || ''}`,
+                    label: `📦 ${item.name || 'Ингредиент'}`
                 });
             });
         }
@@ -207,17 +209,17 @@ export function ReceptionClient({
     const [contractorItems, setContractorItems] = useState<any[]>([]);
 
     useEffect(() => {
-        if (orgId && supplierId && step === 2) {
+        if (orgId && supplierId) {
             getSupplierPriceHistoryAction(orgId, supplierId)
                 .then(setPriceHistory)
                 .catch(err => console.error("Failed to load supplier price history:", err));
         } else {
             setPriceHistory({});
         }
-    }, [orgId, supplierId, step]);
+    }, [orgId, supplierId]);
 
     useEffect(() => {
-        if (!orgId || !supplierId || !firestore || step !== 2) {
+        if (!orgId || !supplierId || !firestore) {
             setContractorItems([]);
             return;
         }
@@ -229,7 +231,7 @@ export function ReceptionClient({
             const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setContractorItems(items);
         }).catch(err => console.error("Failed to load contractor items:", err));
-    }, [orgId, supplierId, firestore, step]);
+    }, [orgId, supplierId, firestore]);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -328,7 +330,7 @@ export function ReceptionClient({
             }
 
             setScannedItems([]);
-            setStep(2);
+            setStep(3);
             toast({ title: 'Фото сохранено!', description: 'Фотография накладной успешно прикреплена. Введите позиции вручную.' });
         } catch (err: any) {
             console.error("Error uploading image:", err);
