@@ -157,6 +157,31 @@ export function ReceptionClient({
         label: s.alias ? `${s.alias} (${s.name})` : s.name 
     })), [suppliers]);
 
+    const availableItemOptions = useMemo(() => {
+        const options: { value: string; label: string }[] = [];
+
+        if (contractorItems && contractorItems.length > 0) {
+            contractorItems.forEach(ci => {
+                const erp = erpItems?.find(i => i.id === ci.linkedErpItemId);
+                options.push({
+                    value: `ci_${ci.id}`,
+                    label: `⭐ ${ci.supplierName} (Poster: ${erp?.name || 'не указан'})`
+                });
+            });
+        }
+
+        if (erpItems && erpItems.length > 0) {
+            erpItems.forEach(item => {
+                options.push({
+                    value: `erp_${item.id}`,
+                    label: `📦 ${item.name}`
+                });
+            });
+        }
+
+        return options;
+    }, [contractorItems, erpItems]);
+
     // Step state
     // 1: Setup & Camera (Choose supplier, storage, take photo)
     // 2: Verifying (Item verification, entering actual factual quantities)
@@ -346,6 +371,55 @@ export function ReceptionClient({
             }
         }
         setScannedItems(updated);
+    };
+
+    const handleSelectCombinedItem = (index: number, val: string) => {
+        if (!val) {
+            setScannedItems(prev => {
+                const next = [...prev];
+                next[index] = {
+                    ...next[index],
+                    itemId: '',
+                    originalName: '',
+                    name: ''
+                };
+                return next;
+            });
+            return;
+        }
+
+        if (val.startsWith('ci_')) {
+            const ciId = val.replace('ci_', '');
+            const ci = contractorItems.find(c => c.id === ciId);
+            if (ci) {
+                const erp = erpItems?.find(i => i.id === ci.linkedErpItemId);
+                setScannedItems(prev => {
+                    const next = [...prev];
+                    next[index] = {
+                        ...next[index],
+                        itemId: ci.linkedErpItemId,
+                        originalName: ci.supplierName,
+                        name: erp?.name || ci.supplierName
+                    };
+                    return next;
+                });
+            }
+        } else if (val.startsWith('erp_')) {
+            const erpId = val.replace('erp_', '');
+            const erp = erpItems?.find(i => i.id === erpId);
+            if (erp) {
+                setScannedItems(prev => {
+                    const next = [...prev];
+                    next[index] = {
+                        ...next[index],
+                        itemId: erp.id,
+                        originalName: erp.name,
+                        name: erp.name
+                    };
+                    return next;
+                });
+            }
+        }
     };
 
     const handleConfirmReception = () => {
@@ -608,61 +682,30 @@ export function ReceptionClient({
                                             priceDiffPercent = lastEntry.pricePerUnit > 0 ? (priceDiff / lastEntry.pricePerUnit) * 100 : 0;
                                         }
 
+                                        let selectedCombinedValue = '';
+                                        if (item.itemId) {
+                                            const matchingCi = contractorItems.find(ci => ci.linkedErpItemId === item.itemId && (ci.supplierName === item.originalName || !item.originalName));
+                                            if (matchingCi) {
+                                                selectedCombinedValue = `ci_${matchingCi.id}`;
+                                            } else {
+                                                selectedCombinedValue = `erp_${item.itemId}`;
+                                            }
+                                        }
+
                                         return (
                                             <div key={index} className="p-6 space-y-4 hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors border-b border-slate-100 dark:border-slate-800">
-                                                {/* Header & Template Row */}
+                                                {/* Header & Item Selection */}
                                                 <div className="flex justify-between items-start gap-4">
                                                     <div className="flex-1 space-y-3">
-                                                        {contractorItems.length > 0 && (
-                                                            <div className="space-y-1">
-                                                                <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                                                                    Шаблон привязки поставщика:
-                                                                </label>
-                                                                <Select
-                                                                    onValueChange={(val) => {
-                                                                        const mapping = contractorItems.find(ci => ci.id === val);
-                                                                        if (mapping) {
-                                                                            handleUpdateItemField(index, 'originalName', mapping.supplierName);
-                                                                            handleUpdateItemField(index, 'itemId', mapping.linkedErpItemId);
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    <SelectTrigger className="h-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-700 dark:text-slate-200">
-                                                                        <SelectValue placeholder="Заполнить из привязанных товаров..." />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent className="bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100">
-                                                                        {contractorItems.map(ci => (
-                                                                            <SelectItem key={ci.id} value={ci.id}>
-                                                                                {ci.supplierName} ➔ {erpItems?.find(i => i.id === ci.linkedErpItemId)?.name || 'Неизвестно'}
-                                                                            </SelectItem>
-                                                                        ))}
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                        )}
-
                                                         <div className="space-y-1">
-                                                            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                                                                Название у поставщика (в накладной):
-                                                            </label>
-                                                            <Input
-                                                                type="text"
-                                                                value={item.originalName}
-                                                                onChange={(e) => handleUpdateItemField(index, 'originalName', e.target.value)}
-                                                                placeholder="Например: Картофель мытый крупный"
-                                                                className="h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-sm focus-visible:ring-blue-500"
-                                                            />
-                                                        </div>
-
-                                                        <div className="space-y-1">
-                                                            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                                                                Ингредиент Poster:
+                                                            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider ml-0.5">
+                                                                Товар / Ингредиент:
                                                             </label>
                                                             <SearchableSelect 
-                                                                options={itemOptions} 
-                                                                value={item.itemId} 
-                                                                onChange={(val) => handleUpdateItemField(index, 'itemId', val)} 
-                                                                placeholder="Связать с ингредиентом Poster..." 
+                                                                options={availableItemOptions} 
+                                                                value={selectedCombinedValue} 
+                                                                onChange={(val) => handleSelectCombinedItem(index, val)} 
+                                                                placeholder="Выберите товар из списка..." 
                                                             />
                                                         </div>
                                                     </div>
