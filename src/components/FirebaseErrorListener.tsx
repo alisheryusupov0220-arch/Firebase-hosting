@@ -23,9 +23,9 @@ export function FirebaseErrorListener() {
     };
   }, []);
 
-  // On re-render, if an error exists in state, throw it.
+  // On re-render, if an error exists in state, log it but don't crash the app.
   if (error) {
-    throw error;
+    console.error("FirebaseErrorListener caught a permission error:", error);
   }
 
   // This component renders nothing.
