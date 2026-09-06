@@ -26,7 +26,7 @@ import { query, collection, orderBy, doc, deleteDoc, updateDoc } from 'firebase/
 import { Contractor, MyCompany, BankAccount } from '@/lib/types/finance';
 import { useMemo } from 'react';
 import { AddCompanyDialog, AddAccountDialog, EditCompanyDialog } from './account-dialogs';
-import { AddContractorDialog, EditContractorDialog, ContractorHistoryDialog, ContractorIngredientsDialog } from './contractor-dialogs';
+import { AddContractorDialog, EditContractorDialog, ContractorHistoryDialog, ContractorIngredientsDialog, PaySupplierDialog } from './contractor-dialogs';
 import { ScanContractorDialog } from './scan-contractor-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -190,6 +190,7 @@ export default function TreasuryPage() {
                                             <div className="flex gap-2">
                                                 <ContractorIngredientsDialog contractor={c} />
                                                 <ContractorHistoryDialog contractor={c} />
+                                                <PaySupplierDialog contractor={c} accounts={accounts || []} />
                                             </div>
                                         </div>
                                     </div>

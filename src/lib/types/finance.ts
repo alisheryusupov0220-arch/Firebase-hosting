@@ -12,6 +12,7 @@ export interface Contractor {
     name: string;
     brandName?: string;
     legalName?: string;
+    alias?: string; // Понятное имя для сотрудника
     aliases?: string[];
     inn?: string;
     phone?: string;

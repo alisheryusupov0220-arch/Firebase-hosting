@@ -16,7 +16,10 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { UserPlus, Landmark, ScanFace, RefreshCw, Pencil, Calendar, ArrowUpCircle, ArrowDownCircle, Clock, PlusCircle, RotateCw, Banknote, FileText, Eye } from 'lucide-react';
-import { createContractorAction } from './actions';
+import { createContractorAction, paySupplierAction } from './actions';
+import { uploadSupplyImageAction } from '@/app/actions/ai-ocr-actions';
+import { Textarea } from '@/components/ui/textarea';
+import { BankAccount } from '@/lib/types/finance';
 import { scanContractorInvoiceAction } from './ai-ocr-actions';
 import { Contractor } from '@/lib/types/finance';
 import { useToast } from '@/hooks/use-toast';
@@ -129,9 +132,15 @@ export function AddContractorDialog() {
                 </DialogHeader>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 pt-6">
                     <div className="grid gap-6">
-                        <div className="space-y-2">
-                            <Label className="text-[10px] uppercase font-black ml-1 text-slate-400 tracking-widest">Полное Наименование</Label>
-                            <Input {...register('name', { required: true })} placeholder="ООО / ИП Название" className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black text-base uppercase pl-4 placeholder:font-bold" />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] uppercase font-black ml-1 text-slate-400 tracking-widest">Юр. Название (ООО/ИП)</Label>
+                                <Input {...register('name', { required: true })} placeholder="ООО Название" className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black text-xs uppercase pl-4" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] uppercase font-black ml-1 text-slate-400 tracking-widest">Имя для Сотрудников (Alias)</Label>
+                                <Input {...register('alias')} placeholder="Напр: Картошка Фри" className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black text-xs uppercase pl-4" />
+                            </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
@@ -219,6 +228,7 @@ export function EditContractorDialog({ contractor }: { contractor: Contractor })
         try {
             await updateDoc(doc(firestore, 'organizations', orgId, 'contractors', contractor.id), {
                 name: (data.name || '').toUpperCase(),
+                alias: data.alias || '',
                 inn: data.inn || '',
                 phone: data.phone || '',
                 bankAccount: (data.bankAccount || '').replace(/\s/g, ''),
@@ -256,9 +266,15 @@ export function EditContractorDialog({ contractor }: { contractor: Contractor })
                 </DialogHeader>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pt-4">
                     <div className="grid gap-5">
-                        <div className="space-y-2">
-                            <Label className="text-[10px] uppercase font-black text-slate-400 tracking-widest ml-1">Наименование</Label>
-                            <Input {...register('name')} className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black uppercase" />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] uppercase font-black text-slate-400 tracking-widest ml-1">Наименование</Label>
+                                <Input {...register('name')} className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black uppercase" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] uppercase font-black text-slate-400 tracking-widest ml-1">Alias (Для Сотрудников)</Label>
+                                <Input {...register('alias')} className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black uppercase" />
+                            </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
@@ -672,3 +688,130 @@ export function ContractorIngredientsDialog({ contractor }: { contractor: Contra
     );
 }
 
+// =====================================================
+// 5. ДИАЛО�3 ОПЛАТЫ
+// =======================================================
+
+export function PaySupplierDialog({ contractor, accounts }: { contractor: Contractor, accounts: BankAccount[] }) {
+    const { toast } = useToast();
+    const { orgId } = useFirebase();
+    const [open, setOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [amount, setAmount] = useState('');
+    const [comment, setComment] = useState('');
+    const [accountId, setAccountId] = useState('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [photoUrl, setPhotoUrl] = useState('');
+
+    async function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
+        const file = event.target.files?.[0];
+        if (!file || !orgId) return;
+        setLoading(true);
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const base64Str = (e.target?.result as string).split(',')[1];
+            try {
+                const result = await uploadSupplyImageAction(base64Str, `payment_${orgId}_${Date.now()}.jpg`, 'image/jpeg');
+                if (result.url) setPhotoUrl(result.url);
+            } catch (err) {
+                toast({ variant: 'destructive', title: 'Ошибка загрузки фото' });
+            } finally {
+                setLoading(false);
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    async function onSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        if (!orgId) return;
+        setLoading(true);
+        try {
+            const res = await paySupplierAction(orgId, {
+                contractorId: contractor.id,
+                amount: Number(amount),
+                comment,
+                photoUrl,
+                myAccountId: accountId || undefined
+            });
+            if (res.success) {
+                toast({ title: 'Оплата проведена', description: 'Долг контрагента уменьшен' });
+                setOpen(false);
+                setAmount('');
+                setComment('');
+                setPhotoUrl('');
+                setAccountId('');
+            } else {
+                toast({ variant: 'destructive', title: 'Ошибка', description: res.error });
+            }
+        } catch (err) {
+            toast({ variant: 'destructive', title: 'Ошибка сети' });
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm" className="h-8 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold text-[10px] uppercase tracking-wider px-4">
+                    <Banknote className="w-3.5 h-3.5 mr-1.5" /> Оплатить
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[450px] rounded-[3rem] p-8 border-none shadow-2xl">
+                <DialogHeader>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
+                        <div className="p-2 bg-emerald-100 rounded-xl">
+                            <Banknote className="w-5 h-5 text-emerald-600" />
+                        </div>
+                        Оплата: {contractor.name}
+                    </DialogTitle>
+                </DialogHeader>
+                <form onSubmit={onSubmit} className="space-y-6 pt-4">
+                    <div className="space-y-2">
+                        <Label className="text-[10px] uppercase font-black text-slate-400 ml-1">Сумма Оплаты (UZS)</Label>
+                        <Input required type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-14 rounded-2xl bg-slate-50 border-none font-black text-lg pl-4" placeholder="0" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] uppercase font-black text-slate-400 ml-1">Счет списания</Label>
+                        <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className="w-full h-14 rounded-2xl bg-slate-50 border-none font-bold text-sm px-4 outline-none">
+                            <option value="">Внешний (не учитывать на наших счетах)</option>
+                            {accounts.map(acc => (
+                                <option key={acc.id} value={acc.id}>{acc.bankName} - {acc.accountNumber}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] uppercase font-black text-slate-400 ml-1">Комментарий</Label>
+                        <Textarea value={comment} onChange={(e) => setComment(e.target.value)} className="rounded-2xl bg-slate-50 border-none font-medium resize-none p-4" placeholder="За что оплата?" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] uppercase font-black text-slate-400 ml-1">Скан / Фото перевода (обязательно)</Label>
+                        {photoUrl ? (
+                            <div className="relative w-full h-32 rounded-2xl overflow-hidden group">
+                                <img src={photoUrl} alt="Receipt" className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <Button type="button" variant="destructive" size="sm" onClick={() => setPhotoUrl('')} className="rounded-xl">
+                                        <X className="w-4 h-4 mr-2" /> Удалить
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept="image/*" />
+                                <Button type="button" disabled={loading} onClick={() => fileInputRef.current?.click()} className="w-full h-14 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold border-2 border-dashed border-slate-300">
+                                    <ScanFace className="w-5 h-5 mr-2" /> Загрузить скриншот
+                                </Button>
+                            </>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button type="submit" disabled={loading || !amount || !photoUrl} className="w-full h-16 rounded-[3rem] bg-emerald-600 hover:bg-black font-black uppercase text-xs tracking-widest shadow-xl transition-all active:scale-95">
+                            {loading ? <RefreshCw className="h-5 w-5 animate-spin" /> : 'Подтвердить перевод'}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}

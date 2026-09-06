@@ -146,6 +146,7 @@ export async function createContractorAction(orgId: string, data: Partial<Contra
         }
         const payload = {
             name: data.name.toUpperCase(),
+            alias: data.alias || '',
             inn: data.inn ? String(data.inn).trim() : '',
             bankAccount: data.bankAccount ? String(data.bankAccount).replace(/\s/g, '') : '',
             bankCode: data.bankCode || '',
@@ -200,5 +201,67 @@ export async function updateContractorIngredientsAction(orgId: string, contracto
         return { success: true };
     } catch {
         return { success: false, error: 'Ошибка при обновлении списка ингредиентов' };
+    }
+}
+
+export async function paySupplierAction(orgId: string, payload: {
+    contractorId: string;
+    amount: number;
+    comment: string;
+    photoUrl?: string;
+    myAccountId?: string;
+}) {
+    if (!orgId) return { success: false, error: 'orgId required' };
+    try {
+        const contractorRef = adminDb.doc(orgDoc(orgId).contractor(payload.contractorId));
+        const contractorSnap = await contractorRef.get();
+        if (!contractorSnap.exists) return { success: false, error: 'Контрагент не найден' };
+        
+        const contractorData = contractorSnap.data() as Contractor;
+        
+        const batch = adminDb.batch();
+        
+        // 1. Списываем долг контрагента (уменьшаем баланс)
+        batch.update(contractorRef, {
+            balance: FieldValue.increment(-payload.amount),
+            updatedAt: FieldValue.serverTimestamp()
+        });
+        
+        // 2. Создаем транзакцию расхода
+        const txRef = adminDb.collection(`organizations/${orgId}/finance_transactions`).doc();
+        batch.set(txRef, {
+            id: txRef.id,
+            type: 'expense',
+            status: 'completed',
+            source: 'manual_entry',
+            amount: payload.amount,
+            currency: 'UZS',
+            contractorId: payload.contractorId,
+            counterparty: contractorData.name,
+            counterpartyInn: contractorData.inn || null,
+            counterpartyAccount: contractorData.bankAccount || null,
+            myAccountId: payload.myAccountId || null,
+            date: new Date().toISOString(),
+            comment: payload.comment || 'Оплата поставщику',
+            receiptImageUrl: payload.photoUrl || null,
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp()
+        });
+
+        // 3. Если выбран внутренний счет, уменьшаем его баланс
+        if (payload.myAccountId) {
+            const myAccountRef = adminDb.doc(`organizations/${orgId}/bank_accounts/${payload.myAccountId}`);
+            batch.update(myAccountRef, {
+                balance: FieldValue.increment(-payload.amount),
+                updatedAt: FieldValue.serverTimestamp()
+            });
+        }
+        
+        await batch.commit();
+        safeRevalidatePath('/finance-hub/accounts');
+        return { success: true };
+    } catch (e) {
+        console.error('paySupplierAction error:', e);
+        return { success: false, error: 'Ошибка проведения платежа' };
     }
 }

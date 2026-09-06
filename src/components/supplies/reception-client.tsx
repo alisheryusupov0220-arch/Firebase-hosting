@@ -152,14 +152,10 @@ export function ReceptionClient({
             ...base
         ];
     }, [erpItems]);
-    const supplierOptions = useMemo(() => (suppliers || []).map(s => ({ value: s.id, label: s.name })), [suppliers]);
-    const storageOptions = useMemo(() => {
-        const baseOptions = (storages || []).map(s => ({ value: String(s.storage_id), label: s.storage_name }));
-        return [
-            { value: '', label: 'Автовыбор склада (Авто)' },
-            ...baseOptions
-        ];
-    }, [storages]);
+    const supplierOptions = useMemo(() => (suppliers || []).map(s => ({ 
+        value: s.id, 
+        label: s.alias ? `${s.alias} (${s.name})` : s.name 
+    })), [suppliers]);
 
     // Step state
     // 1: Setup & Camera (Choose supplier, storage, take photo)
@@ -178,11 +174,9 @@ export function ReceptionClient({
     const [scannedSupplierAddress, setScannedSupplierAddress] = useState('');
     const [photoUrl, setPhotoUrl] = useState('');
 
-    const [storageId, setStorageId] = useState('');
     const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
     const [priceHistory, setPriceHistory] = useState<Record<string, { date: string; pricePerUnit: number; qty: number }[]>>({});
     const [comment, setComment] = useState('');
-    const [isPaid, setIsPaid] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
     const [isPending, startTransition] = useTransition();
     const [contractorItems, setContractorItems] = useState<any[]>([]);
@@ -362,10 +356,10 @@ export function ReceptionClient({
                 supplierId: supplierId || undefined,
                 supplierName: scannedSupplierName || undefined,
                 originalSupplierName: ocrSupplierName || undefined,
-                storageId: storageId || undefined,
+                storageId: undefined,
                 comment,
                 photoUrl: photoUrl || undefined,
-                isPaid,
+                isPaid: false,
                 supplierInn: scannedSupplierInn || undefined,
                 supplierBankAccount: scannedSupplierBankAccount || undefined,
                 supplierBankName: scannedSupplierBankName || undefined,
@@ -389,7 +383,6 @@ export function ReceptionClient({
                 setSupplierId('');
                 setScannedSupplierName('');
                 setOcrSupplierName('');
-                setIsPaid(false);
                 setScannedSupplierInn('');
                 setScannedSupplierBankAccount('');
                 setScannedSupplierBankName('');
@@ -445,54 +438,13 @@ export function ReceptionClient({
                                     }} 
                                     placeholder="От кого товары?" 
                                 />
-                                {!supplierId && (
-                                    <div className="space-y-1.5 mt-2 bg-amber-50/30 p-4 rounded-2xl border border-amber-100 shadow-sm animate-in fade-in duration-300">
-                                        <Label className="text-[10px] font-black text-amber-800 uppercase tracking-wider pl-0.5">Название нового контрагента (Бренд/Имя)</Label>
-                                        <Input 
-                                            value={scannedSupplierName} 
-                                            onChange={(e) => setScannedSupplierName(e.target.value)} 
-                                            placeholder="Введите название нового контрагента"
-                                            className="h-10 rounded-xl border-amber-200 bg-white dark:bg-slate-950 font-black text-sm pl-3 focus-visible:ring-amber-500 text-slate-800 dark:text-slate-100 uppercase"
-                                        />
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label className="text-xs font-bold uppercase text-slate-400 ml-1">Склад / Объект (Poster)</Label>
-                                <SearchableSelect 
-                                    options={storageOptions} 
-                                    value={storageId} 
-                                    onChange={setStorageId} 
-                                    placeholder="Куда выгружать?" 
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label className="text-xs font-bold uppercase text-slate-400 ml-1">Тип документа / Оплата</Label>
-                                <Select 
-                                    value={isPaid ? 'paid' : 'unpaid'} 
-                                    onValueChange={(val) => setIsPaid(val === 'paid')}
-                                >
-                                    <SelectTrigger className="h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold text-sm text-slate-800 dark:text-slate-100 focus:ring-blue-500">
-                                        <SelectValue placeholder="Статус оплаты" />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-850 text-slate-800 dark:text-slate-100 rounded-xl">
-                                        <SelectItem value="unpaid" className="focus:bg-blue-600 focus:text-white font-bold">
-                                            ❌ Поставка в долг (Накладная)
-                                        </SelectItem>
-                                        <SelectItem value="paid" className="focus:bg-blue-600 focus:text-white font-bold">
-                                            ✅ Оплачено сразу (Чек / Корзинка)
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
                             </div>
                         </div>
 
                         <Button 
                             type="button"
                             onClick={() => setStep(2)}
-                            disabled={!storageId || (!supplierId && !scannedSupplierName)}
+                            disabled={!supplierId}
                             className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold uppercase text-xs tracking-wider shadow-lg shadow-blue-100 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             Далее: Сделать фото накладной <ArrowRight className="w-4 h-4" />
