@@ -145,6 +145,30 @@ export function ReceptionClient({
     const { data: erpItems } = useCollection<ERPItem>(ingredientsQuery, { once: true });
     const { data: suppliers } = useCollection<Contractor>(suppliersQuery, { once: true });
 
+    // Step state
+    // 1: Setup & Camera (Choose supplier, storage, take photo)
+    // 2: Verifying (Item verification, entering actual factual quantities)
+    const [step, setStep] = useState(1);
+    const [supplierId, setSupplierId] = useState('');
+    const [scannedSupplierName, setScannedSupplierName] = useState('');
+    const [ocrSupplierName, setOcrSupplierName] = useState('');
+    
+    // OCR Extracted Supplier details:
+    const [scannedSupplierInn, setScannedSupplierInn] = useState('');
+    const [scannedSupplierBankAccount, setScannedSupplierBankAccount] = useState('');
+    const [scannedSupplierBankName, setScannedSupplierBankName] = useState('');
+    const [scannedSupplierBankCode, setScannedSupplierBankCode] = useState('');
+    const [scannedSupplierPhone, setScannedSupplierPhone] = useState('');
+    const [scannedSupplierAddress, setScannedSupplierAddress] = useState('');
+    const [photoUrl, setPhotoUrl] = useState('');
+
+    const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
+    const [priceHistory, setPriceHistory] = useState<Record<string, { date: string; pricePerUnit: number; qty: number }[]>>({});
+    const [comment, setComment] = useState('');
+    const [isScanning, setIsScanning] = useState(false);
+    const [isPending, startTransition] = useTransition();
+    const [contractorItems, setContractorItems] = useState<any[]>([]);
+
     const itemOptions = useMemo(() => {
         const base = (erpItems || []).map(item => ({ value: item.id, label: item.name }));
         return [
@@ -152,6 +176,7 @@ export function ReceptionClient({
             ...base
         ];
     }, [erpItems]);
+    
     const supplierOptions = useMemo(() => (suppliers || []).filter(Boolean).map(s => ({ 
         value: s?.id || '', 
         label: s?.alias ? `${s.alias} (${s.name || ''})` : (s?.name || s?.id || 'Поставщик')
@@ -183,30 +208,6 @@ export function ReceptionClient({
 
         return options;
     }, [contractorItems, erpItems]);
-
-    // Step state
-    // 1: Setup & Camera (Choose supplier, storage, take photo)
-    // 2: Verifying (Item verification, entering actual factual quantities)
-    const [step, setStep] = useState(1);
-    const [supplierId, setSupplierId] = useState('');
-    const [scannedSupplierName, setScannedSupplierName] = useState('');
-    const [ocrSupplierName, setOcrSupplierName] = useState('');
-    
-    // OCR Extracted Supplier details:
-    const [scannedSupplierInn, setScannedSupplierInn] = useState('');
-    const [scannedSupplierBankAccount, setScannedSupplierBankAccount] = useState('');
-    const [scannedSupplierBankName, setScannedSupplierBankName] = useState('');
-    const [scannedSupplierBankCode, setScannedSupplierBankCode] = useState('');
-    const [scannedSupplierPhone, setScannedSupplierPhone] = useState('');
-    const [scannedSupplierAddress, setScannedSupplierAddress] = useState('');
-    const [photoUrl, setPhotoUrl] = useState('');
-
-    const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
-    const [priceHistory, setPriceHistory] = useState<Record<string, { date: string; pricePerUnit: number; qty: number }[]>>({});
-    const [comment, setComment] = useState('');
-    const [isScanning, setIsScanning] = useState(false);
-    const [isPending, startTransition] = useTransition();
-    const [contractorItems, setContractorItems] = useState<any[]>([]);
 
     useEffect(() => {
         if (orgId && supplierId) {
