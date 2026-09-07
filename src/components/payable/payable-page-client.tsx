@@ -78,7 +78,7 @@ export function PayablePageClient() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black uppercase tracking-tight text-slate-900">Взаиморасчеты</h1>
-          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">История поставок и сверка со счетами</p>
+          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">Сверка фактических поставок со счетами Didox и учет взаиморасчетов</p>
         </div>
         <div className="flex items-center gap-4 w-full md:w-auto">
           <div className="relative w-full md:w-64">

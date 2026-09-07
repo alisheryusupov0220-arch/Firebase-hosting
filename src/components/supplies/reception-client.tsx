@@ -579,21 +579,9 @@ export function ReceptionClient({
                             )}
                         </Button>
 
-                        <div className="flex gap-2">
-                            <Button 
-                                type="button"
-                                variant="outline"
-                                onClick={() => {
-                                    setPhotoUrl('');
-                                    setScannedItems([]);
-                                    setStep(3);
-                                    toast({ title: 'Пропущено', description: 'Перешли к ручному вводу без фото накладной.' });
-                                }}
-                                className="w-full h-12 rounded-xl text-slate-500 dark:text-slate-400 font-bold text-xs uppercase"
-                            >
-                                Пропустить фото и ввести вручную
-                            </Button>
-                        </div>
+                        <p className="text-center text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 p-3 rounded-xl border border-amber-200 dark:border-amber-900/50">
+                            📷 Фотография накладной обязательна для проведения приемки товаров.
+                        </p>
                     </CardContent>
                 </Card>
             )}

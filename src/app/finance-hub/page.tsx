@@ -118,7 +118,7 @@ export default function FinanceHubPage() {
                         ФИНАНСОВЫЙ ХАБ
                     </h1>
                     <p className="text-muted-foreground font-medium flex items-center gap-2 mt-1 italic opacity-80">
-                        Центральный реестр транзакций: Telegram, API & Ручной ввод.
+                        Учет взаиморасчетов с контрагентами, сверка счетов с актами Didox и учет оплат.
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -136,7 +136,7 @@ export default function FinanceHubPage() {
                 </div>
             </div>
 
-            <FinanceSummary accounts={accounts} />
+            <FinanceSummary contractors={contractors} transactions={safeTransactions} />
 
             <Card className="rounded-2xl border-none shadow-xl overflow-hidden bg-gradient-to-b from-white to-slate-50/30">
                 <CardHeader className="border-b bg-slate-50/50">
