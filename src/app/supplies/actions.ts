@@ -111,19 +111,27 @@ export async function confirmPhotoReceptionAction(orgId: string, userId: string,
 
         if (finalSupplierId) {
             const supplierDoc = await adminDb.collection(`organizations/${orgId}/suppliers`).doc(finalSupplierId).get();
+            const contractorDoc = await adminDb.collection(`organizations/${orgId}/contractors`).doc(finalSupplierId).get();
+
             if (supplierDoc.exists) {
                 const sData = supplierDoc.data();
-                supplierName = sData?.name || 'Неизвестен';
+                supplierName = sData?.name || payload.supplierName || 'Неизвестен';
                 posterSupplierId = sData?.posterId || '';
+            } else if (contractorDoc.exists) {
+                const cData = contractorDoc.data();
+                supplierName = cData?.name || payload.supplierName || 'Неизвестен';
+                posterSupplierId = cData?.posterId || '';
+            } else {
+                supplierName = payload.supplierName || 'Поставщик';
             }
 
             // Update existing contractor's legalName and aliases if originalSupplierName is present
             if (payload.originalSupplierName) {
                 const originalUpper = payload.originalSupplierName.trim().toUpperCase();
                 const contractorRef = adminDb.collection(`organizations/${orgId}/contractors`).doc(finalSupplierId);
-                const contractorDoc = await contractorRef.get();
-                if (contractorDoc.exists) {
-                    const cData = contractorDoc.data();
+                const cDoc = contractorDoc.exists ? contractorDoc : await contractorRef.get();
+                if (cDoc.exists) {
+                    const cData = cDoc.data();
                     const currentAliases = cData?.aliases || [];
                     const currentLegalName = cData?.legalName || '';
                     
@@ -135,7 +143,7 @@ export async function confirmPhotoReceptionAction(orgId: string, userId: string,
                         updates.aliases = FieldValue.arrayUnion(originalUpper);
                     }
                     if (Object.keys(updates).length > 0) {
-                        await contractorRef.update(updates);
+                        await contractorRef.set(updates, { merge: true });
                         console.log(`[Update Contractor] Updated aliases/legalName for contractor ${supplierName} with OCR name: ${originalUpper}`);
                     }
                 }
@@ -394,24 +402,28 @@ export async function confirmPhotoReceptionAction(orgId: string, userId: string,
                     comment: payload.comment || 'Приемка по фото'
                 });
 
-                batch.update(adminDb.collection(`organizations/${orgId}/erp_items`).doc(ing.itemId), {
-                    lastPurchasePrice: ing.price / ing.factQty
-                });
+                batch.set(adminDb.collection(`organizations/${orgId}/erp_items`).doc(ing.itemId), {
+                    lastPurchasePrice: ing.price / ing.factQty,
+                    updatedAt: FieldValue.serverTimestamp()
+                }, { merge: true });
             }
         });
 
         const isPaid = payload.isPaid || false;
 
         if (!isPaid) {
-            batch.update(adminDb.collection(`organizations/${orgId}/suppliers`).doc(finalSupplierId), {
-                balance: FieldValue.increment(totalAmount)
-            });
+            batch.set(adminDb.collection(`organizations/${orgId}/suppliers`).doc(finalSupplierId), {
+                id: finalSupplierId,
+                name: supplierName || 'Поставщик',
+                balance: FieldValue.increment(totalAmount),
+                updatedAt: FieldValue.serverTimestamp()
+            }, { merge: true });
 
             // Также обновляем баланс контрагента в казначействе (для синхронности казначейства и долгов)
             const contractorRef = adminDb.collection(`organizations/${orgId}/contractors`).doc(finalSupplierId);
             batch.set(contractorRef, {
                 id: finalSupplierId,
-                name: supplierName,
+                name: supplierName || 'Поставщик',
                 balance: FieldValue.increment(totalAmount),
                 updatedAt: FieldValue.serverTimestamp(),
                 isActive: true
@@ -480,10 +492,10 @@ export async function confirmPhotoReceptionAction(orgId: string, userId: string,
                         .get();
                     
                     if (!mappingSnap.empty) {
-                        batch.update(mappingSnap.docs[0].ref, {
+                        batch.set(mappingSnap.docs[0].ref, {
                             linkedErpItemId: ing.itemId,
                             updatedAt: FieldValue.serverTimestamp()
-                        });
+                        }, { merge: true });
                     } else {
                         const newMappingRef = adminDb.collection(`organizations/${orgId}/contractor_items`).doc();
                         batch.set(newMappingRef, {
