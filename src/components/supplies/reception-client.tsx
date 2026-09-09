@@ -319,10 +319,12 @@ export function ReceptionClient({
             const { base64, mimeType } = await compressImage(file);
             
             // Upload image to Firebase Storage
+            let uploadedUrl = '';
             try {
                 const fileName = `reception_${orgId}_${Date.now()}.jpg`;
                 const uploadResult = await uploadSupplyImageAction(base64, fileName, mimeType);
                 if (uploadResult && uploadResult.url) {
+                    uploadedUrl = uploadResult.url;
                     setPhotoUrl(uploadResult.url);
                     console.log("Photo uploaded to Firebase Storage:", uploadResult.url);
                 }
@@ -330,9 +332,14 @@ export function ReceptionClient({
                 console.error("Failed to upload reception photo:", uploadError);
             }
 
+            if (!uploadedUrl) {
+                toast({ variant: 'destructive', title: 'Ошибка сохраненения фото', description: 'Не удалось загрузить фотографию на сервер Firebase. Попробуйте сделать фото еще раз.' });
+                return;
+            }
+
             setScannedItems([]);
             setStep(3);
-            toast({ title: 'Фото сохранено!', description: 'Фотография накладной успешно прикреплена. Введите позиции вручную.' });
+            toast({ title: 'Фото прикреплено!', description: 'Фотография накладной успешно прикреплена к поставке.' });
         } catch (err: any) {
             console.error("Error uploading image:", err);
             toast({ variant: 'destructive', title: 'Ошибка загрузки фото', description: err.message || String(err) });
