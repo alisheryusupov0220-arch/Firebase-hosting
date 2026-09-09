@@ -18,13 +18,21 @@ if (!admin.apps.length) {
             storageBucket: firebaseConfig.storageBucket,
         });
     }
-    // Priority 3: Public config only (Will fail for some Admin SDK operations, but good for local startup)
+    // Priority 3: Application Default Credentials (Standard for Firebase App Hosting / Cloud Run)
     else {
-      admin.initializeApp({
-        projectId: firebaseConfig.projectId,
-        storageBucket: firebaseConfig.storageBucket,
-      });
-      console.warn('Firebase Admin initialized with base config. Some write operations may require credentials on local server.');
+      try {
+        admin.initializeApp({
+          credential: admin.credential.applicationDefault(),
+          projectId: firebaseConfig.projectId,
+          storageBucket: firebaseConfig.storageBucket,
+        });
+      } catch (adcError) {
+        console.warn('ADC initialization warning, falling back to base config:', adcError);
+        admin.initializeApp({
+          projectId: firebaseConfig.projectId,
+          storageBucket: firebaseConfig.storageBucket,
+        });
+      }
     }
     // Apply global settings ONLY on first initialization to avoid hot-reload crashes
     admin.firestore().settings({ ignoreUndefinedProperties: true });

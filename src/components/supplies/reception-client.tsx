@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useCollection, useFirestore } from '@/firebase/hooks';
 import { collection, query, orderBy, where, getDocs } from 'firebase/firestore';
+import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { type Storage } from '@/lib/poster';
 import { type ERPItem } from '@/lib/types/erp';
 import { type Contractor } from '@/lib/types/finance';
@@ -128,7 +129,7 @@ export function ReceptionClient({
     suppliers: any[];
 }) {
     const { toast } = useToast();
-    const { orgId, user } = useFirebase();
+    const { orgId, user, firebaseApp } = useFirebase();
     const firestore = useFirestore();
 
     // 1. Fetch local items and suppliers
@@ -318,25 +319,38 @@ export function ReceptionClient({
             // Сжимаем фото на клиенте до приемлемого разрешения для ускорения загрузки и обхода лимитов размера payload
             const { base64, mimeType } = await compressImage(file);
             
-            // Upload image to Firebase Storage
+            // Upload image to Firebase Storage (Try server action first)
             let uploadedUrl = '';
             try {
                 const fileName = `reception_${orgId}_${Date.now()}.jpg`;
                 const uploadResult = await uploadSupplyImageAction(base64, fileName, mimeType);
                 if (uploadResult && uploadResult.url) {
                     uploadedUrl = uploadResult.url;
-                    setPhotoUrl(uploadResult.url);
-                    console.log("Photo uploaded to Firebase Storage:", uploadResult.url);
                 }
             } catch (uploadError) {
-                console.error("Failed to upload reception photo:", uploadError);
+                console.error("Failed to upload reception photo via Server Action:", uploadError);
+            }
+
+            // Fallback to Firebase Client SDK direct upload if Server Action fails or returns empty/invalid URL
+            if (!uploadedUrl) {
+                console.log("[Storage] Falling back to Client SDK uploadString...");
+                try {
+                    const storage = getStorage(firebaseApp);
+                    const storageRef = ref(storage, `receipts/reception_${orgId}_${Date.now()}.jpg`);
+                    await uploadString(storageRef, base64, 'base64', { contentType: mimeType });
+                    uploadedUrl = await getDownloadURL(storageRef);
+                    console.log("[Storage] Client upload successful, URL:", uploadedUrl);
+                } catch (clientErr: any) {
+                    console.error("[Storage] Client storage upload fallback failed:", clientErr);
+                }
             }
 
             if (!uploadedUrl) {
-                toast({ variant: 'destructive', title: 'Ошибка сохраненения фото', description: 'Не удалось загрузить фотографию на сервер Firebase. Попробуйте сделать фото еще раз.' });
+                toast({ variant: 'destructive', title: 'Ошибка сохранения фото', description: 'Не удалось загрузить фотографию на сервер Firebase. Попробуйте сделать фото еще раз.' });
                 return;
             }
 
+            setPhotoUrl(uploadedUrl);
             setScannedItems([]);
             setStep(3);
             toast({ title: 'Фото прикреплено!', description: 'Фотография накладной успешно прикреплена к поставке.' });
