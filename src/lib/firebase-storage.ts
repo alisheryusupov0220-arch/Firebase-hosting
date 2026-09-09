@@ -1,5 +1,6 @@
 import { getFirebaseAdmin } from '@/firebase/server';
 import { firebaseConfig } from '@/firebase/config';
+import crypto from 'crypto';
 
 /**
  * Загрузка изображения в Firebase Storage (Server-side)
@@ -11,7 +12,8 @@ import { firebaseConfig } from '@/firebase/config';
 export async function uploadImageToStorage(base64: string, fileName: string, mimeType: string = 'image/jpeg') {
     const bucketName = firebaseConfig.storageBucket || 'studio-6350931931-426d4.firebasestorage.app';
     const filePath = `receipts/${fileName}`;
-    const fallbackMediaUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(filePath)}?alt=media`;
+    const downloadToken = crypto.randomUUID();
+    const fallbackMediaUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(filePath)}?alt=media&token=${downloadToken}`;
 
     try {
         const admin = getFirebaseAdmin();
@@ -23,7 +25,12 @@ export async function uploadImageToStorage(base64: string, fileName: string, mim
         const buffer = Buffer.from(base64, 'base64');
         
         await file.save(buffer, {
-            metadata: { contentType: mimeType },
+            metadata: { 
+                contentType: mimeType,
+                metadata: {
+                    firebaseStorageDownloadTokens: downloadToken
+                }
+            },
             resumable: false // faster for small files
         });
 
@@ -36,24 +43,10 @@ export async function uploadImageToStorage(base64: string, fileName: string, mim
             console.warn('[Storage] Notice: Could not apply public ACL (safe to ignore if bucket uses Uniform access control):', aclError?.message);
         }
 
-        // Try generating signed URL
-        let finalUrl = fallbackMediaUrl;
-        try {
-            const [signedUrl] = await file.getSignedUrl({
-                action: 'read',
-                expires: '2035-01-01' // Long term access
-            });
-            if (signedUrl) {
-                finalUrl = signedUrl;
-            }
-        } catch (signedErr: any) {
-            console.warn('[Storage] Signed URL creation skipped/failed, using fallback media URL:', signedErr?.message);
-        }
-
-        console.log(`[Storage] Upload complete. Final URL: ${finalUrl}`);
+        console.log(`[Storage] Upload complete. Final URL: ${fallbackMediaUrl}`);
         
         return {
-            url: finalUrl,
+            url: fallbackMediaUrl,
             storagePath: filePath
         };
     } catch (error: any) {
