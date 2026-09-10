@@ -178,10 +178,44 @@ export function ReceptionClient({
         ];
     }, [erpItems]);
     
-    const supplierOptions = useMemo(() => (suppliers || []).filter(Boolean).map(s => ({ 
-        value: s?.id || '', 
-        label: s?.alias ? `${s.alias} (${s.name || ''})` : (s?.name || s?.id || 'Поставщик')
-    })), [suppliers]);
+    const supplierOptions = useMemo(() => {
+        const list: { value: string; label: string }[] = [];
+        const addedIds = new Set<string>();
+        const addedNames = new Set<string>();
+
+        // 1. Local Firestore Contractors
+        if (suppliers && Array.isArray(suppliers)) {
+            suppliers.filter(Boolean).forEach(s => {
+                const id = s?.id || '';
+                const name = s?.name || '';
+                if (id) {
+                    addedIds.add(id);
+                    if (name) addedNames.add(name.trim().toLowerCase());
+                    list.push({
+                        value: id,
+                        label: s?.alias ? `${s.alias} (${name})` : (name || id)
+                    });
+                }
+            });
+        }
+
+        // 2. Poster API Suppliers (fallback if not in Firestore)
+        if (posterSuppliers && Array.isArray(posterSuppliers)) {
+            posterSuppliers.filter(Boolean).forEach(ps => {
+                const id = String(ps?.supplier_id || ps?.id || '');
+                const name = String(ps?.supplier_name || ps?.name || '').trim();
+                if (id && !addedIds.has(id) && !addedNames.has(name.toLowerCase())) {
+                    addedIds.add(id);
+                    list.push({
+                        value: id,
+                        label: `📦 ${name} (Poster)`
+                    });
+                }
+            });
+        }
+
+        return list;
+    }, [suppliers, posterSuppliers]);
 
     const availableItemOptions = useMemo(() => {
         const options: { value: string; label: string }[] = [];
@@ -530,8 +564,9 @@ export function ReceptionClient({
                                     onChange={(val) => {
                                         setSupplierId(val);
                                         if (val) {
-                                            const selected = suppliers?.find(s => s.id === val);
-                                            setScannedSupplierName(selected?.name || '');
+                                            const selectedLocal = suppliers?.find(s => s.id === val);
+                                            const selectedPoster = posterSuppliers?.find(ps => String(ps.supplier_id || ps.id) === String(val));
+                                            setScannedSupplierName(selectedLocal?.name || selectedPoster?.supplier_name || selectedPoster?.name || '');
                                         }
                                     }} 
                                     placeholder="От кого товары?" 

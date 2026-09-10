@@ -3,6 +3,7 @@
 import { adminDb } from '@/firebase/server';
 import { Contractor } from '@/lib/types/erp';
 import { revalidatePath } from 'next/cache';
+import { getPosterSuppliers } from '@/lib/poster';
 
 function safeRevalidatePath(path: string) {
     try {
@@ -127,7 +128,31 @@ export async function getContractorsAction(orgId: string) {
     if (!orgId) return [];
     try {
         const snapshot = await adminDb.collection(orgCol(orgId).contractors).orderBy('name', 'asc').get();
-        return snapshot.docs.map(doc => serializeDoc({ id: doc.id, ...doc.data() }));
+        const localContractors = snapshot.docs.map(doc => serializeDoc({ id: doc.id, ...doc.data() }));
+
+        try {
+            const posterSuppliers = await getPosterSuppliers(orgId);
+            if (posterSuppliers && posterSuppliers.length > 0) {
+                const existingNames = new Set(localContractors.map((c: any) => (c.name || '').trim().toLowerCase()));
+                for (const ps of posterSuppliers) {
+                    const name = (ps.supplier_name || ps.name || '').trim();
+                    if (name && !existingNames.has(name.toLowerCase())) {
+                        localContractors.push({
+                            id: `poster_${ps.supplier_id || ps.id}`,
+                            name: name.toUpperCase(),
+                            alias: 'Poster Supplier',
+                            inn: '',
+                            balance: 0,
+                            isPoster: true
+                        });
+                    }
+                }
+            }
+        } catch (pErr) {
+            console.warn('[getContractorsAction] Notice: could not load Poster suppliers:', pErr);
+        }
+
+        return localContractors;
     } catch { return []; }
 }
 
