@@ -40,8 +40,8 @@ export async function POST(req: NextRequest) {
     let finalOrgId = '';
 
     if (adminRole === 'super_admin') {
-      // Super admin can invite anyone to any organization, or create a new one
-      finalOrgId = targetOrgId || adminDb.collection('organizations').doc().id;
+      // Super admin can invite anyone to any organization, or create a new one. Default to their own orgId.
+      finalOrgId = targetOrgId || adminOrgId || adminDb.collection('organizations').doc().id;
     } else if (adminRole === 'brand_admin') {
       // Brand admin can invite anyone in their own organization
       finalOrgId = adminOrgId;
