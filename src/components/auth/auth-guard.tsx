@@ -64,8 +64,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     const { data: userProfile, isLoading: profileLoading } = useDoc<UserProfile>(userProfileRef, { once: true });
 
-    // Only block initial render while Firebase auth state is initializing
-    const isLoading = userLoading;
+    // Block initial render while auth state OR user profile (for roles) is initializing
+    const isLoading = userLoading || (!!user && profileLoading);
 
     // Real-time self-healing claims check
     useEffect(() => {
