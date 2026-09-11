@@ -231,18 +231,8 @@ export function ReceptionClient({
             });
         }
 
-        if (role !== 'tablet' && erpItems && Array.isArray(erpItems)) {
-            erpItems.forEach(item => {
-                if (!item) return;
-                options.push({
-                    value: `erp_${item.id || ''}`,
-                    label: `📦 ${item.name || 'Ингредиент'}`
-                });
-            });
-        }
-
         return options;
-    }, [contractorItems, erpItems, role]);
+    }, [contractorItems, erpItems]);
 
     useEffect(() => {
         if (orgId && supplierId) {
@@ -458,21 +448,6 @@ export function ReceptionClient({
                         itemId: ci.linkedErpItemId,
                         originalName: ci.supplierName,
                         name: erp?.name || ci.supplierName
-                    };
-                    return next;
-                });
-            }
-        } else if (val.startsWith('erp_')) {
-            const erpId = val.replace('erp_', '');
-            const erp = erpItems?.find(i => i.id === erpId);
-            if (erp) {
-                setScannedItems(prev => {
-                    const next = [...prev];
-                    next[index] = {
-                        ...next[index],
-                        itemId: erp.id,
-                        originalName: erp.name,
-                        name: erp.name
                     };
                     return next;
                 });
@@ -734,8 +709,6 @@ export function ReceptionClient({
                                             const matchingCi = contractorItems.find(ci => ci.linkedErpItemId === item.itemId && (ci.supplierName === item.originalName || !item.originalName));
                                             if (matchingCi) {
                                                 selectedCombinedValue = `ci_${matchingCi.id}`;
-                                            } else {
-                                                selectedCombinedValue = `erp_${item.itemId}`;
                                             }
                                         }
 
