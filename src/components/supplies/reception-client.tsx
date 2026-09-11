@@ -656,7 +656,7 @@ export function ReceptionClient({
                         <CardHeader className="bg-slate-50 dark:bg-slate-900/40 border-b p-6 rounded-t-[2rem] flex flex-row items-center justify-between">
                             <div>
                                 <CardTitle className="text-lg">Товары в накладной</CardTitle>
-                                <CardDescription>Заполните номенклатуру поставщика, сопоставьте с Poster и укажите цены.</CardDescription>
+                                <CardDescription>Выберите товары из списка, укажите количество и цены.</CardDescription>
                             </div>
                             <Button 
                                 type="button" 
@@ -797,12 +797,7 @@ export function ReceptionClient({
                                                     </div>
                                                 )}
 
-                                                {!item.itemId && (
-                                                    <div className="text-xs font-semibold text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-100 flex items-center gap-1.5 animate-in slide-in-from-top-1 duration-200">
-                                                        <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                                                        Пожалуйста, свяжите этот товар с ингредиентом из Poster для проведения накладной!
-                                                    </div>
-                                                )}
+
 
                                                 {/* Quantities & Price Grid */}
                                                 <div className="grid grid-cols-3 gap-3 bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
@@ -873,10 +868,10 @@ export function ReceptionClient({
                                 <div className="text-center text-[10px] font-black uppercase tracking-wide text-rose-600 bg-rose-50 p-3.5 rounded-2xl border border-rose-100 flex items-center justify-center gap-1.5 animate-in slide-in-from-bottom-2 duration-300">
                                     <AlertTriangle className="w-4 h-4" />
                                     {hasUnlinkedItems && hasEmptyFacts && (
-                                        <span>Свяжите все товары с Poster и заполните фактическое количество (Факт)!</span>
+                                        <span>Выберите товары из списка и заполните фактическое количество!</span>
                                     )}
                                     {hasUnlinkedItems && !hasEmptyFacts && (
-                                        <span>Свяжите все товары с Poster для проведения поставки!</span>
+                                        <span>Выберите товары из списка для проведения поставки!</span>
                                     )}
                                     {!hasUnlinkedItems && hasEmptyFacts && (
                                         <span>Заполните фактическое количество (Факт) для всех позиций!</span>
