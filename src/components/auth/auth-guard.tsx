@@ -11,6 +11,7 @@ import { useMemoFirebase } from '@/firebase/provider';
 import { EmployeeLayout } from '../layout/employee-layout';
 import { UserRole } from '@/lib/types/erp';
 import { Sidebar } from '../layout/sidebar';
+import { MobileBottomNav } from '../layout/mobile-bottom-nav';
 
 const publicPaths = ['/login', '/register'];
 
@@ -172,9 +173,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
                     <div className="md:hidden">
                       <Header />
                     </div>
-                    <main className="flex-1 p-4 md:p-8 lg:p-10 animate-in fade-in zoom-in-95 duration-500">
+                    <main className="flex-1 p-4 pb-28 md:pb-8 md:p-8 lg:p-10 animate-in fade-in zoom-in-95 duration-500">
                       {children}
                     </main>
+                    <div className="md:hidden">
+                      <MobileBottomNav />
+                    </div>
                   </div>
                 </div>
             );
