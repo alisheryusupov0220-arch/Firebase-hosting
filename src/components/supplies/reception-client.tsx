@@ -129,7 +129,7 @@ export function ReceptionClient({
     suppliers: any[];
 }) {
     const { toast } = useToast();
-    const { orgId, user, firebaseApp } = useFirebase();
+    const { orgId, user, firebaseApp, role } = useFirebase();
     const firestore = useFirestore();
 
     // 1. Fetch local items and suppliers
@@ -231,7 +231,7 @@ export function ReceptionClient({
             });
         }
 
-        if (erpItems && Array.isArray(erpItems)) {
+        if (role !== 'tablet' && erpItems && Array.isArray(erpItems)) {
             erpItems.forEach(item => {
                 if (!item) return;
                 options.push({
@@ -242,7 +242,7 @@ export function ReceptionClient({
         }
 
         return options;
-    }, [contractorItems, erpItems]);
+    }, [contractorItems, erpItems, role]);
 
     useEffect(() => {
         if (orgId && supplierId) {
