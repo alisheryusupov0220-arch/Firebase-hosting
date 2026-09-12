@@ -13,8 +13,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { ScanFace, RefreshCw, UploadCloud, CheckCircle2, AlertCircle, Sparkles, Landmark } from 'lucide-react';
+import { ScanFace, RefreshCw, UploadCloud, CheckCircle2, AlertCircle, Sparkles, Landmark, Wallet, EyeOff } from 'lucide-react';
 import { createContractorAction } from './actions';
 import { scanContractorInvoiceAction, parseContractorTextAction } from './ai-ocr-actions';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +29,8 @@ interface ScannedData {
     bankCode: string;
     bankName: string;
     phone: string;
+    allowCash?: boolean;
+    isHiddenForStaff?: boolean;
 }
 
 export function ScanContractorDialog() {
@@ -67,7 +70,7 @@ export function ScanContractorDialog() {
             const result = await parseContractorTextAction(pasteText);
             if (result.success && result.data) {
                 setScanned(result.data as ScannedData);
-                setEditData(result.data as ScannedData);
+                setEditData({ ...(result.data as ScannedData), allowCash: true, isHiddenForStaff: false });
                 setStep('preview');
                 toast({ title: '✓ Текст распознан', description: 'Проверьте извлеченные реквизиты' });
             } else {
@@ -94,7 +97,7 @@ export function ScanContractorDialog() {
                 const result = await scanContractorInvoiceAction(base64);
                 if (result.success && result.data) {
                     setScanned(result.data as ScannedData);
-                    setEditData(result.data as ScannedData);
+                    setEditData({ ...(result.data as ScannedData), allowCash: true, isHiddenForStaff: false });
                     setStep('preview');
                     toast({ title: '✓ ИИ считал реквизиты', description: 'Проверьте данные и нажмите «Зарегистрировать»' });
                 } else {
@@ -297,6 +300,35 @@ export function ScanContractorDialog() {
                                                 className="h-10 rounded-xl bg-white border-2 border-slate-100 shadow-sm font-black text-xs"
                                             />
                                         </div>
+                                    </div>
+                                </div>
+
+                                <div className="p-6 bg-slate-50 rounded-[2rem] space-y-4 border-2 border-white shadow-inner">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-emerald-100 rounded-xl"><Wallet className="h-4 w-4 text-emerald-600" /></div>
+                                            <div>
+                                                <p className="text-xs font-black uppercase tracking-tight">Наличные переводы</p>
+                                                <p className="text-[9px] font-bold text-slate-500 leading-none">Разрешить оплату наличными</p>
+                                            </div>
+                                        </div>
+                                        <Switch 
+                                            checked={editData.allowCash ?? true}
+                                            onCheckedChange={(checked) => setEditData({ ...editData, allowCash: checked })} 
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-rose-100 rounded-xl"><EyeOff className="h-4 w-4 text-rose-600" /></div>
+                                            <div>
+                                                <p className="text-xs font-black uppercase tracking-tight">Скрыть от сотрудников</p>
+                                                <p className="text-[9px] font-bold text-slate-500 leading-none">Не показывать на планшете</p>
+                                            </div>
+                                        </div>
+                                        <Switch 
+                                            checked={editData.isHiddenForStaff ?? false}
+                                            onCheckedChange={(checked) => setEditData({ ...editData, isHiddenForStaff: checked })} 
+                                        />
                                     </div>
                                 </div>
                             </div>
