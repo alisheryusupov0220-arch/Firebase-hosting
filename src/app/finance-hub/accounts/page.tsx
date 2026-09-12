@@ -206,12 +206,12 @@ export default function TreasuryPage() {
                         {accounts?.map((acc) => {
                             const comp = companies?.find(c => c.id === acc.companyId);
                             return (
-                                <Card key={acc.id} className="rounded-[2.5rem] border-none shadow-2xl bg-white overflow-hidden group">
+                                <Card key={acc.id} className="rounded-[2.5rem] border-none shadow-2xl bg-card dark:bg-slate-900 overflow-hidden group">
                                     <CardHeader className="bg-primary/5 py-6">
                                         <div className="flex justify-between items-start">
                                             <div>
                                                 <CardTitle className="text-xl font-black uppercase tracking-tight mb-1">{acc.bankName}</CardTitle>
-                                                <Badge className="bg-white text-primary border-none shadow-sm font-black text-[9px] uppercase tracking-widest">
+                                                <Badge className="bg-card dark:bg-slate-900 text-primary border-none shadow-sm font-black text-[9px] uppercase tracking-widest">
                                                     {comp?.brandName || '---'}
                                                 </Badge>
                                             </div>
@@ -221,16 +221,16 @@ export default function TreasuryPage() {
                                     <CardContent className="p-6 space-y-6">
                                         <div className="space-y-1">
                                             <p className="text-[8px] font-black uppercase text-muted-foreground tracking-[0.2em]">Номер Счета</p>
-                                            <p className="text-sm font-mono font-bold tracking-widest text-slate-800">{acc.accountNumber}</p>
+                                            <p className="text-sm font-mono font-bold tracking-widest text-slate-800 dark:text-slate-200">{acc.accountNumber}</p>
                                         </div>
-                                        <div className="flex justify-between items-end border-t border-slate-50 pt-4">
+                                        <div className="flex flex-col xl:flex-row xl:justify-between xl:items-end gap-4 border-t border-slate-50 dark:border-slate-800 dark:border-slate-800 pt-4">
                                             <div className="space-y-1">
                                                 <p className="text-[8px] font-black uppercase text-muted-foreground tracking-[0.2em]">Доступный остаток</p>
-                                                <p className="text-2xl font-black tracking-tighter text-slate-900 line-clamp-1">
+                                                <p className="text-2xl font-black tracking-tighter text-slate-900 dark:text-white line-clamp-1">
                                                     {(acc.balance || 0).toLocaleString()} <span className="text-[10px] text-muted-foreground">{acc.currency || 'UZS'}</span>
                                                 </p>
                                             </div>
-                                            <Button variant="ghost" size="icon" className="rounded-xl h-10 w-10 hover:bg-slate-50">
+                                            <Button variant="ghost" size="icon" className="rounded-xl h-10 w-10 hover:bg-slate-50 dark:bg-slate-800/50">
                                                 <Settings2 className="w-5 h-5 text-slate-400" />
                                             </Button>
                                         </div>
@@ -245,12 +245,12 @@ export default function TreasuryPage() {
                 <TabsContent value="companies" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {companies?.map((comp) => (
-                            <Card key={comp.id} className="rounded-[2.5rem] border-none shadow-2xl bg-white overflow-hidden group">
+                            <Card key={comp.id} className="rounded-[2.5rem] border-none shadow-2xl bg-card dark:bg-slate-900 overflow-hidden group">
                                 <CardHeader className="bg-primary/5 py-6">
                                     <div className="flex justify-between items-start">
                                         <div>
                                             <CardTitle className="text-xl font-black uppercase tracking-tight mb-1">{comp.brandName}</CardTitle>
-                                            <Badge className="bg-white text-primary border-none shadow-sm font-black text-[9px] uppercase tracking-widest">
+                                            <Badge className="bg-card dark:bg-slate-900 text-primary border-none shadow-sm font-black text-[9px] uppercase tracking-widest">
                                                 Юрлицо
                                             </Badge>
                                         </div>
@@ -260,13 +260,13 @@ export default function TreasuryPage() {
                                 <CardContent className="p-6 space-y-6">
                                     <div className="space-y-1">
                                         <p className="text-[8px] font-black uppercase text-muted-foreground tracking-[0.2em]">Официальное название</p>
-                                        <p className="text-sm font-bold text-slate-800">{comp.legalName}</p>
+                                        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{comp.legalName}</p>
                                     </div>
                                     <div className="space-y-1">
                                         <p className="text-[8px] font-black uppercase text-muted-foreground tracking-[0.2em]">ИНН Фирмы</p>
-                                        <p className="text-sm font-mono font-bold text-slate-800">{comp.inn}</p>
+                                        <p className="text-sm font-mono font-bold text-slate-800 dark:text-slate-200">{comp.inn}</p>
                                     </div>
-                                    <div className="flex justify-between items-end border-t border-slate-50 pt-4">
+                                    <div className="flex flex-col xl:flex-row xl:justify-between xl:items-end gap-4 border-t border-slate-50 dark:border-slate-800 dark:border-slate-800 pt-4">
                                         <div className="flex gap-2 w-full justify-end">
                                             <EditCompanyDialog company={comp} />
                                             <Button 

@@ -143,14 +143,14 @@ export function ScanContractorDialog() {
                 </Button>
             </DialogTrigger>
 
-            <DialogContent className="sm:max-w-[560px] rounded-[3.5rem] p-0 border-none shadow-2xl overflow-hidden bg-white max-h-[95vh] overflow-y-auto scrollbar-hide">
+            <DialogContent className="sm:max-w-[560px] rounded-[3.5rem] p-0 border-none shadow-2xl overflow-hidden bg-card dark:bg-slate-900 max-h-[95vh] overflow-y-auto scrollbar-hide">
                 <DialogTitle className="sr-only">AI Скан Контрагента</DialogTitle>
                 {/* HEADER */}
                 <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 p-10 pb-8">
                     <div className="flex items-start justify-between">
                         <div className="space-y-2">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-white/20 rounded-[1.2rem] backdrop-blur">
+                                <div className="p-2 bg-card dark:bg-slate-900/20 rounded-[1.2rem] backdrop-blur">
                                     <ScanFace className="w-6 h-6 text-white" />
                                 </div>
                                 <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-100">AI Scanner</span>
@@ -209,7 +209,7 @@ export function ScanContractorDialog() {
                             <div className="space-y-3">
                                 <Textarea 
                                     placeholder="Вставьте скопированный текст реквизитов из Didox / Telegram..." 
-                                    className="min-h-[120px] rounded-2xl border-2 border-slate-100 bg-slate-50 focus-visible:ring-emerald-500"
+                                    className="min-h-[120px] rounded-2xl border-2 border-slate-100 bg-slate-50 dark:bg-slate-800/50 focus-visible:ring-emerald-500"
                                     value={pasteText}
                                     onChange={(e) => setPasteText(e.target.value)}
                                     disabled={ocrLoading}
@@ -248,7 +248,7 @@ export function ScanContractorDialog() {
                                     <Input 
                                         value={editData.name}
                                         onChange={e => setEditData({...editData, name: e.target.value})}
-                                        className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black text-sm uppercase"
+                                        className="h-14 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-none shadow-inner font-black text-sm uppercase"
                                     />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
@@ -257,7 +257,7 @@ export function ScanContractorDialog() {
                                         <Input 
                                             value={editData.inn}
                                             onChange={e => setEditData({...editData, inn: e.target.value})}
-                                            className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-black font-mono"
+                                            className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-none shadow-inner font-black font-mono"
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -265,12 +265,12 @@ export function ScanContractorDialog() {
                                         <Input 
                                             value={editData.phone}
                                             onChange={e => setEditData({...editData, phone: e.target.value})}
-                                            className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-black"
+                                            className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-none shadow-inner font-black"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="p-6 bg-slate-50 rounded-[2rem] space-y-4 border-2 border-white shadow-inner">
+                                <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] space-y-4 border-2 border-white shadow-inner">
                                     <div className="flex items-center gap-2">
                                         <Landmark className="h-4 w-4 text-indigo-500" />
                                         <span className="text-[10px] font-black uppercase text-indigo-600 tracking-widest">Банковские реквизиты</span>
@@ -280,7 +280,7 @@ export function ScanContractorDialog() {
                                         <Input 
                                             value={editData.bankAccount}
                                             onChange={e => setEditData({...editData, bankAccount: e.target.value})}
-                                            className="h-12 rounded-xl bg-white border-2 border-slate-100 shadow-sm font-mono font-black text-sm"
+                                            className="h-12 rounded-xl bg-card dark:bg-slate-900 border-2 border-slate-100 shadow-sm font-mono font-black text-sm"
                                         />
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
@@ -289,7 +289,7 @@ export function ScanContractorDialog() {
                                             <Input 
                                                 value={editData.bankCode}
                                                 onChange={e => setEditData({...editData, bankCode: e.target.value})}
-                                                className="h-10 rounded-xl bg-white border-2 border-slate-100 shadow-sm font-mono font-black"
+                                                className="h-10 rounded-xl bg-card dark:bg-slate-900 border-2 border-slate-100 shadow-sm font-mono font-black"
                                             />
                                         </div>
                                         <div className="space-y-2">
@@ -297,13 +297,13 @@ export function ScanContractorDialog() {
                                             <Input 
                                                 value={editData.bankName}
                                                 onChange={e => setEditData({...editData, bankName: e.target.value})}
-                                                className="h-10 rounded-xl bg-white border-2 border-slate-100 shadow-sm font-black text-xs"
+                                                className="h-10 rounded-xl bg-card dark:bg-slate-900 border-2 border-slate-100 shadow-sm font-black text-xs"
                                             />
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="p-6 bg-slate-50 rounded-[2rem] space-y-4 border-2 border-white shadow-inner">
+                                <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] space-y-4 border-2 border-white shadow-inner">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
                                             <div className="p-2 bg-emerald-100 rounded-xl"><Wallet className="h-4 w-4 text-emerald-600" /></div>

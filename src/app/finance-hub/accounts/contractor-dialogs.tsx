@@ -105,7 +105,7 @@ export function AddContractorDialog() {
                     <UserPlus className="w-4 h-4 mr-2" /> Добавить Контрагента
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[550px] rounded-[3.5rem] p-12 border-none shadow-2xl overflow-y-auto max-h-[95vh] bg-white scrollbar-hide">
+            <DialogContent className="sm:max-w-[550px] rounded-[3.5rem] p-12 border-none shadow-2xl overflow-y-auto max-h-[95vh] bg-card dark:bg-slate-900 scrollbar-hide">
                 <DialogHeader>
                     <div className="flex justify-between items-start">
                         <DialogTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3">
@@ -135,21 +135,21 @@ export function AddContractorDialog() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label className="text-[10px] uppercase font-black ml-1 text-slate-400 tracking-widest">Юр. Название (ООО/ИП)</Label>
-                                <Input {...register('name', { required: true })} placeholder="ООО Название" className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black text-xs uppercase pl-4" />
+                                <Input {...register('name', { required: true })} placeholder="ООО Название" className="h-14 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-none shadow-inner font-black text-xs uppercase pl-4" />
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-[10px] uppercase font-black ml-1 text-slate-400 tracking-widest">Имя для Сотрудников (Alias)</Label>
-                                <Input {...register('alias')} placeholder="Напр: Картошка Фри" className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black text-xs uppercase pl-4" />
+                                <Input {...register('alias')} placeholder="Напр: Картошка Фри" className="h-14 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-none shadow-inner font-black text-xs uppercase pl-4" />
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label className="text-[10px] uppercase font-black ml-1 text-slate-400">ИНН (Налоговый ID)</Label>
-                                <Input {...register('inn')} placeholder="9 или 10 цифр" className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black pl-4" />
+                                <Input {...register('inn')} placeholder="9 или 10 цифр" className="h-14 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-none shadow-inner font-black pl-4" />
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-[10px] uppercase font-black ml-1 text-slate-400">Контакт</Label>
-                                <Input {...register('phone')} placeholder="+998" className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black pl-4" />
+                                <Input {...register('phone')} placeholder="+998" className="h-14 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-none shadow-inner font-black pl-4" />
                             </div>
                         </div>
 
@@ -169,7 +169,7 @@ export function AddContractorDialog() {
                             />
                         </div>
 
-                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100">
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-slate-200 rounded-xl">
                                     <Eye className="w-5 h-5 text-slate-600" />
@@ -185,7 +185,7 @@ export function AddContractorDialog() {
                             />
                         </div>
                     </div>
-                    <div className="p-8 bg-slate-50 rounded-[3rem] border-2 border-white shadow-[0_15px_30px_-5px_rgba(0,0,0,0.03)] space-y-6">
+                    <div className="p-8 bg-slate-50 dark:bg-slate-800/50 rounded-[3rem] border-2 border-white shadow-[0_15px_30px_-5px_rgba(0,0,0,0.03)] space-y-6">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-indigo-100 rounded-xl"><Landmark className="h-4 w-4 text-indigo-600" /></div>
                             <Label className="text-[11px] uppercase font-black text-indigo-600 tracking-[0.2em]">Банковская логистика</Label>
@@ -193,16 +193,16 @@ export function AddContractorDialog() {
                         <div className="grid gap-4">
                             <div className="space-y-1.5 px-1">
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Расчетный счет (20 цифр)</p>
-                                <Input {...register('bankAccount')} placeholder="20208..." className="h-12 rounded-xl bg-white border-2 border-slate-100 shadow-sm font-mono text-sm font-black p-4" />
+                                <Input {...register('bankAccount')} placeholder="20208..." className="h-12 rounded-xl bg-card dark:bg-slate-900 border-2 border-slate-100 shadow-sm font-mono text-sm font-black p-4" />
                             </div>
                             <div className="grid grid-cols-2 gap-3 px-1">
                                 <div className="space-y-1.5 flex-1">
                                     <p className="text-[9px] font-black text-slate-400 uppercase ml-1">МФО Банка</p>
-                                    <Input {...register('bankCode')} placeholder="01018" className="h-12 rounded-xl bg-white border-2 border-slate-100 shadow-sm font-black text-xs p-4" />
+                                    <Input {...register('bankCode')} placeholder="01018" className="h-12 rounded-xl bg-card dark:bg-slate-900 border-2 border-slate-100 shadow-sm font-black text-xs p-4" />
                                 </div>
                                 <div className="space-y-1.5 flex-1">
                                     <p className="text-[9px] font-black text-slate-400 uppercase ml-1">Имя Банка</p>
-                                    <Input {...register('bankName')} placeholder="Капиталбанк" className="h-12 rounded-xl bg-white border-2 border-slate-100 shadow-sm font-black text-xs p-4" />
+                                    <Input {...register('bankName')} placeholder="Капиталбанк" className="h-12 rounded-xl bg-card dark:bg-slate-900 border-2 border-slate-100 shadow-sm font-black text-xs p-4" />
                                 </div>
                             </div>
                         </div>
@@ -269,7 +269,7 @@ export function EditContractorDialog({ contractor }: { contractor: Contractor })
                     <Pencil className="w-4 h-4" />
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px] rounded-[3.5rem] p-12 border-none shadow-2xl overflow-y-auto max-h-[95vh] bg-white scrollbar-hide">
+            <DialogContent className="sm:max-w-[500px] rounded-[3.5rem] p-12 border-none shadow-2xl overflow-y-auto max-h-[95vh] bg-card dark:bg-slate-900 scrollbar-hide">
                 <DialogHeader>
                     <DialogTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3 mb-2">
                         <div className="p-3 bg-slate-100 rounded-[1.5rem]">
@@ -286,21 +286,21 @@ export function EditContractorDialog({ contractor }: { contractor: Contractor })
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label className="text-[10px] uppercase font-black text-slate-400 tracking-widest ml-1">Наименование</Label>
-                                <Input {...register('name')} className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black uppercase" />
+                                <Input {...register('name')} className="h-14 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-none shadow-inner font-black uppercase" />
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-[10px] uppercase font-black text-slate-400 tracking-widest ml-1">Alias (Для Сотрудников)</Label>
-                                <Input {...register('alias')} className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black uppercase" />
+                                <Input {...register('alias')} className="h-14 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-none shadow-inner font-black uppercase" />
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label className="text-[10px] uppercase font-black text-slate-400 ml-1">ИНН</Label>
-                                <Input {...register('inn')} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-mono font-black" />
+                                <Input {...register('inn')} className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-none shadow-inner font-mono font-black" />
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-[10px] uppercase font-black text-slate-400 ml-1">Телефон</Label>
-                                <Input {...register('phone')} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-black" />
+                                <Input {...register('phone')} className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-none shadow-inner font-black" />
                             </div>
                         </div>
 
@@ -320,7 +320,7 @@ export function EditContractorDialog({ contractor }: { contractor: Contractor })
                             />
                         </div>
 
-                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100">
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-slate-200 rounded-xl">
                                     <Eye className="w-5 h-5 text-slate-600" />
@@ -336,23 +336,23 @@ export function EditContractorDialog({ contractor }: { contractor: Contractor })
                             />
                         </div>
 
-                        <div className="p-6 bg-slate-50 rounded-[2rem] space-y-4 border-2 border-white">
+                        <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] space-y-4 border-2 border-white">
                             <div className="flex items-center gap-2">
                                 <Landmark className="h-4 w-4 text-indigo-500" />
                                 <span className="text-[10px] font-black uppercase text-indigo-600 tracking-widest">Банковские реквизиты</span>
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-[9px] uppercase font-black text-slate-400 ml-1">Расчетный счет</Label>
-                                <Input {...register('bankAccount')} className="h-12 rounded-xl bg-white border-2 border-slate-100 font-mono font-black" />
+                                <Input {...register('bankAccount')} className="h-12 rounded-xl bg-card dark:bg-slate-900 border-2 border-slate-100 font-mono font-black" />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-2">
                                     <Label className="text-[9px] uppercase font-black text-slate-400 ml-1">МФО</Label>
-                                    <Input {...register('bankCode')} className="h-10 rounded-xl bg-white border-2 border-slate-100 font-mono font-black" />
+                                    <Input {...register('bankCode')} className="h-10 rounded-xl bg-card dark:bg-slate-900 border-2 border-slate-100 font-mono font-black" />
                                 </div>
                                 <div className="space-y-2">
                                     <Label className="text-[9px] uppercase font-black text-slate-400 ml-1">Банк</Label>
-                                    <Input {...register('bankName')} className="h-10 rounded-xl bg-white border-2 border-slate-100 font-black text-xs" />
+                                    <Input {...register('bankName')} className="h-10 rounded-xl bg-card dark:bg-slate-900 border-2 border-slate-100 font-black text-xs" />
                                 </div>
                             </div>
                         </div>
@@ -453,12 +453,12 @@ export function ContractorHistoryDialog({ contractor }: { contractor: Contractor
                     История <Calendar className="ml-2 h-3 w-3" />
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[560px] rounded-[3.5rem] p-0 border-none shadow-2xl overflow-hidden bg-white max-h-[90vh] flex flex-col">
+            <DialogContent className="sm:max-w-[560px] rounded-[3.5rem] p-0 border-none shadow-2xl overflow-hidden bg-card dark:bg-slate-900 max-h-[90vh] flex flex-col">
                 <DialogTitle className="sr-only">История операций</DialogTitle>
                 {/* HEADER */}
                 <div className="bg-primary p-10 pb-8 flex-shrink-0">
                     <div className="flex items-center gap-4 mb-6">
-                        <div className="p-3 bg-white/20 rounded-[1.5rem]">
+                        <div className="p-3 bg-card dark:bg-slate-900/20 rounded-[1.5rem]">
                             <Calendar className="w-6 h-6 text-white" />
                         </div>
                         <div>
@@ -468,11 +468,11 @@ export function ContractorHistoryDialog({ contractor }: { contractor: Contractor
                     </div>
                     {/* ИТОГИ */}
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white/10 backdrop-blur p-5 rounded-[2rem]">
+                        <div className="bg-card dark:bg-slate-900/10 backdrop-blur p-5 rounded-[2rem]">
                             <p className="text-[9px] font-black uppercase text-white/60 tracking-widest mb-1">Расход (нам)</p>
                             <p className="text-2xl font-black text-white">{totalExpense.toLocaleString()} <span className="text-xs text-white/60">сум</span></p>
                         </div>
-                        <div className="bg-white/10 backdrop-blur p-5 rounded-[2rem]">
+                        <div className="bg-card dark:bg-slate-900/10 backdrop-blur p-5 rounded-[2rem]">
                             <p className="text-[9px] font-black uppercase text-white/60 tracking-widest mb-1">Приход (от них)</p>
                             <p className="text-2xl font-black text-emerald-300">{totalIncome.toLocaleString()} <span className="text-xs text-white/40">сум</span></p>
                         </div>
@@ -497,7 +497,7 @@ export function ContractorHistoryDialog({ contractor }: { contractor: Contractor
                         const dateObj = t.displayDate ? (t.displayDate.toDate ? t.displayDate.toDate() : new Date(t.displayDate)) : null;
                         
                         return (
-                            <div key={t.id} className="flex items-center gap-4 p-5 bg-slate-50 rounded-[2rem] hover:bg-slate-100 transition-colors relative group/item">
+                            <div key={t.id} className="flex items-center gap-4 p-5 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] hover:bg-slate-100 transition-colors relative group/item">
                                 <div className={cn(
                                     "p-3 rounded-[1.2rem]", 
                                     isInv 
@@ -627,13 +627,13 @@ export function ContractorIngredientsDialog({ contractor }: { contractor: Contra
                     Ингредиенты <ShoppingBag className="h-3.5 w-3.5" />
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[700px] rounded-[3.5rem] p-0 border-none shadow-2xl overflow-hidden bg-white max-h-[90vh] flex flex-col">
+            <DialogContent className="sm:max-w-[700px] rounded-[3.5rem] p-0 border-none shadow-2xl overflow-hidden bg-card dark:bg-slate-900 max-h-[90vh] flex flex-col">
                 <DialogTitle className="sr-only">Ингредиенты поставщика</DialogTitle>
                 
                 {/* HEADER */}
                 <div className="bg-pink-600 p-10 pb-8 flex-shrink-0">
                     <div className="flex items-center gap-4 mb-6">
-                        <div className="p-3 bg-white/20 rounded-[1.5rem]">
+                        <div className="p-3 bg-card dark:bg-slate-900/20 rounded-[1.5rem]">
                             <ShoppingBag className="w-6 h-6 text-white" />
                         </div>
                         <div>
@@ -651,10 +651,10 @@ export function ContractorIngredientsDialog({ contractor }: { contractor: Contra
                             placeholder="Найти в справочнике Poster..." 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="h-14 rounded-2xl bg-white/10 border-none text-white placeholder:text-pink-200 pl-11 font-bold text-sm"
+                            className="h-14 rounded-2xl bg-card dark:bg-slate-900/10 border-none text-white placeholder:text-pink-200 pl-11 font-bold text-sm"
                         />
                         {searchTerm && (
-                            <div className="absolute top-16 left-0 right-0 bg-white rounded-2xl shadow-2xl z-50 p-3 space-y-1">
+                            <div className="absolute top-16 left-0 right-0 bg-card dark:bg-slate-900 rounded-2xl shadow-2xl z-50 p-3 space-y-1">
                                 {filtered.length === 0 && <p className="text-[10px] uppercase font-black text-slate-400 p-3">Ничего не найдено</p>}
                                 {filtered.map(ing => (
                                     <div key={ing.id} onClick={() => { handleAddItem(ing); setSearchTerm(''); }}
@@ -672,13 +672,13 @@ export function ContractorIngredientsDialog({ contractor }: { contractor: Contra
                 </div>
 
                 {/* СПИСОК ПРИВЯЗАННЫХ */}
-                <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-4 scrollbar-hide bg-slate-50">
+                <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-4 scrollbar-hide bg-slate-50 dark:bg-slate-800/50">
                     <div className="flex items-center justify-between mb-2">
                         <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Привязанные позиции ({priceList.length})</h3>
                     </div>
                     
                     {priceList.length === 0 && (
-                        <div className="text-center py-16 bg-white rounded-[2rem] border-2 border-dashed border-slate-200">
+                        <div className="text-center py-16 bg-card dark:bg-slate-900 rounded-[2rem] border-2 border-dashed border-slate-200">
                             <Tags className="h-12 w-12 text-slate-200 mx-auto mb-3" />
                             <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Прайс-лист пока пуст</p>
                         </div>
@@ -686,7 +686,7 @@ export function ContractorIngredientsDialog({ contractor }: { contractor: Contra
 
                     <div className="grid gap-3">
                         {priceList.map(item => (
-                            <div key={item.id} className="bg-white p-5 rounded-[2rem] shadow-sm flex items-center gap-4 group hover:shadow-md transition-all">
+                            <div key={item.id} className="bg-card dark:bg-slate-900 p-5 rounded-[2rem] shadow-sm flex items-center gap-4 group hover:shadow-md transition-all">
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-black uppercase truncate">{item.name}</p>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.unit}</p>
@@ -710,7 +710,7 @@ export function ContractorIngredientsDialog({ contractor }: { contractor: Contra
                 </div>
 
                 {/* FOOTER */}
-                <div className="p-8 bg-white border-t flex-shrink-0">
+                <div className="p-8 bg-card dark:bg-slate-900 border-t flex-shrink-0">
                     <Button disabled={loading} onClick={handleSave}
                         className="w-full h-16 rounded-[2rem] bg-pink-600 hover:bg-black font-black uppercase text-xs tracking-[0.2em] shadow-xl transition-all active:scale-95">
                         {loading ? <RotateCw className="h-5 w-5 animate-spin" /> : 'Зафиксировать прайс-лист'}
@@ -803,11 +803,11 @@ export function PaySupplierDialog({ contractor, accounts }: { contractor: Contra
                 <form onSubmit={onSubmit} className="space-y-6 pt-4">
                     <div className="space-y-2">
                         <Label className="text-[10px] uppercase font-black text-slate-400 ml-1">Сумма Оплаты (UZS)</Label>
-                        <Input required type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-14 rounded-2xl bg-slate-50 border-none font-black text-lg pl-4" placeholder="0" />
+                        <Input required type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-14 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-none font-black text-lg pl-4" placeholder="0" />
                     </div>
                     <div className="space-y-2">
                         <Label className="text-[10px] uppercase font-black text-slate-400 ml-1">Счет списания</Label>
-                        <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className="w-full h-14 rounded-2xl bg-slate-50 border-none font-bold text-sm px-4 outline-none">
+                        <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className="w-full h-14 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-none font-bold text-sm px-4 outline-none">
                             <option value="">Внешний (не учитывать на наших счетах)</option>
                             {accounts.map(acc => (
                                 <option key={acc.id} value={acc.id}>{acc.bankName} - {acc.accountNumber}</option>
@@ -816,7 +816,7 @@ export function PaySupplierDialog({ contractor, accounts }: { contractor: Contra
                     </div>
                     <div className="space-y-2">
                         <Label className="text-[10px] uppercase font-black text-slate-400 ml-1">Комментарий</Label>
-                        <Textarea value={comment} onChange={(e) => setComment(e.target.value)} className="rounded-2xl bg-slate-50 border-none font-medium resize-none p-4" placeholder="За что оплата?" />
+                        <Textarea value={comment} onChange={(e) => setComment(e.target.value)} className="rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-none font-medium resize-none p-4" placeholder="За что оплата?" />
                     </div>
                     <div className="space-y-2">
                         <Label className="text-[10px] uppercase font-black text-slate-400 ml-1">Скан / Фото перевода (обязательно)</Label>
