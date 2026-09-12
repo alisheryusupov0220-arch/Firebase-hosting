@@ -11,11 +11,12 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScanFace, RefreshCw, UploadCloud, CheckCircle2, AlertCircle, Sparkles, Landmark } from 'lucide-react';
 import { createContractorAction } from './actions';
-import { scanContractorInvoiceAction } from './ai-ocr-actions';
+import { scanContractorInvoiceAction, parseContractorTextAction } from './ai-ocr-actions';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useFirebase } from '@/firebase/provider';
@@ -39,6 +40,7 @@ export function ScanContractorDialog() {
     const [preview, setPreview] = useState<string | null>(null);
     const [scanned, setScanned] = useState<ScannedData | null>(null);
     const [editData, setEditData] = useState<ScannedData | null>(null);
+    const [pasteText, setPasteText] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     function handleReset() {
@@ -46,12 +48,36 @@ export function ScanContractorDialog() {
         setPreview(null);
         setScanned(null);
         setEditData(null);
+        setPasteText('');
         if (fileInputRef.current) fileInputRef.current.value = '';
     }
 
     function handleClose(isOpen: boolean) {
         setOpen(isOpen);
         if (!isOpen) handleReset();
+    }
+
+    async function handleTextParse() {
+        if (!pasteText.trim()) {
+            toast({ variant: 'destructive', title: 'Ошибка', description: 'Текст не может быть пустым' });
+            return;
+        }
+        setOcrLoading(true);
+        try {
+            const result = await parseContractorTextAction(pasteText);
+            if (result.success && result.data) {
+                setScanned(result.data as ScannedData);
+                setEditData(result.data as ScannedData);
+                setStep('preview');
+                toast({ title: '✓ Текст распознан', description: 'Проверьте извлеченные реквизиты' });
+            } else {
+                toast({ variant: 'destructive', title: 'ИИ не распознал текст', description: result.error || 'Попробуйте другой текст' });
+            }
+        } catch (err) {
+            toast({ variant: 'destructive', title: 'Ошибка сканера', description: 'Что-то пошло не так' });
+        } finally {
+            setOcrLoading(false);
+        }
     }
 
     async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -136,19 +162,21 @@ export function ScanContractorDialog() {
                 </div>
 
                 <div className="p-10 space-y-8">
-                    {/* STEP 1: UPLOAD */}
+                    {/* STEP 1: UPLOAD & PASTE */}
                     {step === 'upload' && (
                         <div className="space-y-6">
                             <p className="text-sm text-muted-foreground font-medium">
-                                Загрузи скриншот с реквизитами поставщика (Р/с, ИНН, МФО). ИИ сам вытащит всю информацию.
+                                Загрузите скриншот ИЛИ просто вставьте скопированный текст из Didox. ИИ сам вытащит всю информацию (МФО, Р/с, ИНН и т.д.).
                             </p>
+                            
+                            {/* Photo Upload Option */}
                             <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept="image/*" />
                             <button
                                 type="button"
                                 disabled={ocrLoading}
                                 onClick={() => fileInputRef.current?.click()}
                                 className={cn(
-                                    "w-full h-48 rounded-[3rem] border-4 border-dashed flex flex-col items-center justify-center gap-4 transition-all",
+                                    "w-full h-32 rounded-[2rem] border-4 border-dashed flex flex-col items-center justify-center gap-2 transition-all",
                                     ocrLoading 
                                         ? "border-amber-300 bg-amber-50 cursor-wait" 
                                         : "border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50 hover:border-emerald-400 cursor-pointer group"
@@ -156,17 +184,42 @@ export function ScanContractorDialog() {
                             >
                                 {ocrLoading ? (
                                     <>
-                                        <RefreshCw className="h-10 w-10 text-amber-500 animate-spin" />
-                                        <span className="text-sm font-black uppercase tracking-widest text-amber-600">ИИ анализирует...</span>
+                                        <RefreshCw className="h-6 w-6 text-amber-500 animate-spin" />
+                                        <span className="text-xs font-black uppercase tracking-widest text-amber-600">ИИ анализирует...</span>
                                     </>
                                 ) : (
                                     <>
-                                        <UploadCloud className="h-10 w-10 text-emerald-400 group-hover:text-emerald-600 transition-colors group-hover:scale-110 duration-300" />
-                                        <span className="text-sm font-black uppercase tracking-widest text-emerald-500">Выбрать скриншот</span>
-                                        <span className="text-[10px] text-muted-foreground">PNG, JPG, WEBP</span>
+                                        <UploadCloud className="h-8 w-8 text-emerald-400 group-hover:text-emerald-600 transition-colors group-hover:scale-110 duration-300" />
+                                        <span className="text-xs font-black uppercase tracking-widest text-emerald-500">Выбрать скриншот</span>
+                                        <span className="text-[9px] text-muted-foreground">PNG, JPG, WEBP (Gemini 2.5)</span>
                                     </>
                                 )}
                             </button>
+
+                            <div className="relative flex items-center py-2">
+                                <div className="flex-grow border-t border-slate-200"></div>
+                                <span className="flex-shrink-0 mx-4 text-[10px] uppercase font-black tracking-widest text-slate-400">Или текст</span>
+                                <div className="flex-grow border-t border-slate-200"></div>
+                            </div>
+
+                            {/* Text Paste Option */}
+                            <div className="space-y-3">
+                                <Textarea 
+                                    placeholder="Вставьте скопированный текст реквизитов из Didox / Telegram..." 
+                                    className="min-h-[120px] rounded-2xl border-2 border-slate-100 bg-slate-50 focus-visible:ring-emerald-500"
+                                    value={pasteText}
+                                    onChange={(e) => setPasteText(e.target.value)}
+                                    disabled={ocrLoading}
+                                />
+                                <Button 
+                                    onClick={handleTextParse} 
+                                    disabled={ocrLoading || !pasteText.trim()}
+                                    className="w-full h-12 rounded-xl bg-slate-800 hover:bg-black text-white font-black uppercase text-[10px] tracking-widest transition-all"
+                                >
+                                    {ocrLoading ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                                    Анализировать текст (Дешево - Gemini 1.5)
+                                </Button>
+                            </div>
                         </div>
                     )}
 

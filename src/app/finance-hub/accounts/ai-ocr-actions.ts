@@ -83,3 +83,75 @@ export async function scanContractorInvoiceAction(base64Image: string) {
         return { success: false, error: error.message || 'Ошибка обработки' };
     }
 }
+
+export async function parseContractorTextAction(text: string) {
+    try {
+        const settingsDoc = await adminDb.collection('system_settings').doc('ai_agent').get();
+        const settings = settingsDoc.data();
+        const apiKey = (settings?.geminiApiKey as string || '').trim() || process.env.GEMINI_API_KEY || '';
+        
+        if (!apiKey) return { success: false, error: 'API ключа нет' };
+
+        let customPrompt = "";
+        try {
+            const promptDoc = await adminDb.collection('ai_prompts').doc('contractor_ocr').get();
+            customPrompt = promptDoc.exists ? promptDoc.data()?.text : "";
+        } catch(e) { }
+
+        const defaultPrompt = `
+            Analyze this pasted text of a contractor/invoice details.
+            Return ONLY a valid JSON object with the following fields (if not found, use empty string):
+            {
+                "name": "Full legal name (e.g., OOO MISSION FOODS)",
+                "inn": "Tax ID (INN) - 9 or 10 digits",
+                "bankAccount": "Bank Account Number (20 digits ONLY, remove spaces)",
+                "bankCode": "Bank MFO (5 digits)",
+                "bankName": "Bank Name",
+                "phone": "Phone number if any"
+            }
+            CRITICAL: Return ONLY JSON. No markdown. No comments.
+        `;
+
+        const finalPrompt = customPrompt || defaultPrompt;
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ 
+            model: 'gemini-1.5-flash-8b' 
+        });
+
+        const result = await model.generateContent({
+            contents: [{
+                role: 'user',
+                parts: [
+                    { text: finalPrompt + '\n\nText to analyze:\n' + text }
+                ]
+            }],
+            generationConfig: { responseMimeType: 'application/json', temperature: 0.1 }
+        });
+
+        let responseText = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+        const jsonStart = responseText.indexOf('{');
+        const jsonEnd = responseText.lastIndexOf('}') + 1;
+        
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+            const rawJson = responseText.substring(jsonStart, jsonEnd);
+            const data = JSON.parse(rawJson);
+            return { 
+                success: true, 
+                data: {
+                    name: (data.name || '').toUpperCase().trim(),
+                    inn: (data.inn || '').replace(/\D/g, '').trim(),
+                    bankAccount: (data.bankAccount || '').replace(/\D/g, '').trim(),
+                    bankCode: (data.bankCode || '').replace(/\D/g, '').trim(),
+                    bankName: (data.bankName || '').trim(),
+                    phone: (data.phone || '').trim()
+                }
+            };
+        }
+
+        return { success: false, error: 'JSON parse failed' };
+    } catch (error: any) {
+        console.error('TEXT PARSE CRITICAL ERROR:', error);
+        return { success: false, error: error.message || 'Server error' };
+    }
+}
