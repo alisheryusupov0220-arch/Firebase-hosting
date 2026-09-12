@@ -25,6 +25,9 @@ export interface Contractor {
     bankCode?: string;
     defaultPaymentCode?: string;
 
+    // Visibility control
+    isHiddenForStaff?: boolean;
+
     // Логистика и Баланс (Перенесено из Suppliers)
     balance: number; // В копейках (типа cents)
     priceList?: Array<{

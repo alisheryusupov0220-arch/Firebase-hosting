@@ -179,6 +179,8 @@ export async function createContractorAction(orgId: string, data: Partial<Contra
             phone: data.phone || '',
             email: data.email || '',
             address: data.address || '',
+            allowCash: data.allowCash ?? true,
+            isHiddenForStaff: data.isHiddenForStaff ?? false,
             balance: 0,
             orgId,
             createdAt: FieldValue.serverTimestamp(),

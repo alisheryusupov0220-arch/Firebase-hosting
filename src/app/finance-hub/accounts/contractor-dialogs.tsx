@@ -153,7 +153,7 @@ export function AddContractorDialog() {
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between p-6 bg-amber-50/50 rounded-2xl border-2 border-amber-100/50">
+                        <div className="flex items-center justify-between p-4 bg-amber-50 rounded-2xl border border-amber-100/50">
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-amber-100 rounded-xl">
                                     <Banknote className="w-5 h-5 text-amber-600" />
@@ -166,6 +166,22 @@ export function AddContractorDialog() {
                             <Switch 
                                 onCheckedChange={(checked) => setValue('allowCash', checked)} 
                                 defaultChecked={true}
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-slate-200 rounded-xl">
+                                    <Eye className="w-5 h-5 text-slate-600" />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-black uppercase tracking-tight">Скрыть от сотрудников</p>
+                                    <p className="text-[9px] font-bold text-slate-500 leading-none">Не показывать на планшете приемки</p>
+                                </div>
+                            </div>
+                            <Switch 
+                                onCheckedChange={(checked) => setValue('isHiddenForStaff', checked)} 
+                                defaultChecked={false}
                             />
                         </div>
                     </div>
@@ -234,7 +250,8 @@ export function EditContractorDialog({ contractor }: { contractor: Contractor })
                 bankAccount: (data.bankAccount || '').replace(/\s/g, ''),
                 bankCode: data.bankCode || '',
                 bankName: data.bankName || '',
-                allowCash: data.allowCash ?? true
+                allowCash: data.allowCash ?? true,
+                isHiddenForStaff: data.isHiddenForStaff ?? false
             });
             toast({ title: 'Данные контрагента обновлены' });
             setOpen(false);
@@ -300,6 +317,22 @@ export function EditContractorDialog({ contractor }: { contractor: Contractor })
                             <Switch 
                                 onCheckedChange={(checked) => setValue('allowCash', checked)} 
                                 defaultChecked={contractor.allowCash ?? true}
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-slate-200 rounded-xl">
+                                    <Eye className="w-5 h-5 text-slate-600" />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-black uppercase tracking-tight">Скрыть от сотрудников</p>
+                                    <p className="text-[9px] font-bold text-slate-500 leading-none">Не показывать на планшете приемки</p>
+                                </div>
+                            </div>
+                            <Switch 
+                                onCheckedChange={(checked) => setValue('isHiddenForStaff', checked)} 
+                                defaultChecked={contractor.isHiddenForStaff ?? false}
                             />
                         </div>
 

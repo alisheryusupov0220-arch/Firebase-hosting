@@ -144,7 +144,7 @@ export function ReceptionClient({
     }, [firestore, orgId]);
 
     const { data: erpItems } = useCollection<ERPItem>(ingredientsQuery, { once: true });
-    const { data: suppliers } = useCollection<Contractor>(suppliersQuery, { once: true });
+    const { data: suppliers } = useCollection<Contractor>(suppliersQuery);
 
     // Step state
     // 1: Setup & Camera (Choose supplier, storage, take photo)
@@ -183,6 +183,8 @@ export function ReceptionClient({
         const addedIds = new Set<string>();
         const addedNames = new Set<string>();
 
+        const isStaff = role === 'tablet' || role === 'employee' || role === 'cashier' || role === 'kitchen';
+
         // 1. Local Firestore Contractors
         if (suppliers && Array.isArray(suppliers)) {
             suppliers.filter(Boolean).forEach(s => {
@@ -191,6 +193,12 @@ export function ReceptionClient({
                 if (id) {
                     addedIds.add(id);
                     if (name) addedNames.add(name.trim().toLowerCase());
+                    
+                    // Prevent staff from seeing hidden contractors
+                    if (isStaff && s.isHiddenForStaff) {
+                        return;
+                    }
+
                     list.push({
                         value: id,
                         label: s?.alias ? `${s.alias} (${name})` : (name || id)
